@@ -8,12 +8,12 @@ public sealed class DashboardCard
     /// <summary>
     /// Уникальный идентификатор карточки.
     /// </summary>
-    public string Id { get; set; } = string.Empty;
+    public int Id { get; set; }
 
     /// <summary>
     /// Идентификатор категории, к которой принадлежит карточка.
     /// </summary>
-    public string CategoryId { get; set; } = string.Empty;
+    public int CategoryId { get; set; }
 
     /// <summary>
     /// Отображаемое название карточки.

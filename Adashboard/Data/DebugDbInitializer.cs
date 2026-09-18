@@ -4,8 +4,14 @@ using System.Data.Common;
 
 namespace Adashboard.Data;
 
+/// <summary>
+/// Инициализирует базу данных в режиме разработки.
+/// </summary>
 public static class DebugDbInitializer
 {
+    /// <summary>
+    /// Применяет миграции и добавляет стартовые данные, если таблицы пусты.
+    /// </summary>
     public static async Task InitializeAsync(IServiceProvider services, CancellationToken cancellationToken = default)
     {
         await using var scope = services.CreateAsyncScope();
@@ -25,6 +31,9 @@ public static class DebugDbInitializer
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Добавляет запись о первой миграции для базы, созданной ранее через EnsureCreated.
+    /// </summary>
     private static async Task EnsureMigrationHistoryForLegacyDatabaseAsync(DashboardDbContext dbContext, CancellationToken cancellationToken)
     {
         var connection = dbContext.Database.GetDbConnection();
@@ -79,6 +88,9 @@ public static class DebugDbInitializer
         }
     }
 
+    /// <summary>
+    /// Проверяет существование таблицы в SQLite.
+    /// </summary>
     private static async Task<bool> TableExistsAsync(DbConnection connection, string tableName, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -89,6 +101,9 @@ public static class DebugDbInitializer
         return Convert.ToInt64(result) > 0;
     }
 
+    /// <summary>
+    /// Проверяет наличие записи о миграции в таблице истории.
+    /// </summary>
     private static async Task<bool> MigrationExistsAsync(DbConnection connection, string migrationId, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -99,6 +114,9 @@ public static class DebugDbInitializer
         return Convert.ToInt64(result) > 0;
     }
 
+    /// <summary>
+    /// Создаёт параметр команды для SQL-запроса.
+    /// </summary>
     private static DbParameter CreateParameter(DbCommand command, string name, object value)
     {
         var parameter = command.CreateParameter();
@@ -107,55 +125,58 @@ public static class DebugDbInitializer
         return parameter;
     }
 
+    /// <summary>
+    /// Формирует стартовую раскладку dashboard.
+    /// </summary>
     private static DashboardLayout CreateDefaultLayout()
     {
         var layout = new DashboardLayout
         {
-            Id = "main",
+            Id = 1,
             ThemeMode = "auto",
             Categories =
             [
                 new DashboardCategory
                 {
-                    Id = "cat-network",
-                    DashboardLayoutId = "main",
+                    Id = 101,
+                    DashboardLayoutId = 1,
                     Title = "Networking & Management",
                     Position = new CategoryPosition { Order = 0, Width = 6 },
                     Cards =
                     [
-                        CreateCard("card-nginx", "cat-network", "Nginx Proxy Manager", "https://example.local/nginx", "fa-solid fa-network-wired", "#f43f5e", true, 0),
-                        CreateCard("card-uptime", "cat-network", "Uptime Kuma", "https://example.local/uptime", "fa-solid fa-heart-pulse", "#22c55e", true, 1),
-                        CreateCard("card-portainer", "cat-network", "Portainer", "https://example.local/portainer", "fa-brands fa-docker", "#0ea5e9", true, 2),
-                        CreateCard("card-ansible", "cat-network", "Ansible", "https://example.local/ansible", "fa-solid fa-terminal", "#8b5cf6", true, 3)
+                        CreateCard(1001, 101, "Nginx Proxy Manager", "https://example.local/nginx", "fa-solid fa-network-wired", "#f43f5e", true, 0),
+                        CreateCard(1002, 101, "Uptime Kuma", "https://example.local/uptime", "fa-solid fa-heart-pulse", "#22c55e", true, 1),
+                        CreateCard(1003, 101, "Portainer", "https://example.local/portainer", "fa-brands fa-docker", "#0ea5e9", true, 2),
+                        CreateCard(1004, 101, "Ansible", "https://example.local/ansible", "fa-solid fa-terminal", "#8b5cf6", true, 3)
                     ]
                 },
                 new DashboardCategory
                 {
-                    Id = "cat-mediaserver",
-                    DashboardLayoutId = "main",
+                    Id = 102,
+                    DashboardLayoutId = 1,
                     Title = "Mediaserver",
                     Position = new CategoryPosition { Order = 1, Width = 8 },
                     Cards =
                     [
-                        CreateCard("card-jellyfin", "cat-mediaserver", "Jellyfin", "https://example.local/jellyfin", "fa-solid fa-film", "#a78bfa", true, 0),
-                        CreateCard("card-sonarr", "cat-mediaserver", "Sonarr", "https://example.local/sonarr", "fa-solid fa-satellite-dish", "#fb7185", true, 1),
-                        CreateCard("card-radarr", "cat-mediaserver", "Radarr", "https://example.local/radarr", "fa-solid fa-clapperboard", "#facc15", true, 2),
-                        CreateCard("card-bazarr", "cat-mediaserver", "Bazarr", "https://example.local/bazarr", "fa-solid fa-closed-captioning", "#60a5fa", true, 3),
-                        CreateCard("card-lidarr", "cat-mediaserver", "Lidarr", "https://example.local/lidarr", "fa-solid fa-compact-disc", "#34d399", true, 4),
-                        CreateCard("card-sab", "cat-mediaserver", "SABnzbd", "https://example.local/sab", "fa-solid fa-download", "#22d3ee", true, 5)
+                        CreateCard(2001, 102, "Jellyfin", "https://example.local/jellyfin", "fa-solid fa-film", "#a78bfa", true, 0),
+                        CreateCard(2002, 102, "Sonarr", "https://example.local/sonarr", "fa-solid fa-satellite-dish", "#fb7185", true, 1),
+                        CreateCard(2003, 102, "Radarr", "https://example.local/radarr", "fa-solid fa-clapperboard", "#facc15", true, 2),
+                        CreateCard(2004, 102, "Bazarr", "https://example.local/bazarr", "fa-solid fa-closed-captioning", "#60a5fa", true, 3),
+                        CreateCard(2005, 102, "Lidarr", "https://example.local/lidarr", "fa-solid fa-compact-disc", "#34d399", true, 4),
+                        CreateCard(2006, 102, "SABnzbd", "https://example.local/sab", "fa-solid fa-download", "#22d3ee", true, 5)
                     ]
                 },
                 new DashboardCategory
                 {
-                    Id = "cat-services",
-                    DashboardLayoutId = "main",
+                    Id = 103,
+                    DashboardLayoutId = 1,
                     Title = "Services",
                     Position = new CategoryPosition { Order = 2, Width = 4 },
                     Cards =
                     [
-                        CreateCard("card-grafana", "cat-services", "Grafana", "https://example.local/grafana", "fa-solid fa-chart-line", "#f97316", true, 0),
-                        CreateCard("card-prom", "cat-services", "Prometheus", "https://example.local/prometheus", "fa-solid fa-chart-area", "#22d3ee", true, 1),
-                        CreateCard("card-admin", "cat-services", "Adminer", "https://example.local/adminer", "fa-solid fa-database", "#f43f5e", false, 2)
+                        CreateCard(3001, 103, "Grafana", "https://example.local/grafana", "fa-solid fa-chart-line", "#f97316", true, 0),
+                        CreateCard(3002, 103, "Prometheus", "https://example.local/prometheus", "fa-solid fa-chart-area", "#22d3ee", true, 1),
+                        CreateCard(3003, 103, "Adminer", "https://example.local/adminer", "fa-solid fa-database", "#f43f5e", false, 2)
                     ]
                 }
             ]
@@ -164,7 +185,10 @@ public static class DebugDbInitializer
         return layout;
     }
 
-    private static DashboardCard CreateCard(string id, string categoryId, string title, string url, string iconClass, string iconColor, bool isOnline, int order) =>
+    /// <summary>
+    /// Создаёт карточку с заданным идентификатором и позицией.
+    /// </summary>
+    private static DashboardCard CreateCard(int id, int categoryId, string title, string url, string iconClass, string iconColor, bool isOnline, int order) =>
         new()
         {
             Id = id,

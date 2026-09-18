@@ -14,7 +14,7 @@ namespace Adashboard.Data.Migrations
                 name: "DashboardLayouts",
                 columns: table => new
                 {
-                    Id = table.Column<string>(type: "TEXT", maxLength: 80, nullable: false),
+                    Id = table.Column<int>(type: "INTEGER", nullable: false),
                     ThemeMode = table.Column<string>(type: "TEXT", maxLength: 16, nullable: false)
                 },
                 constraints: table =>
@@ -26,8 +26,8 @@ namespace Adashboard.Data.Migrations
                 name: "DashboardCategories",
                 columns: table => new
                 {
-                    Id = table.Column<string>(type: "TEXT", maxLength: 80, nullable: false),
-                    DashboardLayoutId = table.Column<string>(type: "TEXT", maxLength: 80, nullable: false),
+                    Id = table.Column<int>(type: "INTEGER", nullable: false),
+                    DashboardLayoutId = table.Column<int>(type: "INTEGER", nullable: false),
                     Title = table.Column<string>(type: "TEXT", maxLength: 120, nullable: false),
                     DisplayOrder = table.Column<int>(type: "INTEGER", nullable: false),
                     DisplayWidth = table.Column<int>(type: "INTEGER", nullable: false)
@@ -47,8 +47,8 @@ namespace Adashboard.Data.Migrations
                 name: "DashboardCards",
                 columns: table => new
                 {
-                    Id = table.Column<string>(type: "TEXT", maxLength: 80, nullable: false),
-                    CategoryId = table.Column<string>(type: "TEXT", maxLength: 80, nullable: false),
+                    Id = table.Column<int>(type: "INTEGER", nullable: false),
+                    CategoryId = table.Column<int>(type: "INTEGER", nullable: false),
                     Title = table.Column<string>(type: "TEXT", maxLength: 120, nullable: false),
                     Url = table.Column<string>(type: "TEXT", maxLength: 500, nullable: false),
                     IconClass = table.Column<string>(type: "TEXT", maxLength: 120, nullable: false),

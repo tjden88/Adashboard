@@ -100,7 +100,7 @@ else
 @code {
     private DashboardLayout _layout = new()
     {
-        Id = "main"
+        Id = 1
     };
 
     private IEnumerable<DashboardCategory> _categories => _layout.Categories.OrderBy(x => x.Position.Order);
@@ -150,7 +150,7 @@ else
         await _module.InvokeVoidAsync("setThemeMode", _themeMode);
     }
 
-    private async Task OnCategoryWidthChanged(string categoryId, ChangeEventArgs args)
+    private async Task OnCategoryWidthChanged(int categoryId, ChangeEventArgs args)
     {
         if (!int.TryParse(args.Value?.ToString(), out var width))
         {
@@ -168,7 +168,7 @@ else
     }
 
     [JSInvokable]
-    public async Task OnCategoriesReordered(string[] orderedCategoryIds)
+    public async Task OnCategoriesReordered(int[] orderedCategoryIds)
     {
         if (orderedCategoryIds.Length == 0)
         {
@@ -200,7 +200,7 @@ else
     }
 
     [JSInvokable]
-    public async Task OnCardsReordered(string sourceCategoryId, string targetCategoryId, string[] sourceCardIds, string[] targetCardIds)
+    public async Task OnCardsReordered(int sourceCategoryId, int targetCategoryId, int[] sourceCardIds, int[] targetCardIds)
     {
         var source = _layout.Categories.FirstOrDefault(x => x.Id == sourceCategoryId);
         var target = _layout.Categories.FirstOrDefault(x => x.Id == targetCategoryId);
@@ -261,7 +261,7 @@ else
         }
     }
 
-    private static List<DashboardCard> ReorderCards(string[] orderedIds, IReadOnlyDictionary<string, DashboardCard> cardsById)
+    private static List<DashboardCard> ReorderCards(int[] orderedIds, IReadOnlyDictionary<int, DashboardCard> cardsById)
     {
         var ordered = new List<DashboardCard>(orderedIds.Length);
 
@@ -364,9 +364,9 @@ else
             .AsNoTracking()
             .Include(x => x.Categories)
             .ThenInclude(x => x.Cards)
-            .FirstOrDefaultAsync(x => x.Id == "main");
+            .FirstOrDefaultAsync(x => x.Id == 1);
 
-        _layout = layoutFromDb ?? new DashboardLayout { Id = "main", ThemeMode = "auto" };
+        _layout = layoutFromDb ?? new DashboardLayout { Id = 1, ThemeMode = "auto" };
     }
 
     private async Task SaveLayoutAsync()

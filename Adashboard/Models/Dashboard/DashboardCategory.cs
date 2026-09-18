@@ -8,12 +8,12 @@ public sealed class DashboardCategory
     /// <summary>
     /// Уникальный идентификатор категории.
     /// </summary>
-    public string Id { get; set; } = string.Empty;
+    public int Id { get; set; }
 
     /// <summary>
     /// Идентификатор родительской раскладки.
     /// </summary>
-    public string DashboardLayoutId { get; set; } = string.Empty;
+    public int DashboardLayoutId { get; set; }
 
     /// <summary>
     /// Отображаемое название категории.

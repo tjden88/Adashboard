@@ -46,6 +46,11 @@ function disposeCards() {
     cardSortables = [];
 }
 
+function parseId(value) {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isInteger(parsed) ? parsed : null;
+}
+
 export function initializeSortable(dotNetRef) {
     disposeSortable();
 
@@ -62,8 +67,8 @@ export function initializeSortable(dotNetRef) {
         chosenClass: "sortable-chosen",
         onEnd: () => {
             const orderedIds = Array.from(grid.querySelectorAll(":scope > .dashboard-category"))
-                .map((element) => element.dataset.categoryId)
-                .filter((id) => !!id);
+                .map((element) => parseId(element.dataset.categoryId))
+                .filter((id) => id !== null);
 
             dotNetRef.invokeMethodAsync("OnCategoriesReordered", orderedIds);
         }
@@ -80,18 +85,22 @@ export function initializeSortable(dotNetRef) {
             onEnd: (event) => {
                 const source = event.from;
                 const target = event.to;
-                const sourceCategoryId = source.dataset.categoryId;
-                const targetCategoryId = target.dataset.categoryId;
+                const sourceCategoryId = parseId(source.dataset.categoryId);
+                const targetCategoryId = parseId(target.dataset.categoryId);
+
+                if (sourceCategoryId === null || targetCategoryId === null) {
+                    return;
+                }
 
                 const sourceCardIds = Array.from(source.querySelectorAll(":scope > .dashboard-card"))
-                    .map((element) => element.dataset.cardId)
-                    .filter((id) => !!id);
+                    .map((element) => parseId(element.dataset.cardId))
+                    .filter((id) => id !== null);
 
                 const targetCardIds = source === target
                     ? sourceCardIds
                     : Array.from(target.querySelectorAll(":scope > .dashboard-card"))
-                        .map((element) => element.dataset.cardId)
-                        .filter((id) => !!id);
+                        .map((element) => parseId(element.dataset.cardId))
+                        .filter((id) => id !== null);
 
                 dotNetRef.invokeMethodAsync(
                     "OnCardsReordered",

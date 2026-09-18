@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Adashboard.Data.Migrations
 {
     [DbContext(typeof(DashboardDbContext))]
-    [Migration("20260918171202_InitialCreate")]
+    [Migration("20260918174519_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -21,14 +21,11 @@ namespace Adashboard.Data.Migrations
 
             modelBuilder.Entity("Adashboard.Models.Dashboard.DashboardCard", b =>
                 {
-                    b.Property<string>("Id")
-                        .HasMaxLength(80)
-                        .HasColumnType("TEXT");
+                    b.Property<int>("Id")
+                        .HasColumnType("INTEGER");
 
-                    b.Property<string>("CategoryId")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("TEXT");
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("IconClass")
                         .IsRequired()
@@ -62,14 +59,11 @@ namespace Adashboard.Data.Migrations
 
             modelBuilder.Entity("Adashboard.Models.Dashboard.DashboardCategory", b =>
                 {
-                    b.Property<string>("Id")
-                        .HasMaxLength(80)
-                        .HasColumnType("TEXT");
+                    b.Property<int>("Id")
+                        .HasColumnType("INTEGER");
 
-                    b.Property<string>("DashboardLayoutId")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("TEXT");
+                    b.Property<int>("DashboardLayoutId")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -85,9 +79,8 @@ namespace Adashboard.Data.Migrations
 
             modelBuilder.Entity("Adashboard.Models.Dashboard.DashboardLayout", b =>
                 {
-                    b.Property<string>("Id")
-                        .HasMaxLength(80)
-                        .HasColumnType("TEXT");
+                    b.Property<int>("Id")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("ThemeMode")
                         .IsRequired()
@@ -109,8 +102,8 @@ namespace Adashboard.Data.Migrations
 
                     b.OwnsOne("Adashboard.Models.Dashboard.CardPosition", "Position", b1 =>
                         {
-                            b1.Property<string>("DashboardCardId")
-                                .HasColumnType("TEXT");
+                            b1.Property<int>("DashboardCardId")
+                                .HasColumnType("INTEGER");
 
                             b1.Property<int>("Order")
                                 .HasColumnType("INTEGER")
@@ -138,8 +131,8 @@ namespace Adashboard.Data.Migrations
 
                     b.OwnsOne("Adashboard.Models.Dashboard.CategoryPosition", "Position", b1 =>
                         {
-                            b1.Property<string>("DashboardCategoryId")
-                                .HasColumnType("TEXT");
+                            b1.Property<int>("DashboardCategoryId")
+                                .HasColumnType("INTEGER");
 
                             b1.Property<int>("Order")
                                 .HasColumnType("INTEGER")

@@ -8,7 +8,7 @@ public sealed class DashboardLayout
     /// <summary>
     /// Уникальный идентификатор раскладки.
     /// </summary>
-    public string Id { get; set; } = "main";
+    public int Id { get; set; }
 
     /// <summary>
     /// Выбранный режим темы: auto, dark или light.
