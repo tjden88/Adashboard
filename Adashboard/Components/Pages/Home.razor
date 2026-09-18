@@ -77,13 +77,17 @@ else
                     <div class="category-cards" data-category-id="@category.Id">
                         @foreach (var card in category.Cards.OrderBy(x => x.Position.Order))
                         {
+                            var cardSpanDesktop = GetCardSpan(card.IsWide, category.Position.Width);
+                            var cardSpanMedium = GetCardSpan(card.IsWide, GetMediumSpan(category.Position.Width));
+                            var cardSpanMobile = GetCardSpan(card.IsWide, Math.Min(category.Position.Width, 4));
+
                             <a class="dashboard-card"
                                @key="card.Id"
                                data-card-id="@card.Id"
                                href="@card.Url"
                                target="_blank"
                                rel="noopener noreferrer"
-                               style="--card-icon-color:@card.IconColor;">
+                               style="--card-icon-color:@card.IconColor; --card-span-desktop:@cardSpanDesktop; --card-span-medium:@cardSpanMedium; --card-span-mobile:@cardSpanMobile;">
                                 <span class="card-title">@card.Title</span>
                                 <div class="card-icon" aria-hidden="true">
                                     <i class="@card.IconClass"></i>
@@ -382,6 +386,14 @@ else
     private static int GetMediumSpan(int desktopWidth)
     {
         return Math.Clamp((int)Math.Round(desktopWidth / 2d, MidpointRounding.AwayFromZero), 1, 6);
+    }
+
+    private static int GetCardSpan(bool isWide, int categoryColumns)
+    {
+        var safeColumns = Math.Max(1, categoryColumns);
+
+        // Широкая карточка всегда занимает две колонки, но не больше доступного числа колонок категории.
+        return isWide ? Math.Min(2, safeColumns) : 1;
     }
 
     private async Task LoadLayoutAsync()

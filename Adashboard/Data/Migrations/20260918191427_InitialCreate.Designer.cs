@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Adashboard.Data.Migrations
 {
     [DbContext(typeof(DashboardDbContext))]
-    [Migration("20260918174519_InitialCreate")]
+    [Migration("20260918191427_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -38,6 +38,9 @@ namespace Adashboard.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("IsOnline")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsWide")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Title")

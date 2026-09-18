@@ -37,6 +37,9 @@ namespace Adashboard.Data.Migrations
                     b.Property<bool>("IsOnline")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("IsWide")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(120)

@@ -36,6 +36,11 @@ public sealed class DashboardCard
     public string IconColor { get; set; } = "#fb923c";
 
     /// <summary>
+    /// Признак широкой карточки: занимает две колонки вместо одной.
+    /// </summary>
+    public bool IsWide { get; set; }
+
+    /// <summary>
     /// Признак доступности сервиса.
     /// </summary>
     public bool IsOnline { get; set; }

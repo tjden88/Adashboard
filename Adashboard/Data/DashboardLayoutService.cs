@@ -98,6 +98,7 @@ public sealed class DashboardLayoutService(
                     Url = card.Url,
                     IconClass = card.IconClass,
                     IconColor = card.IconColor,
+                    IsWide = card.IsWide,
                     IsOnline = card.IsOnline,
                     Position = new CardPosition
                     {
