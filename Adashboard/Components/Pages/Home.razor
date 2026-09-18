@@ -1,8 +1,10 @@
 @page "/"
 @implements IAsyncDisposable
 @inject IJSRuntime JS
-@using System.Text.Json
+@inject IDbContextFactory<DashboardDbContext> DbContextFactory
+@using Adashboard.Data
 @using Adashboard.Models.Dashboard
+@using Microsoft.EntityFrameworkCore
 @using Microsoft.JSInterop
 
 <PageTitle>Adashboard</PageTitle>
@@ -96,14 +98,10 @@ else
 }
 
 @code {
-    private const string LayoutStorageKey = "adashboard.layout.v2";
-
-    private readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web)
+    private DashboardLayout _layout = new()
     {
-        WriteIndented = false
+        Id = "main"
     };
-
-    private DashboardLayout _layout = DashboardSeedFactory.CreateDefault();
 
     private IEnumerable<DashboardCategory> _categories => _layout.Categories.OrderBy(x => x.Position.Order);
 
@@ -120,23 +118,9 @@ else
             _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/dashboard.js");
             _dotNetRef = DotNetObjectReference.Create(this);
 
-            _themeMode = await _module.InvokeAsync<string>("initializeTheme");
-
-            var layoutJson = await _module.InvokeAsync<string?>("loadLayout", LayoutStorageKey);
-            if (!string.IsNullOrWhiteSpace(layoutJson))
-            {
-                var saved = JsonSerializer.Deserialize<DashboardLayout>(layoutJson, _jsonOptions);
-                if (saved?.Categories?.Count > 0)
-                {
-                    _layout = saved;
-                }
-            }
-
-            if (_layout.Categories.Count == 0)
-            {
-                _layout = DashboardSeedFactory.CreateDefault();
-                await SaveLayoutAsync();
-            }
+            await LoadLayoutAsync();
+            _themeMode = _layout.ThemeMode;
+            await _module.InvokeVoidAsync("initializeTheme", _themeMode);
 
             NormalizeLayout();
 
@@ -161,6 +145,8 @@ else
         }
 
         _themeMode = next;
+        _layout.ThemeMode = next;
+        await SaveLayoutAsync();
         await _module.InvokeVoidAsync("setThemeMode", _themeMode);
     }
 
@@ -292,6 +278,11 @@ else
 
     private void NormalizeLayout()
     {
+        if (string.IsNullOrWhiteSpace(_layout.ThemeMode))
+        {
+            _layout.ThemeMode = "auto";
+        }
+
         for (var categoryIndex = 0; categoryIndex < _layout.Categories.Count; categoryIndex++)
         {
             var category = _layout.Categories[categoryIndex];
@@ -366,21 +357,83 @@ else
         return "#fb923c";
     }
 
+    private async Task LoadLayoutAsync()
+    {
+        await using var dbContext = await DbContextFactory.CreateDbContextAsync();
+        var layoutFromDb = await dbContext.Layouts
+            .AsNoTracking()
+            .Include(x => x.Categories)
+            .ThenInclude(x => x.Cards)
+            .FirstOrDefaultAsync(x => x.Id == "main");
+
+        _layout = layoutFromDb ?? new DashboardLayout { Id = "main", ThemeMode = "auto" };
+    }
+
     private async Task SaveLayoutAsync()
     {
-        if (_module is null)
+        NormalizeLayout();
+
+        await using var dbContext = await DbContextFactory.CreateDbContextAsync();
+        var existing = await dbContext.Layouts
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == _layout.Id);
+
+        if (existing is not null)
         {
-            return;
+            dbContext.Layouts.Remove(new DashboardLayout { Id = existing.Id });
+            await dbContext.SaveChangesAsync();
         }
 
-        var payload = new DashboardLayout
+        dbContext.Layouts.Add(CloneLayout(_layout));
+        await dbContext.SaveChangesAsync();
+    }
+
+    private static DashboardLayout CloneLayout(DashboardLayout source)
+    {
+        var layout = new DashboardLayout
         {
-            Id = _layout.Id,
-            Categories = _layout.Categories
+            Id = source.Id,
+            ThemeMode = source.ThemeMode,
+            Categories = []
         };
 
-        var json = JsonSerializer.Serialize(payload, _jsonOptions);
-        await _module.InvokeVoidAsync("saveLayout", LayoutStorageKey, json);
+        foreach (var category in source.Categories)
+        {
+            var categoryCopy = new DashboardCategory
+            {
+                Id = category.Id,
+                DashboardLayoutId = source.Id,
+                Title = category.Title,
+                Position = new CategoryPosition
+                {
+                    Order = category.Position.Order,
+                    Width = category.Position.Width
+                },
+                Cards = []
+            };
+
+            foreach (var card in category.Cards)
+            {
+                categoryCopy.Cards.Add(new DashboardCard
+                {
+                    Id = card.Id,
+                    CategoryId = category.Id,
+                    Title = card.Title,
+                    Url = card.Url,
+                    IconClass = card.IconClass,
+                    IconColor = card.IconColor,
+                    IsOnline = card.IsOnline,
+                    Position = new CardPosition
+                    {
+                        Order = card.Position.Order
+                    }
+                });
+            }
+
+            layout.Categories.Add(categoryCopy);
+        }
+
+        return layout;
     }
 
     public async ValueTask DisposeAsync()

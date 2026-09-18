@@ -15,10 +15,8 @@
     <link rel="stylesheet" href="@Assets["Adashboard.styles.css"]" />
     <script>
         (function () {
-            var savedMode = localStorage.getItem("adashboard.themeMode") || "auto";
             var isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-            var resolved = savedMode === "auto" ? (isDark ? "dark" : "light") : savedMode;
-            document.documentElement.setAttribute("data-theme", resolved);
+            document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light");
         })();
     </script>
     <ImportMap />

@@ -11,6 +11,11 @@ public sealed class DashboardLayout
     public string Id { get; set; } = "main";
 
     /// <summary>
+    /// Выбранный режим темы: auto, dark или light.
+    /// </summary>
+    public string ThemeMode { get; set; } = "auto";
+
+    /// <summary>
     /// Список категорий в раскладке.
     /// </summary>
     public List<DashboardCategory> Categories { get; set; } = [];

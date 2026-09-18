@@ -1,4 +1,3 @@
-const themeStorageKey = "adashboard.themeMode";
 let activeThemeMode = "auto";
 let systemThemeMedia = null;
 let categorySortable = null;
@@ -24,30 +23,19 @@ function handleSystemThemeChange() {
     }
 }
 
-export function initializeTheme() {
-    activeThemeMode = localStorage.getItem(themeStorageKey) || "auto";
+export function initializeTheme(mode) {
+    activeThemeMode = mode || "auto";
     applyTheme(activeThemeMode);
 
     if (systemThemeMedia === null) {
         systemThemeMedia = window.matchMedia("(prefers-color-scheme: dark)");
         systemThemeMedia.addEventListener("change", handleSystemThemeChange);
     }
-
-    return activeThemeMode;
 }
 
 export function setThemeMode(mode) {
     activeThemeMode = mode;
-    localStorage.setItem(themeStorageKey, mode);
     applyTheme(mode);
-}
-
-export function loadLayout(storageKey) {
-    return localStorage.getItem(storageKey);
-}
-
-export function saveLayout(storageKey, json) {
-    localStorage.setItem(storageKey, json);
 }
 
 function disposeCards() {
