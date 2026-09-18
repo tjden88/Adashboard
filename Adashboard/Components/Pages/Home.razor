@@ -1,0 +1,358 @@
+@page "/"
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@using System.Text.Json
+@using Microsoft.JSInterop
+
+<PageTitle>Adashboard</PageTitle>
+
+@if (!_isLoaded)
+{
+    <div class="dashboard-loading">Загружаем dashboard...</div>
+}
+else
+{
+    <section class="dashboard-shell">
+        <header class="dashboard-header">
+            <div>
+                <h1>Adashboard</h1>
+                <p>Личная стартовая страница со ссылками и сервисами</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <label for="themeMode">Тема</label>
+                <select id="themeMode" value="@_themeMode" @onchange="OnThemeChanged" aria-label="Переключение темы">
+                    <option value="auto">Авто</option>
+                    <option value="dark">Тёмная</option>
+                    <option value="light">Светлая</option>
+                </select>
+            </div>
+        </header>
+
+        <div class="dashboard-grid" id="dashboard-grid">
+            @foreach (var category in _categories)
+            {
+                <section class="dashboard-category"
+                         data-category-id="@category.Id"
+                         style="--span-desktop:@category.Width; --span-mobile:@Math.Min(category.Width, 4);">
+                    <header class="category-header">
+                        <div class="category-title-wrap">
+                            <span class="drag-handle" title="Перетащить категорию" aria-hidden="true">
+                                <i class="fa-solid fa-grip-vertical"></i>
+                            </span>
+                            <h2>@category.Title</h2>
+                        </div>
+                        <div class="category-actions">
+                            <label for="width-@category.Id">Ширина</label>
+                            <select id="width-@category.Id"
+                                    value="@category.Width"
+                                    @onchange="args => OnCategoryWidthChanged(category.Id, args)">
+                                @for (var width = 1; width <= 12; width++)
+                                {
+                                    <option value="@width">@width</option>
+                                }
+                            </select>
+                        </div>
+                    </header>
+
+                    <div class="category-cards" data-category-id="@category.Id">
+                        @foreach (var card in category.Cards)
+                        {
+                            <a class="dashboard-card"
+                               data-card-id="@card.Id"
+                               href="@card.Url"
+                               target="_blank"
+                               rel="noopener noreferrer">
+                                <div class="card-icon" aria-hidden="true">
+                                    <i class="@card.IconClass"></i>
+                                </div>
+                                <div class="card-info">
+                                    <span class="card-title">@card.Title</span>
+                                    <span class="card-url">@card.Url</span>
+                                </div>
+                                <span class="status-dot @(card.IsOnline ? "online" : "offline")" aria-label="Статус"></span>
+                            </a>
+                        }
+                    </div>
+                </section>
+            }
+        </div>
+    </section>
+}
+
+@code {
+    private const string LayoutStorageKey = "adashboard.layout.v1";
+
+    private readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        WriteIndented = false
+    };
+
+    private readonly List<DashboardCategory> _categories = [];
+
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<Home>? _dotNetRef;
+    private string _themeMode = "auto";
+    private bool _isLoaded;
+    private bool _sortableInitialized;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/dashboard.js");
+            _dotNetRef = DotNetObjectReference.Create(this);
+
+            _themeMode = await _module.InvokeAsync<string>("initializeTheme");
+
+            var layoutJson = await _module.InvokeAsync<string?>("loadLayout", LayoutStorageKey);
+            if (!string.IsNullOrWhiteSpace(layoutJson))
+            {
+                var saved = JsonSerializer.Deserialize<DashboardLayout>(layoutJson, _jsonOptions);
+                if (saved?.Categories?.Count > 0)
+                {
+                    _categories.Clear();
+                    _categories.AddRange(saved.Categories);
+                }
+            }
+
+            if (_categories.Count == 0)
+            {
+                _categories.AddRange(CreateDefaultCategories());
+                await SaveLayoutAsync();
+            }
+
+            _isLoaded = true;
+            StateHasChanged();
+            return;
+        }
+
+        if (_isLoaded && !_sortableInitialized && _module is not null && _dotNetRef is not null)
+        {
+            await _module.InvokeVoidAsync("initializeSortable", _dotNetRef);
+            _sortableInitialized = true;
+        }
+    }
+
+    private async Task OnThemeChanged(ChangeEventArgs args)
+    {
+        var next = args.Value?.ToString();
+        if (string.IsNullOrWhiteSpace(next) || _module is null)
+        {
+            return;
+        }
+
+        _themeMode = next;
+        await _module.InvokeVoidAsync("setThemeMode", _themeMode);
+    }
+
+    private async Task OnCategoryWidthChanged(string categoryId, ChangeEventArgs args)
+    {
+        if (!int.TryParse(args.Value?.ToString(), out var width))
+        {
+            return;
+        }
+
+        var category = _categories.FirstOrDefault(x => x.Id == categoryId);
+        if (category is null)
+        {
+            return;
+        }
+
+        category.Width = Math.Clamp(width, 1, 12);
+        await SaveLayoutAsync();
+    }
+
+    [JSInvokable]
+    public async Task OnCategoriesReordered(string[] orderedCategoryIds)
+    {
+        if (orderedCategoryIds.Length == 0)
+        {
+            return;
+        }
+
+        var map = _categories.ToDictionary(x => x.Id, x => x);
+        _categories.Clear();
+
+        foreach (var id in orderedCategoryIds)
+        {
+            if (map.TryGetValue(id, out var category))
+            {
+                _categories.Add(category);
+            }
+        }
+
+        foreach (var category in map.Values)
+        {
+            if (_categories.All(x => x.Id != category.Id))
+            {
+                _categories.Add(category);
+            }
+        }
+
+        await SaveLayoutAsync();
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public async Task OnCardsReordered(string sourceCategoryId, string targetCategoryId, string[] sourceCardIds, string[] targetCardIds)
+    {
+        var source = _categories.FirstOrDefault(x => x.Id == sourceCategoryId);
+        var target = _categories.FirstOrDefault(x => x.Id == targetCategoryId);
+        if (source is null || target is null)
+        {
+            return;
+        }
+
+        if (sourceCategoryId == targetCategoryId)
+        {
+            source.Cards = ReorderCards(source.Cards, sourceCardIds);
+        }
+        else
+        {
+            source.Cards = ReorderCards(source.Cards, sourceCardIds);
+            target.Cards = ReorderCards(target.Cards, targetCardIds);
+        }
+
+        await SaveLayoutAsync();
+        StateHasChanged();
+    }
+
+    private List<DashboardCard> ReorderCards(List<DashboardCard> currentCards, string[] orderedIds)
+    {
+        var cardsById = currentCards.ToDictionary(x => x.Id, x => x);
+        var ordered = new List<DashboardCard>(orderedIds.Length);
+
+        foreach (var id in orderedIds)
+        {
+            if (cardsById.TryGetValue(id, out var card))
+            {
+                ordered.Add(card);
+            }
+        }
+
+        foreach (var card in currentCards)
+        {
+            if (ordered.All(x => x.Id != card.Id))
+            {
+                ordered.Add(card);
+            }
+        }
+
+        return ordered;
+    }
+
+    private async Task SaveLayoutAsync()
+    {
+        if (_module is null)
+        {
+            return;
+        }
+
+        var payload = new DashboardLayout
+        {
+            Categories = _categories
+        };
+
+        var json = JsonSerializer.Serialize(payload, _jsonOptions);
+        await _module.InvokeVoidAsync("saveLayout", LayoutStorageKey, json);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module is not null)
+        {
+            try
+            {
+                await _module.InvokeVoidAsync("disposeSortable");
+                await _module.DisposeAsync();
+            }
+            catch
+            {
+            }
+        }
+
+        _dotNetRef?.Dispose();
+    }
+
+    private static List<DashboardCategory> CreateDefaultCategories() =>
+    [
+        new DashboardCategory
+        {
+            Id = "cat-network",
+            Title = "Networking & Management",
+            Width = 6,
+            Cards =
+            [
+                new DashboardCard("card-nginx", "Nginx Proxy Manager", "https://example.local/nginx", "fa-solid fa-network-wired", true),
+                new DashboardCard("card-uptime", "Uptime Kuma", "https://example.local/uptime", "fa-solid fa-heart-pulse", true),
+                new DashboardCard("card-portainer", "Portainer", "https://example.local/portainer", "fa-brands fa-docker", true),
+                new DashboardCard("card-ansible", "Ansible", "https://example.local/ansible", "fa-solid fa-terminal", true)
+            ]
+        },
+        new DashboardCategory
+        {
+            Id = "cat-mediaserver",
+            Title = "Mediaserver",
+            Width = 8,
+            Cards =
+            [
+                new DashboardCard("card-jellyfin", "Jellyfin", "https://example.local/jellyfin", "fa-solid fa-film", true),
+                new DashboardCard("card-sonarr", "Sonarr", "https://example.local/sonarr", "fa-solid fa-satellite-dish", true),
+                new DashboardCard("card-radarr", "Radarr", "https://example.local/radarr", "fa-solid fa-clapperboard", true),
+                new DashboardCard("card-bazarr", "Bazarr", "https://example.local/bazarr", "fa-solid fa-closed-captioning", true),
+                new DashboardCard("card-lidarr", "Lidarr", "https://example.local/lidarr", "fa-solid fa-compact-disc", true),
+                new DashboardCard("card-sab", "SABnzbd", "https://example.local/sab", "fa-solid fa-download", true)
+            ]
+        },
+        new DashboardCategory
+        {
+            Id = "cat-services",
+            Title = "Services",
+            Width = 4,
+            Cards =
+            [
+                new DashboardCard("card-grafana", "Grafana", "https://example.local/grafana", "fa-solid fa-chart-line", true),
+                new DashboardCard("card-prom", "Prometheus", "https://example.local/prometheus", "fa-solid fa-chart-area", true),
+                new DashboardCard("card-admin", "Adminer", "https://example.local/adminer", "fa-solid fa-database", false)
+            ]
+        }
+    ];
+
+    private sealed class DashboardLayout
+    {
+        public List<DashboardCategory> Categories { get; init; } = [];
+    }
+
+    private sealed class DashboardCategory
+    {
+        public required string Id { get; init; }
+
+        public required string Title { get; init; }
+
+        public int Width { get; set; }
+
+        public List<DashboardCard> Cards { get; set; } = [];
+    }
+
+    private sealed class DashboardCard
+    {
+        public DashboardCard(string id, string title, string url, string iconClass, bool isOnline)
+        {
+            Id = id;
+            Title = title;
+            Url = url;
+            IconClass = iconClass;
+            IsOnline = isOnline;
+        }
+
+        public string Id { get; init; }
+
+        public string Title { get; init; }
+
+        public string Url { get; init; }
+
+        public string IconClass { get; init; }
+
+        public bool IsOnline { get; init; }
+    }
+}
