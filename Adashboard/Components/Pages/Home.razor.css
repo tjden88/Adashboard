@@ -151,6 +151,7 @@
 }
 
 .dashboard-category {
+    --cards-current: var(--cards-desktop, 4);
     grid-column: span var(--span-desktop);
     display: grid;
     gap: 0.9rem;
@@ -159,6 +160,7 @@
     padding: 0.95rem;
     background: linear-gradient(160deg, color-mix(in srgb, var(--surface) 88%, transparent), var(--surface-strong));
     box-shadow: var(--shadow-soft);
+    overflow: hidden;
 }
 
 .category-header {
@@ -166,6 +168,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 0.7rem;
+    flex-wrap: wrap;
 }
 
 .category-title-wrap {
@@ -173,6 +176,7 @@
     align-items: center;
     gap: 0.55rem;
     min-width: 0;
+    flex: 1 1 12rem;
 }
 
 .category-header h2 {
@@ -199,6 +203,8 @@
     display: flex;
     align-items: center;
     gap: 0.45rem;
+    margin-left: auto;
+    flex-shrink: 0;
 }
 
 .category-actions label {
@@ -217,8 +223,7 @@
 .category-cards {
     display: grid;
     gap: 0.8rem;
-    grid-template-columns: repeat(auto-fill, minmax(126px, 126px));
-    justify-content: start;
+    grid-template-columns: repeat(var(--cards-current), minmax(0, 1fr));
 }
 
 .dashboard-card {
@@ -304,13 +309,13 @@
     }
 
     .dashboard-category {
+        --cards-current: var(--cards-mobile, 1);
         grid-column: span var(--span-mobile);
     }
 }
 
 @media (max-width: 640px) {
     .category-cards {
-        grid-template-columns: repeat(auto-fill, minmax(108px, 108px));
         gap: 0.62rem;
     }
 
