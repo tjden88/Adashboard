@@ -16,25 +16,39 @@ public static class DebugDbInitializer
     {
         await using var scope = services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<DashboardDbContext>();
+        var logger = scope.ServiceProvider
+            .GetRequiredService<ILoggerFactory>()
+            .CreateLogger("Adashboard.Data.DebugDbInitializer");
 
-        await EnsureMigrationHistoryForLegacyDatabaseAsync(dbContext, cancellationToken);
+        logger.LogInformation("Запущена инициализация базы данных dashboard.");
+
+        await EnsureMigrationHistoryForLegacyDatabaseAsync(dbContext, logger, cancellationToken);
         await dbContext.Database.MigrateAsync(cancellationToken);
+        logger.LogInformation("Миграции базы данных успешно применены.");
 
         var hasData = await dbContext.Layouts.AnyAsync(cancellationToken);
         if (hasData)
         {
+            logger.LogInformation("Стартовые данные уже присутствуют в базе данных. Инициализация завершена.");
             return;
         }
 
         var layout = CreateDefaultLayout();
         dbContext.Layouts.Add(layout);
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Добавлена стартовая раскладка dashboard. Категорий: {CategoryCount}.",
+            layout.Categories.Count);
     }
 
     /// <summary>
     /// Добавляет запись о первой миграции для базы, созданной ранее через EnsureCreated.
     /// </summary>
-    private static async Task EnsureMigrationHistoryForLegacyDatabaseAsync(DashboardDbContext dbContext, CancellationToken cancellationToken)
+    private static async Task EnsureMigrationHistoryForLegacyDatabaseAsync(
+        DashboardDbContext dbContext,
+        ILogger logger,
+        CancellationToken cancellationToken)
     {
         var connection = dbContext.Database.GetDbConnection();
         await connection.OpenAsync(cancellationToken);
@@ -45,12 +59,14 @@ public static class DebugDbInitializer
             var hasLegacyTables = await TableExistsAsync(connection, "DashboardLayouts", cancellationToken);
             if (!hasLegacyTables)
             {
+                logger.LogDebug("Старая структура базы данных не обнаружена. Совместимость не требуется.");
                 return;
             }
 
             var firstMigration = dbContext.Database.GetMigrations().OrderBy(x => x).FirstOrDefault();
             if (string.IsNullOrWhiteSpace(firstMigration))
             {
+                logger.LogWarning("Не найдены миграции приложения при проверке совместимости базы данных.");
                 return;
             }
 
@@ -59,6 +75,7 @@ public static class DebugDbInitializer
                 var hasInitialMigrationRow = await MigrationExistsAsync(connection, firstMigration, cancellationToken);
                 if (hasInitialMigrationRow)
                 {
+                    logger.LogDebug("Запись о первой миграции уже существует в истории.");
                     return;
                 }
             }
@@ -73,6 +90,7 @@ public static class DebugDbInitializer
                     );
                     """;
                 await createHistoryCommand.ExecuteNonQueryAsync(cancellationToken);
+                logger.LogInformation("Создана таблица истории миграций для существующей базы данных.");
             }
 
             await using var insertHistoryCommand = connection.CreateCommand();
@@ -81,6 +99,7 @@ public static class DebugDbInitializer
             insertHistoryCommand.Parameters.Add(CreateParameter(insertHistoryCommand, "$migrationId", firstMigration));
             insertHistoryCommand.Parameters.Add(CreateParameter(insertHistoryCommand, "$productVersion", "10.0.12"));
             await insertHistoryCommand.ExecuteNonQueryAsync(cancellationToken);
+            logger.LogInformation("Добавлена запись о первой миграции в историю базы данных.");
         }
         finally
         {

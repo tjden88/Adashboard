@@ -2,6 +2,8 @@ let activeThemeMode = "auto";
 let systemThemeMedia = null;
 let categorySortable = null;
 let cardSortables = [];
+let syncQueue = [];
+let syncInProgress = false;
 
 function resolveTheme(mode) {
     if (mode === "light" || mode === "dark") {
@@ -51,6 +53,49 @@ function parseId(value) {
     return Number.isInteger(parsed) ? parsed : null;
 }
 
+function setSortablesDisabled(disabled) {
+    if (categorySortable) {
+        categorySortable.option("disabled", disabled);
+    }
+
+    for (const sortable of cardSortables) {
+        sortable.option("disabled", disabled);
+    }
+}
+
+function enqueueSync(workItem) {
+    syncQueue.push(workItem);
+
+    if (!syncInProgress) {
+        void processSyncQueue();
+    }
+}
+
+async function processSyncQueue() {
+    syncInProgress = true;
+    setSortablesDisabled(true);
+
+    try {
+        while (syncQueue.length > 0) {
+            const next = syncQueue.shift();
+            if (!next) {
+                continue;
+            }
+
+            await next();
+        }
+    } catch (error) {
+        console.error("Ошибка синхронизации сортировки с сервером", error);
+    } finally {
+        setSortablesDisabled(false);
+        syncInProgress = false;
+
+        if (syncQueue.length > 0) {
+            void processSyncQueue();
+        }
+    }
+}
+
 export function initializeSortable(dotNetRef) {
     disposeSortable();
 
@@ -70,7 +115,7 @@ export function initializeSortable(dotNetRef) {
                 .map((element) => parseId(element.dataset.categoryId))
                 .filter((id) => id !== null);
 
-            dotNetRef.invokeMethodAsync("OnCategoriesReordered", orderedIds);
+            enqueueSync(() => dotNetRef.invokeMethodAsync("OnCategoriesReordered", orderedIds));
         }
     });
 
@@ -102,12 +147,12 @@ export function initializeSortable(dotNetRef) {
                         .map((element) => parseId(element.dataset.cardId))
                         .filter((id) => id !== null);
 
-                dotNetRef.invokeMethodAsync(
+                enqueueSync(() => dotNetRef.invokeMethodAsync(
                     "OnCardsReordered",
                     sourceCategoryId,
                     targetCategoryId,
                     sourceCardIds,
-                    targetCardIds);
+                    targetCardIds));
             }
         });
 
@@ -116,6 +161,9 @@ export function initializeSortable(dotNetRef) {
 }
 
 export function disposeSortable() {
+    syncQueue = [];
+    syncInProgress = false;
+
     if (categorySortable) {
         categorySortable.destroy();
         categorySortable = null;

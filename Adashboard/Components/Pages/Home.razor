@@ -1,10 +1,9 @@
 @page "/"
 @implements IAsyncDisposable
 @inject IJSRuntime JS
-@inject IDbContextFactory<DashboardDbContext> DbContextFactory
+@inject IDashboardLayoutService DashboardLayoutService
 @using Adashboard.Data
 @using Adashboard.Models.Dashboard
-@using Microsoft.EntityFrameworkCore
 @using Microsoft.JSInterop
 
 <PageTitle>Adashboard</PageTitle>
@@ -52,6 +51,7 @@ else
             @foreach (var category in _categories)
             {
                 <section class="dashboard-category"
+                         @key="category.Id"
                          data-category-id="@category.Id"
                          style="--span-desktop:@category.Position.Width; --span-mobile:@Math.Min(category.Position.Width, 4);">
                     <header class="category-header">
@@ -78,6 +78,7 @@ else
                         @foreach (var card in category.Cards.OrderBy(x => x.Position.Order))
                         {
                             <a class="dashboard-card"
+                               @key="card.Id"
                                data-card-id="@card.Id"
                                href="@card.Url"
                                target="_blank"
@@ -107,6 +108,7 @@ else
 
     private IJSObjectReference? _module;
     private DotNetObjectReference<Home>? _dotNetRef;
+    private readonly SemaphoreSlim _reorderLock = new(1, 1);
     private string _themeMode = "auto";
     private bool _isLoaded;
     private bool _sortableInitialized;
@@ -175,82 +177,102 @@ else
             return;
         }
 
-        var order = 0;
-        foreach (var id in orderedCategoryIds)
+        await _reorderLock.WaitAsync();
+        try
         {
-            var category = _layout.Categories.FirstOrDefault(x => x.Id == id);
-            if (category is not null)
+            var order = 0;
+            foreach (var id in orderedCategoryIds)
             {
-                category.Position.Order = order;
-                order++;
+                var category = _layout.Categories.FirstOrDefault(x => x.Id == id);
+                if (category is not null)
+                {
+                    category.Position.Order = order;
+                    order++;
+                }
             }
+
+            foreach (var category in _layout.Categories.OrderBy(x => x.Position.Order))
+            {
+                if (orderedCategoryIds.All(id => id != category.Id))
+                {
+                    category.Position.Order = order;
+                    order++;
+                }
+            }
+
+            await SaveLayoutAsync();
+            await LoadLayoutAsync();
+        }
+        finally
+        {
+            _reorderLock.Release();
         }
 
-        foreach (var category in _layout.Categories.OrderBy(x => x.Position.Order))
-        {
-            if (orderedCategoryIds.All(id => id != category.Id))
-            {
-                category.Position.Order = order;
-                order++;
-            }
-        }
-
-        await SaveLayoutAsync();
-        StateHasChanged();
+        await InvokeAsync(StateHasChanged);
     }
 
     [JSInvokable]
     public async Task OnCardsReordered(int sourceCategoryId, int targetCategoryId, int[] sourceCardIds, int[] targetCardIds)
     {
-        var source = _layout.Categories.FirstOrDefault(x => x.Id == sourceCategoryId);
-        var target = _layout.Categories.FirstOrDefault(x => x.Id == targetCategoryId);
-        if (source is null || target is null)
+        await _reorderLock.WaitAsync();
+        try
         {
-            return;
+            var source = _layout.Categories.FirstOrDefault(x => x.Id == sourceCategoryId);
+            var target = _layout.Categories.FirstOrDefault(x => x.Id == targetCategoryId);
+            if (source is null || target is null)
+            {
+                return;
+            }
+
+            var allCards = _layout.Categories
+                .SelectMany(x => x.Cards)
+                .ToDictionary(x => x.Id, x => x);
+
+            if (sourceCategoryId == targetCategoryId)
+            {
+                if (sourceCardIds.Length > 0)
+                {
+                    source.Cards = ReorderCards(sourceCardIds, allCards);
+                }
+            }
+            else
+            {
+                if (sourceCardIds.Length > 0)
+                {
+                    source.Cards = ReorderCards(sourceCardIds, allCards);
+                }
+
+                if (targetCardIds.Length > 0)
+                {
+                    target.Cards = ReorderCards(targetCardIds, allCards);
+                }
+
+                foreach (var card in source.Cards)
+                {
+                    card.CategoryId = source.Id;
+                }
+
+                foreach (var card in target.Cards)
+                {
+                    card.CategoryId = target.Id;
+                }
+            }
+
+            UpdateCardOrders(source);
+            if (!ReferenceEquals(source, target))
+            {
+                UpdateCardOrders(target);
+            }
+
+            await SaveLayoutAsync();
+            await LoadLayoutAsync();
+        }
+        finally
+        {
+            _reorderLock.Release();
         }
 
-        var allCards = _layout.Categories
-            .SelectMany(x => x.Cards)
-            .ToDictionary(x => x.Id, x => x);
-
-        if (sourceCategoryId == targetCategoryId)
-        {
-            if (sourceCardIds.Length > 0)
-            {
-                source.Cards = ReorderCards(sourceCardIds, allCards);
-            }
-        }
-        else
-        {
-            if (sourceCardIds.Length > 0)
-            {
-                source.Cards = ReorderCards(sourceCardIds, allCards);
-            }
-
-            if (targetCardIds.Length > 0)
-            {
-                target.Cards = ReorderCards(targetCardIds, allCards);
-            }
-
-            foreach (var card in source.Cards)
-            {
-                card.CategoryId = source.Id;
-            }
-
-            foreach (var card in target.Cards)
-            {
-                card.CategoryId = target.Id;
-            }
-        }
-
-        UpdateCardOrders(source);
-        if (!ReferenceEquals(source, target))
-        {
-            UpdateCardOrders(target);
-        }
-
-        await SaveLayoutAsync();
-        StateHasChanged();
+        await InvokeAsync(StateHasChanged);
     }
 
     private static void UpdateCardOrders(DashboardCategory category)
@@ -359,81 +381,13 @@ else
 
     private async Task LoadLayoutAsync()
     {
-        await using var dbContext = await DbContextFactory.CreateDbContextAsync();
-        var layoutFromDb = await dbContext.Layouts
-            .AsNoTracking()
-            .Include(x => x.Categories)
-            .ThenInclude(x => x.Cards)
-            .FirstOrDefaultAsync(x => x.Id == 1);
-
-        _layout = layoutFromDb ?? new DashboardLayout { Id = 1, ThemeMode = "auto" };
+        _layout = await DashboardLayoutService.GetMainLayoutAsync();
     }
 
     private async Task SaveLayoutAsync()
     {
         NormalizeLayout();
-
-        await using var dbContext = await DbContextFactory.CreateDbContextAsync();
-        var existing = await dbContext.Layouts
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == _layout.Id);
-
-        if (existing is not null)
-        {
-            dbContext.Layouts.Remove(new DashboardLayout { Id = existing.Id });
-            await dbContext.SaveChangesAsync();
-        }
-
-        dbContext.Layouts.Add(CloneLayout(_layout));
-        await dbContext.SaveChangesAsync();
-    }
-
-    private static DashboardLayout CloneLayout(DashboardLayout source)
-    {
-        var layout = new DashboardLayout
-        {
-            Id = source.Id,
-            ThemeMode = source.ThemeMode,
-            Categories = []
-        };
-
-        foreach (var category in source.Categories)
-        {
-            var categoryCopy = new DashboardCategory
-            {
-                Id = category.Id,
-                DashboardLayoutId = source.Id,
-                Title = category.Title,
-                Position = new CategoryPosition
-                {
-                    Order = category.Position.Order,
-                    Width = category.Position.Width
-                },
-                Cards = []
-            };
-
-            foreach (var card in category.Cards)
-            {
-                categoryCopy.Cards.Add(new DashboardCard
-                {
-                    Id = card.Id,
-                    CategoryId = category.Id,
-                    Title = card.Title,
-                    Url = card.Url,
-                    IconClass = card.IconClass,
-                    IconColor = card.IconColor,
-                    IsOnline = card.IsOnline,
-                    Position = new CardPosition
-                    {
-                        Order = card.Position.Order
-                    }
-                });
-            }
-
-            layout.Categories.Add(categoryCopy);
-        }
-
-        return layout;
+        await DashboardLayoutService.SaveMainLayoutAsync(_layout);
     }
 
     public async ValueTask DisposeAsync()
@@ -451,5 +405,6 @@ else
         }
 
         _dotNetRef?.Dispose();
+        _reorderLock.Dispose();
     }
 }

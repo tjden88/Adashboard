@@ -217,7 +217,8 @@
 .category-cards {
     display: grid;
     gap: 0.8rem;
-    grid-template-columns: repeat(auto-fill, minmax(126px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(126px, 126px));
+    justify-content: start;
 }
 
 .dashboard-card {
@@ -309,7 +310,7 @@
 
 @media (max-width: 640px) {
     .category-cards {
-        grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(108px, 108px));
         gap: 0.62rem;
     }
 
