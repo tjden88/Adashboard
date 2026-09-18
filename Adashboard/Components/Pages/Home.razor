@@ -234,22 +234,15 @@ else
 
             if (sourceCategoryId == targetCategoryId)
             {
-                if (sourceCardIds.Length > 0)
-                {
-                    source.Cards = ReorderCards(sourceCardIds, allCards);
-                }
+                // Список из DOM всегда авторитетный, в том числе пустой.
+                source.Cards = ReorderCards(sourceCardIds, allCards);
             }
             else
             {
-                if (sourceCardIds.Length > 0)
-                {
-                    source.Cards = ReorderCards(sourceCardIds, allCards);
-                }
-
-                if (targetCardIds.Length > 0)
-                {
-                    target.Cards = ReorderCards(targetCardIds, allCards);
-                }
+                // Пересобираем оба списка целиком, иначе перенесённая карточка останется
+                // и в исходной категории, и в целевой — это даёт дубликат ключа при сохранении.
+                source.Cards = ReorderCards(sourceCardIds, allCards);
+                target.Cards = ReorderCards(targetCardIds, allCards);
 
                 foreach (var card in source.Cards)
                 {
