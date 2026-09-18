@@ -2,6 +2,7 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @using System.Text.Json
+@using Adashboard.Models.Dashboard
 @using Microsoft.JSInterop
 
 <PageTitle>Adashboard</PageTitle>
@@ -33,7 +34,7 @@ else
             {
                 <section class="dashboard-category"
                          data-category-id="@category.Id"
-                         style="--span-desktop:@category.Width; --span-mobile:@Math.Min(category.Width, 4);">
+                         style="--span-desktop:@category.Position.Width; --span-mobile:@Math.Min(category.Position.Width, 4);">
                     <header class="category-header">
                         <div class="category-title-wrap">
                             <span class="drag-handle" title="Перетащить категорию" aria-hidden="true">
@@ -44,7 +45,7 @@ else
                         <div class="category-actions">
                             <label for="width-@category.Id">Ширина</label>
                             <select id="width-@category.Id"
-                                    value="@category.Width"
+                                    value="@category.Position.Width"
                                     @onchange="args => OnCategoryWidthChanged(category.Id, args)">
                                 @for (var width = 1; width <= 12; width++)
                                 {
@@ -55,7 +56,7 @@ else
                     </header>
 
                     <div class="category-cards" data-category-id="@category.Id">
-                        @foreach (var card in category.Cards)
+                        @foreach (var card in category.Cards.OrderBy(x => x.Position.Order))
                         {
                             <a class="dashboard-card"
                                data-card-id="@card.Id"
@@ -80,14 +81,16 @@ else
 }
 
 @code {
-    private const string LayoutStorageKey = "adashboard.layout.v1";
+    private const string LayoutStorageKey = "adashboard.layout.v2";
 
     private readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = false
     };
 
-    private readonly List<DashboardCategory> _categories = [];
+    private DashboardLayout _layout = DashboardSeedFactory.CreateDefault();
+
+    private IEnumerable<DashboardCategory> _categories => _layout.Categories.OrderBy(x => x.Position.Order);
 
     private IJSObjectReference? _module;
     private DotNetObjectReference<Home>? _dotNetRef;
@@ -110,16 +113,17 @@ else
                 var saved = JsonSerializer.Deserialize<DashboardLayout>(layoutJson, _jsonOptions);
                 if (saved?.Categories?.Count > 0)
                 {
-                    _categories.Clear();
-                    _categories.AddRange(saved.Categories);
+                    _layout = saved;
                 }
             }
 
-            if (_categories.Count == 0)
+            if (_layout.Categories.Count == 0)
             {
-                _categories.AddRange(CreateDefaultCategories());
+                _layout = DashboardSeedFactory.CreateDefault();
                 await SaveLayoutAsync();
             }
+
+            NormalizeLayout();
 
             _isLoaded = true;
             StateHasChanged();
@@ -152,13 +156,13 @@ else
             return;
         }
 
-        var category = _categories.FirstOrDefault(x => x.Id == categoryId);
+        var category = _layout.Categories.FirstOrDefault(x => x.Id == categoryId);
         if (category is null)
         {
             return;
         }
 
-        category.Width = Math.Clamp(width, 1, 12);
+        category.Position.Width = Math.Clamp(width, 1, 12);
         await SaveLayoutAsync();
     }
 
@@ -170,22 +174,23 @@ else
             return;
         }
 
-        var map = _categories.ToDictionary(x => x.Id, x => x);
-        _categories.Clear();
-
+        var order = 0;
         foreach (var id in orderedCategoryIds)
         {
-            if (map.TryGetValue(id, out var category))
+            var category = _layout.Categories.FirstOrDefault(x => x.Id == id);
+            if (category is not null)
             {
-                _categories.Add(category);
+                category.Position.Order = order;
+                order++;
             }
         }
 
-        foreach (var category in map.Values)
+        foreach (var category in _layout.Categories.OrderBy(x => x.Position.Order))
         {
-            if (_categories.All(x => x.Id != category.Id))
+            if (orderedCategoryIds.All(id => id != category.Id))
             {
-                _categories.Add(category);
+                category.Position.Order = order;
+                order++;
             }
         }
 
@@ -196,30 +201,67 @@ else
     [JSInvokable]
     public async Task OnCardsReordered(string sourceCategoryId, string targetCategoryId, string[] sourceCardIds, string[] targetCardIds)
     {
-        var source = _categories.FirstOrDefault(x => x.Id == sourceCategoryId);
-        var target = _categories.FirstOrDefault(x => x.Id == targetCategoryId);
+        var source = _layout.Categories.FirstOrDefault(x => x.Id == sourceCategoryId);
+        var target = _layout.Categories.FirstOrDefault(x => x.Id == targetCategoryId);
         if (source is null || target is null)
         {
             return;
         }
 
+        var allCards = _layout.Categories
+            .SelectMany(x => x.Cards)
+            .ToDictionary(x => x.Id, x => x);
+
         if (sourceCategoryId == targetCategoryId)
         {
-            source.Cards = ReorderCards(source.Cards, sourceCardIds);
+            if (sourceCardIds.Length > 0)
+            {
+                source.Cards = ReorderCards(sourceCardIds, allCards);
+            }
         }
         else
         {
-            source.Cards = ReorderCards(source.Cards, sourceCardIds);
-            target.Cards = ReorderCards(target.Cards, targetCardIds);
+            if (sourceCardIds.Length > 0)
+            {
+                source.Cards = ReorderCards(sourceCardIds, allCards);
+            }
+
+            if (targetCardIds.Length > 0)
+            {
+                target.Cards = ReorderCards(targetCardIds, allCards);
+            }
+
+            foreach (var card in source.Cards)
+            {
+                card.CategoryId = source.Id;
+            }
+
+            foreach (var card in target.Cards)
+            {
+                card.CategoryId = target.Id;
+            }
+        }
+
+        UpdateCardOrders(source);
+        if (!ReferenceEquals(source, target))
+        {
+            UpdateCardOrders(target);
         }
 
         await SaveLayoutAsync();
         StateHasChanged();
     }
 
-    private List<DashboardCard> ReorderCards(List<DashboardCard> currentCards, string[] orderedIds)
+    private static void UpdateCardOrders(DashboardCategory category)
     {
-        var cardsById = currentCards.ToDictionary(x => x.Id, x => x);
+        for (var i = 0; i < category.Cards.Count; i++)
+        {
+            category.Cards[i].Position.Order = i;
+        }
+    }
+
+    private static List<DashboardCard> ReorderCards(string[] orderedIds, IReadOnlyDictionary<string, DashboardCard> cardsById)
+    {
         var ordered = new List<DashboardCard>(orderedIds.Length);
 
         foreach (var id in orderedIds)
@@ -230,15 +272,53 @@ else
             }
         }
 
-        foreach (var card in currentCards)
+        return ordered;
+    }
+
+    private void NormalizeLayout()
+    {
+        for (var categoryIndex = 0; categoryIndex < _layout.Categories.Count; categoryIndex++)
         {
-            if (ordered.All(x => x.Id != card.Id))
+            var category = _layout.Categories[categoryIndex];
+
+            category.DashboardLayoutId = _layout.Id;
+            category.Position.Width = Math.Clamp(category.Position.Width, 1, 12);
+
+            if (category.Position.Order < 0)
             {
-                ordered.Add(card);
+                category.Position.Order = categoryIndex;
+            }
+
+            for (var cardIndex = 0; cardIndex < category.Cards.Count; cardIndex++)
+            {
+                var card = category.Cards[cardIndex];
+                card.CategoryId = category.Id;
+
+                if (card.Position.Order < 0)
+                {
+                    card.Position.Order = cardIndex;
+                }
             }
         }
 
-        return ordered;
+        if (_layout.Categories.All(x => x.Position.Order == 0))
+        {
+            for (var i = 0; i < _layout.Categories.Count; i++)
+            {
+                _layout.Categories[i].Position.Order = i;
+            }
+        }
+
+        foreach (var category in _layout.Categories)
+        {
+            if (category.Cards.Count > 0 && category.Cards.All(x => x.Position.Order == 0))
+            {
+                for (var i = 0; i < category.Cards.Count; i++)
+                {
+                    category.Cards[i].Position.Order = i;
+                }
+            }
+        }
     }
 
     private async Task SaveLayoutAsync()
@@ -250,7 +330,8 @@ else
 
         var payload = new DashboardLayout
         {
-            Categories = _categories
+            Id = _layout.Id,
+            Categories = _layout.Categories
         };
 
         var json = JsonSerializer.Serialize(payload, _jsonOptions);
@@ -272,87 +353,5 @@ else
         }
 
         _dotNetRef?.Dispose();
-    }
-
-    private static List<DashboardCategory> CreateDefaultCategories() =>
-    [
-        new DashboardCategory
-        {
-            Id = "cat-network",
-            Title = "Networking & Management",
-            Width = 6,
-            Cards =
-            [
-                new DashboardCard("card-nginx", "Nginx Proxy Manager", "https://example.local/nginx", "fa-solid fa-network-wired", true),
-                new DashboardCard("card-uptime", "Uptime Kuma", "https://example.local/uptime", "fa-solid fa-heart-pulse", true),
-                new DashboardCard("card-portainer", "Portainer", "https://example.local/portainer", "fa-brands fa-docker", true),
-                new DashboardCard("card-ansible", "Ansible", "https://example.local/ansible", "fa-solid fa-terminal", true)
-            ]
-        },
-        new DashboardCategory
-        {
-            Id = "cat-mediaserver",
-            Title = "Mediaserver",
-            Width = 8,
-            Cards =
-            [
-                new DashboardCard("card-jellyfin", "Jellyfin", "https://example.local/jellyfin", "fa-solid fa-film", true),
-                new DashboardCard("card-sonarr", "Sonarr", "https://example.local/sonarr", "fa-solid fa-satellite-dish", true),
-                new DashboardCard("card-radarr", "Radarr", "https://example.local/radarr", "fa-solid fa-clapperboard", true),
-                new DashboardCard("card-bazarr", "Bazarr", "https://example.local/bazarr", "fa-solid fa-closed-captioning", true),
-                new DashboardCard("card-lidarr", "Lidarr", "https://example.local/lidarr", "fa-solid fa-compact-disc", true),
-                new DashboardCard("card-sab", "SABnzbd", "https://example.local/sab", "fa-solid fa-download", true)
-            ]
-        },
-        new DashboardCategory
-        {
-            Id = "cat-services",
-            Title = "Services",
-            Width = 4,
-            Cards =
-            [
-                new DashboardCard("card-grafana", "Grafana", "https://example.local/grafana", "fa-solid fa-chart-line", true),
-                new DashboardCard("card-prom", "Prometheus", "https://example.local/prometheus", "fa-solid fa-chart-area", true),
-                new DashboardCard("card-admin", "Adminer", "https://example.local/adminer", "fa-solid fa-database", false)
-            ]
-        }
-    ];
-
-    private sealed class DashboardLayout
-    {
-        public List<DashboardCategory> Categories { get; init; } = [];
-    }
-
-    private sealed class DashboardCategory
-    {
-        public required string Id { get; init; }
-
-        public required string Title { get; init; }
-
-        public int Width { get; set; }
-
-        public List<DashboardCard> Cards { get; set; } = [];
-    }
-
-    private sealed class DashboardCard
-    {
-        public DashboardCard(string id, string title, string url, string iconClass, bool isOnline)
-        {
-            Id = id;
-            Title = title;
-            Url = url;
-            IconClass = iconClass;
-            IsOnline = isOnline;
-        }
-
-        public string Id { get; init; }
-
-        public string Title { get; init; }
-
-        public string Url { get; init; }
-
-        public string IconClass { get; init; }
-
-        public bool IsOnline { get; init; }
     }
 }
