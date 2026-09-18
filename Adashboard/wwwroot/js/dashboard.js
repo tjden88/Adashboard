@@ -54,10 +54,79 @@ function parseId(value) {
     return Number.isInteger(parsed) ? parsed : null;
 }
 
+// Элементы, которым временно выставлен transform, чтобы скрыть откат DOM.
+const pendingTransforms = new Set();
+let gridObserver = null;
+let safetyClearTimer = null;
+
+function clearPendingTransforms() {
+    for (const element of pendingTransforms) {
+        element.style.transform = "";
+        element.style.transition = "";
+    }
+
+    pendingTransforms.clear();
+}
+
+function observeGrid(grid) {
+    if (gridObserver === null) {
+        // Blazor применяет перестановки по индексам DOM, поэтому после его патча
+        // сбрасываем временные transform в том же кадре — до отрисовки.
+        gridObserver = new MutationObserver(() => clearPendingTransforms());
+    }
+
+    gridObserver.disconnect();
+    gridObserver.observe(grid, { childList: true, subtree: true });
+}
+
+function captureRects(containers) {
+    const rects = new Map();
+
+    for (const container of containers) {
+        for (const child of container.children) {
+            rects.set(child, child.getBoundingClientRect());
+        }
+    }
+
+    return rects;
+}
+
+function applyVisualOffsets(containers, rects) {
+    for (const container of containers) {
+        for (const child of container.children) {
+            const before = rects.get(child);
+            if (!before) {
+                continue;
+            }
+
+            const after = child.getBoundingClientRect();
+            const dx = before.left - after.left;
+            const dy = before.top - after.top;
+
+            if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+                child.style.transition = "none";
+                child.style.transform = `translate(${dx}px, ${dy}px)`;
+                pendingTransforms.add(child);
+            }
+        }
+    }
+}
+
+function scheduleSafetyClear() {
+    if (safetyClearTimer !== null) {
+        clearTimeout(safetyClearTimer);
+    }
+
+    safetyClearTimer = setTimeout(() => {
+        safetyClearTimer = null;
+        clearPendingTransforms();
+    }, 2000);
+}
+
 // SortableJS перемещает DOM напрямую, а Blazor об этом не знает. Возвращаем перетаскиваемый
-// элемент на исходную позицию, чтобы DOM снова совпадал с состоянием рендера Blazor,
-// иначе последующая перерисовка может расставить элементы в неверном порядке.
-function revertDragToOriginalPosition(event) {
+// элемент на исходную позицию, чтобы DOM снова совпал с состоянием рендера Blazor, но
+// сохраняем экранные позиции элементов, чтобы откат не был виден пользователю.
+function revertDragToOriginalPosition(event, containers) {
     const item = event.item;
     const from = event.from;
     const oldIndex = event.oldIndex;
@@ -66,10 +135,21 @@ function revertDragToOriginalPosition(event) {
         return;
     }
 
+    const rects = captureRects(containers);
+
+    if (gridObserver !== null) {
+        gridObserver.disconnect();
+    }
+
     // Исключаем сам элемент, иначе индексы после его удаления смещаются и позиция восстанавливается неверно.
     const siblings = Array.from(from.children).filter((child) => child !== item);
     const referenceNode = siblings[oldIndex] ?? null;
     from.insertBefore(item, referenceNode);
+
+    applyVisualOffsets(containers, rects);
+
+    observeGrid(from.closest("#dashboard-grid") ?? from);
+    scheduleSafetyClear();
 }
 
 function setSortablesDisabled(disabled) {
@@ -143,7 +223,7 @@ export function initializeSortable(dotNetRef) {
                 .map((element) => parseId(element.dataset.categoryId))
                 .filter((id) => id !== null);
 
-            revertDragToOriginalPosition(event);
+            revertDragToOriginalPosition(event, [grid]);
 
             enqueueSync(() => dotNetRef.invokeMethodAsync("OnCategoriesReordered", orderedIds));
         }
@@ -186,7 +266,7 @@ export function initializeSortable(dotNetRef) {
                         .map((element) => parseId(element.dataset.cardId))
                         .filter((id) => id !== null);
 
-                revertDragToOriginalPosition(event);
+                revertDragToOriginalPosition(event, source === target ? [source] : [source, target]);
 
                 enqueueSync(() => dotNetRef.invokeMethodAsync(
                     "OnCardsReordered",
@@ -205,6 +285,18 @@ export function disposeSortable() {
     syncQueue = [];
     syncInProgress = false;
     dragInProgress = false;
+
+    if (gridObserver !== null) {
+        gridObserver.disconnect();
+        gridObserver = null;
+    }
+
+    if (safetyClearTimer !== null) {
+        clearTimeout(safetyClearTimer);
+        safetyClearTimer = null;
+    }
+
+    clearPendingTransforms();
 
     if (categorySortable) {
         categorySortable.destroy();
