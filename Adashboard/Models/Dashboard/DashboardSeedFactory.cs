@@ -1,7 +1,13 @@
 namespace Adashboard.Models.Dashboard;
 
+/// <summary>
+/// Фабрика стартовой раскладки dashboard.
+/// </summary>
 public static class DashboardSeedFactory
 {
+    /// <summary>
+    /// Создаёт базовую раскладку для первого запуска приложения.
+    /// </summary>
     public static DashboardLayout CreateDefault()
     {
         var layout = new DashboardLayout
@@ -58,6 +64,9 @@ public static class DashboardSeedFactory
         return layout;
     }
 
+    /// <summary>
+    /// Создаёт карточку с заданной позицией и метаданными.
+    /// </summary>
     private static DashboardCard CreateCard(string id, string categoryId, string title, string url, string iconClass, bool isOnline, int order) =>
         new()
         {

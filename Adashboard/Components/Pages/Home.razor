@@ -9,7 +9,24 @@
 
 @if (!_isLoaded)
 {
-    <div class="dashboard-loading">Загружаем dashboard...</div>
+    <div class="dashboard-loading" role="status" aria-live="polite" aria-label="Загрузка dashboard">
+        <div class="loader-card">
+            <div class="loader-orb"></div>
+            <div class="loader-lines">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <div class="loader-grid">
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </div>
 }
 else
 {
