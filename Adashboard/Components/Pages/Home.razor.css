@@ -154,7 +154,10 @@
     --cards-current: var(--cards-desktop, 4);
     grid-column: span var(--span-desktop);
     display: grid;
+    /* Одна колонка по ширине категории, чтобы длинный заголовок обрезался, а не растягивал блок. */
+    grid-template-columns: minmax(0, 1fr);
     gap: 0.9rem;
+    min-width: 0;
     border: 1px solid var(--surface-border);
     border-radius: 18px;
     padding: 0.95rem;
@@ -168,7 +171,8 @@
     align-items: center;
     justify-content: space-between;
     gap: 0.7rem;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    min-width: 0;
 }
 
 .category-title-wrap {
@@ -176,11 +180,12 @@
     align-items: center;
     gap: 0.55rem;
     min-width: 0;
-    flex: 1 1 12rem;
+    flex: 1 1 auto;
 }
 
 .category-header h2 {
     margin: 0;
+    min-width: 0;
     font-size: 1.05rem;
     font-weight: 700;
     white-space: nowrap;
@@ -191,6 +196,7 @@
 .drag-handle {
     width: 1.9rem;
     height: 1.9rem;
+    flex-shrink: 0;
     display: inline-grid;
     place-items: center;
     border-radius: 10px;
