@@ -222,15 +222,16 @@
 
 .category-cards {
     display: grid;
-    gap: 0.8rem;
+    gap: 0.55rem;
     grid-template-columns: repeat(var(--cards-current), minmax(0, 1fr));
 }
 
 .dashboard-card {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-rows: auto 1fr;
     align-items: center;
     gap: 0.55rem;
+    width: 100%;
     aspect-ratio: 1 / 1;
     border-radius: 14px;
     border: 1px solid color-mix(in srgb, var(--surface-border) 85%, transparent);
@@ -240,6 +241,7 @@
         linear-gradient(160deg, color-mix(in srgb, var(--surface) 75%, transparent), color-mix(in srgb, var(--surface-strong) 65%, transparent));
     transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
     position: relative;
+    overflow: hidden;
 }
 
 .dashboard-card:hover,
@@ -251,7 +253,7 @@
 }
 
 .card-icon {
-    flex: 1;
+    min-height: 0;
     width: 100%;
     display: grid;
     place-items: center;
@@ -259,7 +261,7 @@
 }
 
 .card-icon i {
-    font-size: clamp(2rem, 4.7vw, 3rem);
+    font-size: clamp(1.35rem, 2.6vw, 2.9rem);
     line-height: 1;
 }
 
@@ -268,7 +270,7 @@
     min-width: 0;
     text-align: center;
     line-height: 1.2;
-    font-size: 0.9rem;
+    font-size: 0.82rem;
     font-weight: 600;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -314,9 +316,32 @@
     }
 }
 
+@media (max-width: 1200px) and (min-width: 901px) {
+    .dashboard-grid {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+
+    .dashboard-category {
+        --cards-current: var(--cards-medium, 1);
+        grid-column: span var(--span-medium);
+    }
+
+    .dashboard-card {
+        padding: 0.54rem 0.5rem;
+    }
+
+    .card-title {
+        font-size: 0.76rem;
+    }
+
+    .card-icon i {
+        font-size: clamp(1.25rem, 2vw, 2.2rem);
+    }
+}
+
 @media (max-width: 640px) {
     .category-cards {
-        gap: 0.62rem;
+        gap: 0.48rem;
     }
 
     .dashboard-card {
@@ -325,7 +350,7 @@
     }
 
     .card-title {
-        font-size: 0.8rem;
+        font-size: 0.72rem;
     }
 
     .loader-card {
