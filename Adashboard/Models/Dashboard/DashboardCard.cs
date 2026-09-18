@@ -31,6 +31,11 @@ public sealed class DashboardCard
     public string IconClass { get; set; } = string.Empty;
 
     /// <summary>
+    /// Цвет иконки в формате CSS (например, #22c55e).
+    /// </summary>
+    public string IconColor { get; set; } = "#fb923c";
+
+    /// <summary>
     /// Признак доступности сервиса.
     /// </summary>
     public bool IsOnline { get; set; }

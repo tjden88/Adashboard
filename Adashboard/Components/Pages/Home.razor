@@ -79,13 +79,11 @@ else
                                data-card-id="@card.Id"
                                href="@card.Url"
                                target="_blank"
-                               rel="noopener noreferrer">
+                               rel="noopener noreferrer"
+                               style="--card-icon-color:@card.IconColor;">
+                                <span class="card-title">@card.Title</span>
                                 <div class="card-icon" aria-hidden="true">
                                     <i class="@card.IconClass"></i>
-                                </div>
-                                <div class="card-info">
-                                    <span class="card-title">@card.Title</span>
-                                    <span class="card-url">@card.Url</span>
                                 </div>
                                 <span class="status-dot @(card.IsOnline ? "online" : "offline")" aria-label="Статус"></span>
                             </a>
@@ -311,6 +309,11 @@ else
                 var card = category.Cards[cardIndex];
                 card.CategoryId = category.Id;
 
+                if (string.IsNullOrWhiteSpace(card.IconColor))
+                {
+                    card.IconColor = ResolveDefaultIconColor(card.IconClass);
+                }
+
                 if (card.Position.Order < 0)
                 {
                     card.Position.Order = cardIndex;
@@ -336,6 +339,31 @@ else
                 }
             }
         }
+    }
+
+    private static string ResolveDefaultIconColor(string iconClass)
+    {
+        if (iconClass.Contains("database", StringComparison.OrdinalIgnoreCase))
+        {
+            return "#f97316";
+        }
+
+        if (iconClass.Contains("chart", StringComparison.OrdinalIgnoreCase))
+        {
+            return "#fb923c";
+        }
+
+        if (iconClass.Contains("docker", StringComparison.OrdinalIgnoreCase))
+        {
+            return "#38bdf8";
+        }
+
+        if (iconClass.Contains("heart", StringComparison.OrdinalIgnoreCase))
+        {
+            return "#22c55e";
+        }
+
+        return "#fb923c";
     }
 
     private async Task SaveLayoutAsync()
