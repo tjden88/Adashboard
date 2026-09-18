@@ -4,6 +4,7 @@ let categorySortable = null;
 let cardSortables = [];
 let syncQueue = [];
 let syncInProgress = false;
+let dragInProgress = false;
 
 function resolveTheme(mode) {
     if (mode === "light" || mode === "dark") {
@@ -51,6 +52,24 @@ function disposeCards() {
 function parseId(value) {
     const parsed = Number.parseInt(value, 10);
     return Number.isInteger(parsed) ? parsed : null;
+}
+
+// SortableJS перемещает DOM напрямую, а Blazor об этом не знает. Возвращаем перетаскиваемый
+// элемент на исходную позицию, чтобы DOM снова совпадал с состоянием рендера Blazor,
+// иначе последующая перерисовка может расставить элементы в неверном порядке.
+function revertDragToOriginalPosition(event) {
+    const item = event.item;
+    const from = event.from;
+    const oldIndex = event.oldIndex;
+
+    if (!item || !from || typeof oldIndex !== "number") {
+        return;
+    }
+
+    // Исключаем сам элемент, иначе индексы после его удаления смещаются и позиция восстанавливается неверно.
+    const siblings = Array.from(from.children).filter((child) => child !== item);
+    const referenceNode = siblings[oldIndex] ?? null;
+    from.insertBefore(item, referenceNode);
 }
 
 function setSortablesDisabled(disabled) {
@@ -110,10 +129,21 @@ export function initializeSortable(dotNetRef) {
         draggable: ".dashboard-category",
         ghostClass: "sortable-ghost",
         chosenClass: "sortable-chosen",
-        onEnd: () => {
+        onStart: () => {
+            dragInProgress = true;
+        },
+        onEnd: (event) => {
+            if (!dragInProgress) {
+                return;
+            }
+
+            dragInProgress = false;
+
             const orderedIds = Array.from(grid.querySelectorAll(":scope > .dashboard-category"))
                 .map((element) => parseId(element.dataset.categoryId))
                 .filter((id) => id !== null);
+
+            revertDragToOriginalPosition(event);
 
             enqueueSync(() => dotNetRef.invokeMethodAsync("OnCategoriesReordered", orderedIds));
         }
@@ -127,7 +157,16 @@ export function initializeSortable(dotNetRef) {
             draggable: ".dashboard-card",
             ghostClass: "sortable-ghost",
             chosenClass: "sortable-chosen",
+            onStart: () => {
+                dragInProgress = true;
+            },
             onEnd: (event) => {
+                if (!dragInProgress) {
+                    return;
+                }
+
+                dragInProgress = false;
+
                 const source = event.from;
                 const target = event.to;
                 const sourceCategoryId = parseId(source.dataset.categoryId);
@@ -147,6 +186,8 @@ export function initializeSortable(dotNetRef) {
                         .map((element) => parseId(element.dataset.cardId))
                         .filter((id) => id !== null);
 
+                revertDragToOriginalPosition(event);
+
                 enqueueSync(() => dotNetRef.invokeMethodAsync(
                     "OnCardsReordered",
                     sourceCategoryId,
@@ -163,6 +204,7 @@ export function initializeSortable(dotNetRef) {
 export function disposeSortable() {
     syncQueue = [];
     syncInProgress = false;
+    dragInProgress = false;
 
     if (categorySortable) {
         categorySortable.destroy();
