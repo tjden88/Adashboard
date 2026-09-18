@@ -154,7 +154,10 @@
     --cards-current: var(--cards-desktop, 4);
     grid-column: span var(--span-desktop);
     display: grid;
+    /* Одна колонка по ширине категории, чтобы длинный заголовок обрезался, а не растягивал блок. */
+    grid-template-columns: minmax(0, 1fr);
     gap: 0.9rem;
+    min-width: 0;
     border: 1px solid var(--surface-border);
     border-radius: 18px;
     padding: 0.95rem;
@@ -168,7 +171,8 @@
     align-items: center;
     justify-content: space-between;
     gap: 0.7rem;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    min-width: 0;
 }
 
 .category-title-wrap {
@@ -176,11 +180,12 @@
     align-items: center;
     gap: 0.55rem;
     min-width: 0;
-    flex: 1 1 12rem;
+    flex: 1 1 auto;
 }
 
 .category-header h2 {
     margin: 0;
+    min-width: 0;
     font-size: 1.05rem;
     font-weight: 700;
     white-space: nowrap;
@@ -191,6 +196,7 @@
 .drag-handle {
     width: 1.9rem;
     height: 1.9rem;
+    flex-shrink: 0;
     display: inline-grid;
     place-items: center;
     border-radius: 10px;
@@ -222,17 +228,23 @@
 
 .category-cards {
     display: grid;
-    gap: 0.55rem;
+    --cards-gap: 0.55rem;
+    gap: var(--cards-gap);
     grid-template-columns: repeat(var(--cards-current), minmax(0, 1fr));
+    container-type: inline-size;
 }
 
 .dashboard-card {
+    --card-span-current: var(--card-span-desktop, 1);
+    grid-column: span var(--card-span-current);
     display: grid;
     grid-template-rows: auto 1fr;
     align-items: center;
-    gap: 0.55rem;
+    gap: 0.4rem;
     width: 100%;
-    aspect-ratio: 1 / 1;
+    /* Высота равна ширине одной колонки: карточка Width=1 квадратная, остальные только шире. */
+    height: calc((100cqw - (var(--cards-current) - 1) * var(--cards-gap)) / var(--cards-current));
+    container-type: inline-size;
     border-radius: 14px;
     border: 1px solid color-mix(in srgb, var(--surface-border) 85%, transparent);
     padding: 0.68rem 0.64rem;
@@ -261,7 +273,7 @@
 }
 
 .card-icon i {
-    font-size: clamp(1.35rem, 2.6vw, 2.9rem);
+    font-size: clamp(1rem, 24cqw, 2.4rem);
     line-height: 1;
 }
 
@@ -314,6 +326,10 @@
         --cards-current: var(--cards-mobile, 1);
         grid-column: span var(--span-mobile);
     }
+
+    .dashboard-card {
+        --card-span-current: var(--card-span-mobile, 1);
+    }
 }
 
 @media (max-width: 1200px) and (min-width: 901px) {
@@ -326,25 +342,27 @@
         grid-column: span var(--span-medium);
     }
 
+    .category-cards {
+        --cards-gap: 0.5rem;
+    }
+
     .dashboard-card {
+        --card-span-current: var(--card-span-medium, 1);
         padding: 0.54rem 0.5rem;
     }
 
     .card-title {
         font-size: 0.76rem;
     }
-
-    .card-icon i {
-        font-size: clamp(1.25rem, 2vw, 2.2rem);
-    }
 }
 
 @media (max-width: 640px) {
     .category-cards {
-        gap: 0.48rem;
+        --cards-gap: 0.48rem;
     }
 
     .dashboard-card {
+        --card-span-current: var(--card-span-mobile, 1);
         border-radius: 12px;
         padding: 0.58rem;
     }

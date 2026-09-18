@@ -53,6 +53,7 @@ namespace Adashboard.Data.Migrations
                     Url = table.Column<string>(type: "TEXT", maxLength: 500, nullable: false),
                     IconClass = table.Column<string>(type: "TEXT", maxLength: 120, nullable: false),
                     IconColor = table.Column<string>(type: "TEXT", maxLength: 32, nullable: false),
+                    IsWide = table.Column<bool>(type: "INTEGER", nullable: false),
                     IsOnline = table.Column<bool>(type: "INTEGER", nullable: false),
                     DisplayOrder = table.Column<int>(type: "INTEGER", nullable: false)
                 },

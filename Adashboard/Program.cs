@@ -14,8 +14,10 @@ builder.Logging.AddSimpleConsole(options =>
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+var databasePath = Path.Combine(builder.Environment.ContentRootPath, "adashboard.db");
+
 builder.Services.AddDbContextFactory<DashboardDbContext>(options =>
-    options.UseSqlite("Data Source=adashboard.db"));
+    options.UseSqlite($"Data Source={databasePath}"));
 builder.Services.AddScoped<IDashboardLayoutService, DashboardLayoutService>();
 
 var app = builder.Build();

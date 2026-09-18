@@ -42,6 +42,11 @@ public sealed class DashboardLayoutService(
         logger.LogInformation("Начато сохранение основной раскладки dashboard. Идентификатор: {LayoutId}.", layout.Id);
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        // Удаление и вставка выполняются в одной транзакции: иначе сбой на вставке
+        // оставил бы базу без раскладки.
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
         var existing = await dbContext.Layouts
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == layout.Id, cancellationToken);
@@ -55,6 +60,8 @@ public sealed class DashboardLayoutService(
 
         dbContext.Layouts.Add(CloneLayout(layout));
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
 
         logger.LogInformation(
             "Сохранение основной раскладки dashboard завершено. Категорий: {CategoryCount}.",
@@ -98,6 +105,7 @@ public sealed class DashboardLayoutService(
                     Url = card.Url,
                     IconClass = card.IconClass,
                     IconColor = card.IconColor,
+                    IsWide = card.IsWide,
                     IsOnline = card.IsOnline,
                     Position = new CardPosition
                     {
