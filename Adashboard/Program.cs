@@ -1,6 +1,7 @@
 using Adashboard.Data;
 using Adashboard.Components;
 using Microsoft.EntityFrameworkCore;
+using Adashboard.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,6 +20,7 @@ var databasePath = Path.Combine(builder.Environment.ContentRootPath, "adashboard
 builder.Services.AddDbContextFactory<DashboardDbContext>(options =>
     options.UseSqlite($"Data Source={databasePath}"));
 builder.Services.AddScoped<IDashboardLayoutService, DashboardLayoutService>();
+builder.Services.AddScoped<DialogService>();
 
 var app = builder.Build();
 

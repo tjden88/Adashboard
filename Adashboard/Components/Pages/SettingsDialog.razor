@@ -1,0 +1,24 @@
+<div class="settings-dialog">
+    <div class="settings-section">
+        <label for="themeSelect">Выберите тему оформления:</label>
+        <select id="themeSelect" class="form-select" value="@ThemeMode" @onchange="OnThemeChangedHandler">
+            <option value="auto">Автоматическая</option>
+            <option value="dark">Тёмная</option>
+            <option value="light">Светлая</option>
+        </select>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string ThemeMode { get; set; } = "auto";
+
+    [Parameter, EditorRequired]
+    public EventCallback<string> OnThemeChanged { get; set; }
+
+    private async Task OnThemeChangedHandler(ChangeEventArgs args)
+    {
+        var next = args.Value?.ToString() ?? "auto";
+        await OnThemeChanged.InvokeAsync(next);
+    }
+}

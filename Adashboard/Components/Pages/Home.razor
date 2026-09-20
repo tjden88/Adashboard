@@ -2,8 +2,10 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject IDashboardLayoutService DashboardLayoutService
+@inject DialogService DialogService
 @using Adashboard.Data
 @using Adashboard.Models.Dashboard
+@using Adashboard.Services
 @using Microsoft.JSInterop
 
 <PageTitle>Adashboard</PageTitle>
@@ -38,12 +40,9 @@ else
                 <p>Личная стартовая страница со ссылками и сервисами</p>
             </div>
             <div class="dashboard-header-actions">
-                <label for="themeMode">Тема</label>
-                <select id="themeMode" value="@_themeMode" @onchange="OnThemeChanged" aria-label="Переключение темы">
-                    <option value="auto">Авто</option>
-                    <option value="dark">Тёмная</option>
-                    <option value="light">Светлая</option>
-                </select>
+                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="OpenSettings" aria-label="Открыть настройки">
+                    <i class="fa-solid fa-gear" aria-hidden="true"></i> Настройки
+                </button>
             </div>
         </header>
 
@@ -96,9 +95,19 @@ else
         }
     }
 
-    private async Task OnThemeChanged(ChangeEventArgs args)
+    private void OpenSettings()
     {
-        var next = args.Value?.ToString();
+        var parameters = new Dictionary<string, object?>
+        {
+            [nameof(SettingsDialog.ThemeMode)] = _themeMode,
+            [nameof(SettingsDialog.OnThemeChanged)] = EventCallback.Factory.Create<string>(this, OnThemeModeChangedAsync)
+        };
+
+        DialogService.Show<SettingsDialog>("Настройки", parameters, closeOnOverlayClick: false);
+    }
+
+    private async Task OnThemeModeChangedAsync(string next)
+    {
         if (string.IsNullOrWhiteSpace(next) || _module is null)
         {
             return;
@@ -336,6 +345,13 @@ else
 
     public async ValueTask DisposeAsync()
     {
+        // Диалог настроек держит колбэк на текущую страницу: закрываем его при уходе, чтобы
+        // не вызывать метод у уже удалённого компонента.
+        if (DialogService.Current?.ComponentType == typeof(SettingsDialog))
+        {
+            DialogService.Close();
+        }
+
         if (_module is not null)
         {
             try
