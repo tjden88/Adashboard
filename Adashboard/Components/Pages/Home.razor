@@ -41,21 +41,21 @@ else
                 <p>Личная стартовая страница со ссылками и сервисами</p>
             </div>
             <div class="dashboard-header-actions">
-                @if (EditModeService.IsEnabled)
-                {
-                    <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="OpenSettings" aria-label="Открыть настройки">
-                        <i class="fa-solid fa-gear" aria-hidden="true"></i> Настройки
-                    </button>
-                }
-
                 <button type="button"
-                        class="btn btn-sm @(EditModeService.IsEnabled ? "btn-primary" : "btn-outline-secondary")"
+                        class="btn btn-icon btn-sm @(EditModeService.IsEnabled ? "btn-primary" : "btn-outline-secondary")"
                         @onclick="ToggleEditMode"
                         aria-pressed="@EditModeService.IsEnabled"
-                        aria-label="Переключить режим редактирования">
-                    <i class="fa-solid @(EditModeService.IsEnabled ? "fa-check" : "fa-pen-to-square")" aria-hidden="true"></i>
-                    Режим редактирования
+                        aria-label="Переключить режим редактирования"
+                        title="Режим редактирования">
+                    <i class="fa-solid @(EditModeService.IsEnabled ? "fa-check" : "fa-pen-nib")" aria-hidden="true"></i>
                 </button>
+
+                @if (EditModeService.IsEnabled)
+                {
+                    <button type="button" class="btn btn-icon btn-sm btn-outline-secondary" @onclick="OpenSettings" aria-label="Открыть настройки" title="Настройки">
+                        <i class="fa-solid fa-gear" aria-hidden="true"></i>
+                    </button>
+                }
             </div>
         </header>
 
