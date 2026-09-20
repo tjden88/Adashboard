@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace Adashboard.Models.Dashboard;
 
 /// <summary>
@@ -31,9 +33,9 @@ public sealed class DashboardCard
     public string IconClass { get; set; } = string.Empty;
 
     /// <summary>
-    /// Цвет иконки в формате CSS (например, #22c55e).
+    /// Цвет фона карточки в формате CSS (например, #1e293b).
     /// </summary>
-    public string IconColor { get; set; } = "#fb923c";
+    public string BackgroundColor { get; set; } = "#1e40af";
 
     /// <summary>
     /// Признак широкой карточки: занимает две колонки вместо одной.
@@ -49,4 +51,48 @@ public sealed class DashboardCard
     /// Положение карточки внутри категории.
     /// </summary>
     public CardPosition Position { get; set; } = new();
+
+    /// <summary>
+    /// Определяет, нужно ли для данного цвета фона использовать светлые (белые) текст и иконку.
+    /// Возвращает true для достаточно тёмных фонов.
+    /// </summary>
+    public static bool ShouldUseLightText(string hexColor)
+    {
+        var rgb = ParseHexColor(hexColor);
+        if (rgb is null) return true;
+
+        double r = Linearize(rgb.Value.R / 255.0);
+        double g = Linearize(rgb.Value.G / 255.0);
+        double b = Linearize(rgb.Value.B / 255.0);
+
+        double luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+        return luminance < 0.45;
+    }
+
+    /// <summary>
+    /// Цвет иконки, автоматически подобранный на основе фона карточки.
+    /// </summary>
+    public string GetIconColor() => ShouldUseLightText(BackgroundColor) ? "#ffffff" : "#0f172a";
+
+    /// <summary>
+    /// Цвет текста заголовка карточки, автоматически подобранный на основе фона.
+    /// </summary>
+    public string GetTextColor() => ShouldUseLightText(BackgroundColor) ? "#ffffff" : "#0f172a";
+
+    private static (byte R, byte G, byte B)? ParseHexColor(string hex)
+    {
+        if (string.IsNullOrWhiteSpace(hex)) return null;
+        var raw = hex.TrimStart('#');
+        if (raw.Length != 6) return null;
+        return (
+            byte.Parse(raw[..2], NumberStyles.HexNumber),
+            byte.Parse(raw[2..4], NumberStyles.HexNumber),
+            byte.Parse(raw[4..6], NumberStyles.HexNumber));
+    }
+
+    private static double Linearize(double c)
+    {
+        return c <= 0.04045 ? c / 12.92 : Math.Pow((c + 0.055) / 1.055, 2.4);
+    }
 }

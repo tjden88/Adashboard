@@ -5,7 +5,7 @@
    href="@Model.Url"
    target="_blank"
    rel="noopener noreferrer"
-   style="--card-icon-color:@Model.IconColor; --card-span-desktop:@CardSpanDesktop; --card-span-medium:@CardSpanMedium; --card-span-mobile:@CardSpanMobile;">
+   style="--card-bg:@Model.BackgroundColor; --card-icon-color:@Model.GetIconColor(); --card-text-color:@Model.GetTextColor(); --card-span-desktop:@CardSpanDesktop; --card-span-medium:@CardSpanMedium; --card-span-mobile:@CardSpanMobile;">
     <span class="card-title">@Model.Title</span>
     <div class="card-icon" aria-hidden="true">
         <i class="@Model.IconClass"></i>

@@ -266,9 +266,9 @@ else
                 var card = category.Cards[cardIndex];
                 card.CategoryId = category.Id;
 
-                if (string.IsNullOrWhiteSpace(card.IconColor))
+                if (string.IsNullOrWhiteSpace(card.BackgroundColor))
                 {
-                    card.IconColor = ResolveDefaultIconColor(card.IconClass);
+                    card.BackgroundColor = ResolveDefaultBackgroundColor(card.IconClass);
                 }
 
                 if (card.Position.Order < 0)
@@ -298,29 +298,29 @@ else
         }
     }
 
-    private static string ResolveDefaultIconColor(string iconClass)
+    private static string ResolveDefaultBackgroundColor(string iconClass)
     {
         if (iconClass.Contains("database", StringComparison.OrdinalIgnoreCase))
         {
-            return "#f97316";
+            return "#b91c1c";
         }
 
         if (iconClass.Contains("chart", StringComparison.OrdinalIgnoreCase))
         {
-            return "#fb923c";
+            return "#ea580c";
         }
 
         if (iconClass.Contains("docker", StringComparison.OrdinalIgnoreCase))
         {
-            return "#38bdf8";
+            return "#0369a1";
         }
 
         if (iconClass.Contains("heart", StringComparison.OrdinalIgnoreCase))
         {
-            return "#22c55e";
+            return "#15803d";
         }
 
-        return "#fb923c";
+        return "#1e40af";
     }
 
     private async Task LoadLayoutAsync()

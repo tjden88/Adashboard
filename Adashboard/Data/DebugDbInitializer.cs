@@ -211,7 +211,7 @@ public static class DebugDbInitializer
     /// <summary>
     /// Создаёт карточку с заданным идентификатором и позицией.
     /// </summary>
-    private static DashboardCard CreateCard(int id, int categoryId, string title, string url, string iconClass, string iconColor, bool isWide, bool isOnline, int order) =>
+    private static DashboardCard CreateCard(int id, int categoryId, string title, string url, string iconClass, string backgroundColor, bool isWide, bool isOnline, int order) =>
         new()
         {
             Id = id,
@@ -219,7 +219,7 @@ public static class DebugDbInitializer
             Title = title,
             Url = url,
             IconClass = iconClass,
-            IconColor = iconColor,
+            BackgroundColor = backgroundColor,
             IsWide = isWide,
             IsOnline = isOnline,
             Position = new CardPosition { Order = order }

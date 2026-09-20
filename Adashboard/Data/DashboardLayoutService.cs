@@ -104,7 +104,7 @@ public sealed class DashboardLayoutService(
                     Title = card.Title,
                     Url = card.Url,
                     IconClass = card.IconClass,
-                    IconColor = card.IconColor,
+                    BackgroundColor = card.BackgroundColor,
                     IsWide = card.IsWide,
                     IsOnline = card.IsOnline,
                     Position = new CardPosition
