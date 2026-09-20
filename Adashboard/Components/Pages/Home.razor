@@ -3,6 +3,7 @@
 @inject IJSRuntime JS
 @inject IDashboardLayoutService DashboardLayoutService
 @inject DialogService DialogService
+@inject EditModeService EditModeService
 @using Adashboard.Data
 @using Adashboard.Models.Dashboard
 @using Adashboard.Services
@@ -40,8 +41,20 @@ else
                 <p>Личная стартовая страница со ссылками и сервисами</p>
             </div>
             <div class="dashboard-header-actions">
-                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="OpenSettings" aria-label="Открыть настройки">
-                    <i class="fa-solid fa-gear" aria-hidden="true"></i> Настройки
+                @if (EditModeService.IsEnabled)
+                {
+                    <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="OpenSettings" aria-label="Открыть настройки">
+                        <i class="fa-solid fa-gear" aria-hidden="true"></i> Настройки
+                    </button>
+                }
+
+                <button type="button"
+                        class="btn btn-sm @(EditModeService.IsEnabled ? "btn-primary" : "btn-outline-secondary")"
+                        @onclick="ToggleEditMode"
+                        aria-pressed="@EditModeService.IsEnabled"
+                        aria-label="Переключить режим редактирования">
+                    <i class="fa-solid @(EditModeService.IsEnabled ? "fa-check" : "fa-pen-to-square")" aria-hidden="true"></i>
+                    Режим редактирования
                 </button>
             </div>
         </header>
@@ -69,6 +82,15 @@ else
     private string _themeMode = "auto";
     private bool _isLoaded;
     private bool _dragAndDropInitialized;
+
+    protected override void OnInitialized()
+    {
+        EditModeService.OnChange += OnEditModeChanged;
+    }
+
+    private void OnEditModeChanged() => InvokeAsync(StateHasChanged);
+
+    private void ToggleEditMode() => EditModeService.Toggle();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -345,6 +367,8 @@ else
 
     public async ValueTask DisposeAsync()
     {
+        EditModeService.OnChange -= OnEditModeChanged;
+
         // Диалог настроек держит колбэк на текущую страницу: закрываем его при уходе, чтобы
         // не вызывать метод у уже удалённого компонента.
         if (DialogService.Current?.ComponentType == typeof(SettingsDialog))

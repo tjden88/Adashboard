@@ -21,6 +21,7 @@ builder.Services.AddDbContextFactory<DashboardDbContext>(options =>
     options.UseSqlite($"Data Source={databasePath}"));
 builder.Services.AddScoped<IDashboardLayoutService, DashboardLayoutService>();
 builder.Services.AddScoped<DialogService>();
+builder.Services.AddScoped<EditModeService>();
 
 var app = builder.Build();
 
