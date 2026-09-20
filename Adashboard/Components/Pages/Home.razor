@@ -50,53 +50,7 @@ else
         <div class="dashboard-grid" id="dashboard-grid">
             @foreach (var category in _categories)
             {
-                <section class="dashboard-category"
-                         @key="category.Id"
-                         data-category-id="@category.Id"
-                         style="--span-desktop:@category.Position.Width; --span-medium:@GetMediumSpan(category.Position.Width); --span-mobile:@Math.Min(category.Position.Width, 4); --cards-desktop:@category.Position.Width; --cards-medium:@GetMediumSpan(category.Position.Width); --cards-mobile:@Math.Min(category.Position.Width, 4);">
-                    <header class="category-header">
-                        <div class="category-title-wrap">
-                            <span class="drag-handle" title="Перетащить категорию" aria-hidden="true">
-                                <i class="fa-solid fa-grip-vertical"></i>
-                            </span>
-                            <h2>@category.Title</h2>
-                        </div>
-                        <div class="category-actions">
-                            <label for="width-@category.Id">Ширина</label>
-                            <select id="width-@category.Id"
-                                    value="@category.Position.Width"
-                                    @onchange="args => OnCategoryWidthChanged(category.Id, args)">
-                                @for (var width = 1; width <= 12; width++)
-                                {
-                                    <option value="@width">@width</option>
-                                }
-                            </select>
-                        </div>
-                    </header>
-
-                    <div class="category-cards" data-category-id="@category.Id">
-                        @foreach (var card in category.Cards.OrderBy(x => x.Position.Order))
-                        {
-                            var cardSpanDesktop = GetCardSpan(card.IsWide, category.Position.Width);
-                            var cardSpanMedium = GetCardSpan(card.IsWide, GetMediumSpan(category.Position.Width));
-                            var cardSpanMobile = GetCardSpan(card.IsWide, Math.Min(category.Position.Width, 4));
-
-                            <a class="dashboard-card"
-                               @key="card.Id"
-                               data-card-id="@card.Id"
-                               href="@card.Url"
-                               target="_blank"
-                               rel="noopener noreferrer"
-                               style="--card-icon-color:@card.IconColor; --card-span-desktop:@cardSpanDesktop; --card-span-medium:@cardSpanMedium; --card-span-mobile:@cardSpanMobile;">
-                                <span class="card-title">@card.Title</span>
-                                <div class="card-icon" aria-hidden="true">
-                                    <i class="@card.IconClass"></i>
-                                </div>
-                                <span class="status-dot @(card.IsOnline ? "online" : "offline")" aria-label="Статус"></span>
-                            </a>
-                        }
-                    </div>
-                </section>
+                <Category @key="category.Id" Model="@category" WidthChanged="args => OnCategoryWidthChanged(category.Id, args)" />
             }
         </div>
     </section>
@@ -115,7 +69,7 @@ else
     private readonly SemaphoreSlim _reorderLock = new(1, 1);
     private string _themeMode = "auto";
     private bool _isLoaded;
-    private bool _sortableInitialized;
+    private bool _dragAndDropInitialized;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -135,10 +89,10 @@ else
             return;
         }
 
-        if (_isLoaded && !_sortableInitialized && _module is not null && _dotNetRef is not null)
+        if (_isLoaded && !_dragAndDropInitialized && _module is not null && _dotNetRef is not null)
         {
-            await _module.InvokeVoidAsync("initializeSortable", _dotNetRef);
-            _sortableInitialized = true;
+            await _module.InvokeVoidAsync("initializeDragAndDrop", _dotNetRef);
+            _dragAndDropInitialized = true;
         }
     }
 
@@ -195,9 +149,10 @@ else
                 }
             }
 
+            // Категории, которых нет в присланном списке, уходят в конец, сохраняя относительный порядок.
             foreach (var category in _layout.Categories.OrderBy(x => x.Position.Order))
             {
-                if (orderedCategoryIds.All(id => id != category.Id))
+                if (Array.IndexOf(orderedCategoryIds, category.Id) < 0)
                 {
                     category.Position.Order = order;
                     order++;
@@ -205,7 +160,6 @@ else
             }
 
             await SaveLayoutAsync();
-            await LoadLayoutAsync();
         }
         finally
         {
@@ -228,41 +182,34 @@ else
                 return;
             }
 
-            var allCards = _layout.Categories
+            var cardsById = _layout.Categories
                 .SelectMany(x => x.Cards)
                 .ToDictionary(x => x.Id, x => x);
 
-            if (sourceCategoryId == targetCategoryId)
+            // Список из DOM всегда авторитетный и пересобирается целиком: иначе перенесённая
+            // карточка осталась бы сразу в двух категориях и дала дубликат ключа при сохранении.
+            source.Cards = ResolveCards(sourceCardIds, cardsById);
+            foreach (var card in source.Cards)
             {
-                // Список из DOM всегда авторитетный, в том числе пустой.
-                source.Cards = ReorderCards(sourceCardIds, allCards);
+                card.CategoryId = source.Id;
             }
-            else
+
+            if (!ReferenceEquals(source, target))
             {
-                // Пересобираем оба списка целиком, иначе перенесённая карточка останется
-                // и в исходной категории, и в целевой — это даёт дубликат ключа при сохранении.
-                source.Cards = ReorderCards(sourceCardIds, allCards);
-                target.Cards = ReorderCards(targetCardIds, allCards);
-
-                foreach (var card in source.Cards)
-                {
-                    card.CategoryId = source.Id;
-                }
-
+                target.Cards = ResolveCards(targetCardIds, cardsById);
                 foreach (var card in target.Cards)
                 {
                     card.CategoryId = target.Id;
                 }
             }
 
-            UpdateCardOrders(source);
+            AssignCardOrder(source);
             if (!ReferenceEquals(source, target))
             {
-                UpdateCardOrders(target);
+                AssignCardOrder(target);
             }
 
             await SaveLayoutAsync();
-            await LoadLayoutAsync();
         }
         finally
         {
@@ -272,7 +219,7 @@ else
         await InvokeAsync(StateHasChanged);
     }
 
-    private static void UpdateCardOrders(DashboardCategory category)
+    private static void AssignCardOrder(DashboardCategory category)
     {
         for (var i = 0; i < category.Cards.Count; i++)
         {
@@ -280,7 +227,7 @@ else
         }
     }
 
-    private static List<DashboardCard> ReorderCards(int[] orderedIds, IReadOnlyDictionary<int, DashboardCard> cardsById)
+    private static List<DashboardCard> ResolveCards(int[] orderedIds, IReadOnlyDictionary<int, DashboardCard> cardsById)
     {
         var ordered = new List<DashboardCard>(orderedIds.Length);
 
@@ -376,19 +323,6 @@ else
         return "#fb923c";
     }
 
-    private static int GetMediumSpan(int desktopWidth)
-    {
-        return Math.Clamp((int)Math.Round(desktopWidth / 2d, MidpointRounding.AwayFromZero), 1, 6);
-    }
-
-    private static int GetCardSpan(bool isWide, int categoryColumns)
-    {
-        var safeColumns = Math.Max(1, categoryColumns);
-
-        // Широкая карточка всегда занимает две колонки, но не больше доступного числа колонок категории.
-        return isWide ? Math.Min(2, safeColumns) : 1;
-    }
-
     private async Task LoadLayoutAsync()
     {
         _layout = await DashboardLayoutService.GetMainLayoutAsync();
@@ -406,7 +340,7 @@ else
         {
             try
             {
-                await _module.InvokeVoidAsync("disposeSortable");
+                await _module.InvokeVoidAsync("disposeDragAndDrop");
                 await _module.DisposeAsync();
             }
             catch

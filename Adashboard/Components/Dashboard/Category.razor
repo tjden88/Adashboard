@@ -1,0 +1,54 @@
+@using Adashboard.Models.Dashboard
+
+<section class="dashboard-category"
+         data-category-id="@Model.Id"
+         style="--span-desktop:@DesktopWidth; --span-medium:@MediumWidth; --span-mobile:@MobileWidth; --cards-desktop:@DesktopWidth; --cards-medium:@MediumWidth; --cards-mobile:@MobileWidth;">
+    <header class="category-header">
+        <div class="category-title-wrap">
+            <span class="drag-handle" title="Перетащить категорию" aria-hidden="true">
+                <i class="fa-solid fa-grip-vertical"></i>
+            </span>
+            <h2>@Model.Title</h2>
+        </div>
+        <div class="category-actions">
+            <label for="width-@Model.Id">Ширина</label>
+            <select id="width-@Model.Id"
+                    value="@Model.Position.Width"
+                    @onchange="WidthChanged">
+                @for (var width = 1; width <= 12; width++)
+                {
+                    <option value="@width">@width</option>
+                }
+            </select>
+        </div>
+    </header>
+
+    <div class="category-cards" data-category-id="@Model.Id">
+        @foreach (var card in Model.Cards.OrderBy(x => x.Position.Order))
+        {
+            <Card @key="card.Id" Model="@card"
+                  DesktopColumns="@DesktopWidth"
+                  MediumColumns="@MediumWidth"
+                  MobileColumns="@MobileWidth" />
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public DashboardCategory Model { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public EventCallback<ChangeEventArgs> WidthChanged { get; set; }
+
+    private int DesktopWidth => Model.Position.Width;
+
+    private int MediumWidth => GetMediumSpan(DesktopWidth);
+
+    private int MobileWidth => Math.Min(DesktopWidth, 4);
+
+    private static int GetMediumSpan(int desktopWidth)
+    {
+        return Math.Clamp((int)Math.Round(desktopWidth / 2d, MidpointRounding.AwayFromZero), 1, 6);
+    }
+}

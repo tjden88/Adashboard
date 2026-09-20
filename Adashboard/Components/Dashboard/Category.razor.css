@@ -1,0 +1,108 @@
+.dashboard-category {
+    --cards-current: var(--cards-desktop, 4);
+    grid-column: span var(--span-desktop);
+    display: grid;
+    /* Одна колонка по ширине категории, чтобы длинный заголовок обрезался, а не растягивал блок. */
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.9rem;
+    min-width: 0;
+    border: 1px solid var(--surface-border);
+    border-radius: 18px;
+    padding: 0.95rem;
+    background: linear-gradient(160deg, color-mix(in srgb, var(--surface) 88%, transparent), var(--surface-strong));
+    box-shadow: var(--shadow-soft);
+    overflow: hidden;
+}
+
+.category-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.7rem;
+    flex-wrap: nowrap;
+    min-width: 0;
+}
+
+.category-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.category-header h2 {
+    margin: 0;
+    min-width: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.drag-handle {
+    width: 1.9rem;
+    height: 1.9rem;
+    flex-shrink: 0;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 10px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    cursor: grab;
+    touch-action: none;
+}
+
+.category-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.category-actions label {
+    color: var(--text-muted);
+    font-size: 0.82rem;
+}
+
+.category-actions select {
+    border: 1px solid var(--surface-border);
+    border-radius: 10px;
+    padding: 0.32rem 0.4rem;
+    background: var(--surface-strong);
+    color: var(--text-main);
+}
+
+.category-cards {
+    display: grid;
+    --cards-gap: 0.55rem;
+    gap: var(--cards-gap);
+    grid-template-columns: repeat(var(--cards-current), minmax(0, 1fr));
+    container-type: inline-size;
+}
+
+@media (max-width: 900px) {
+    .dashboard-category {
+        --cards-current: var(--cards-mobile, 1);
+        grid-column: span var(--span-mobile);
+    }
+}
+
+@media (max-width: 1200px) and (min-width: 901px) {
+    .dashboard-category {
+        --cards-current: var(--cards-medium, 1);
+        grid-column: span var(--span-medium);
+    }
+
+    .category-cards {
+        --cards-gap: 0.5rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .category-cards {
+        --cards-gap: 0.48rem;
+    }
+}

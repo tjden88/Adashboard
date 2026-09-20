@@ -1,0 +1,42 @@
+@using Adashboard.Models.Dashboard
+
+<a class="dashboard-card"
+   data-card-id="@Model.Id"
+   href="@Model.Url"
+   target="_blank"
+   rel="noopener noreferrer"
+   style="--card-icon-color:@Model.IconColor; --card-span-desktop:@CardSpanDesktop; --card-span-medium:@CardSpanMedium; --card-span-mobile:@CardSpanMobile;">
+    <span class="card-title">@Model.Title</span>
+    <div class="card-icon" aria-hidden="true">
+        <i class="@Model.IconClass"></i>
+    </div>
+    <span class="status-dot @(Model.IsOnline ? "online" : "offline")" aria-label="Статус"></span>
+</a>
+
+@code {
+    [Parameter, EditorRequired]
+    public DashboardCard Model { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public int DesktopColumns { get; set; }
+
+    [Parameter, EditorRequired]
+    public int MediumColumns { get; set; }
+
+    [Parameter, EditorRequired]
+    public int MobileColumns { get; set; }
+
+    private int CardSpanDesktop => GetCardSpan(Model.IsWide, DesktopColumns);
+
+    private int CardSpanMedium => GetCardSpan(Model.IsWide, MediumColumns);
+
+    private int CardSpanMobile => GetCardSpan(Model.IsWide, MobileColumns);
+
+    private static int GetCardSpan(bool isWide, int categoryColumns)
+    {
+        var safeColumns = Math.Max(1, categoryColumns);
+
+        // Широкая карточка всегда занимает две колонки, но не больше доступного числа колонок категории.
+        return isWide ? Math.Min(2, safeColumns) : 1;
+    }
+}
