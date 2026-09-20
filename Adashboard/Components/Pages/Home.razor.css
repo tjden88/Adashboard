@@ -103,13 +103,8 @@
     align-items: flex-end;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 1rem;
-    padding: 1.15rem 1.25rem;
-    border-radius: 18px;
-    border: 1px solid var(--surface-border);
-    background: var(--surface);
-    backdrop-filter: blur(10px);
-    box-shadow: var(--shadow-soft);
+    gap: 0.5rem 1rem;
+    padding: 0;
 }
 
 .dashboard-header h1 {

@@ -9,7 +9,8 @@
     border: 1px solid var(--surface-border);
     border-radius: 18px;
     padding: 0.95rem;
-    background: linear-gradient(160deg, color-mix(in srgb, var(--surface) 88%, transparent), var(--surface-strong));
+    background: color-mix(in srgb, var(--surface) 40%, transparent);
+    backdrop-filter: blur(3px);
     box-shadow: var(--shadow-soft);
     overflow: hidden;
 }

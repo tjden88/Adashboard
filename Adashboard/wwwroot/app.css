@@ -35,10 +35,23 @@ body {
     min-height: 100%;
     font-family: var(--font-main);
     color: var(--text-main);
-    background:
-        radial-gradient(circle at 12% 18%, var(--bg-gradient-a), transparent 45%),
-        radial-gradient(circle at 82% 2%, var(--bg-gradient-b), transparent 42%),
-        var(--bg-main);
+}
+
+html {
+    background-color: var(--bg-main);
+}
+
+body {
+    background-color: var(--bg-main);
+    background-image: url("images/light-bg.jpg");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+}
+
+html[data-theme="dark"] body {
+    background-image: url("images/dark-bg.jpg");
 }
 
 * {
