@@ -46,6 +46,8 @@ let dragState = null;
 let suppressClick = false;
 let syncQueue = [];
 let syncInProgress = false;
+// Перетаскивание включено только в режиме редактирования.
+let editModeEnabled = false;
 
 let gridResizeObserver = null;
 let itemResizeObserver = null;
@@ -479,6 +481,11 @@ function onPointerDown(event) {
         return;
     }
 
+    // Перетаскивание доступно только в режиме редактирования.
+    if (!editModeEnabled) {
+        return;
+    }
+
     if (!(event.target instanceof Element)) {
         return;
     }
@@ -731,9 +738,10 @@ function onClickCapture(event) {
 }
 
 function onDragStart(event) {
-    if (dragState) {
-        event.preventDefault();
-    }
+    // У карточки нативная HTML-ссылка: браузер позволяет «потянуть» её
+    // drag-and-drop и показывает фантом ссылки. Это нежелательно даже вне режима
+    // редактирования, поэтому подавляем нативный dragstart всегда.
+    event.preventDefault();
 }
 
 function onKeyDown(event) {
@@ -804,6 +812,23 @@ export function initializeDragAndDrop(ref) {
         syncObservedCategories();
         scheduleLayout();
     }
+}
+
+export function setEditMode(enabled) {
+    editModeEnabled = !!(enabled);
+
+    // При выключении режима активное перетаскивание немедленно отменяется.
+    if (!editModeEnabled && dragState) {
+        if (dragState.active) {
+            cleanup();
+        }
+
+        endSession();
+        scheduleLayout();
+    }
+
+    // Класс нужен CSS: захват курсора на элементах показывается только в режиме редактирования.
+    document.documentElement.classList.toggle("dashboard-edit-mode", editModeEnabled);
 }
 
 export function disposeDragAndDrop() {

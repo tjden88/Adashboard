@@ -115,6 +115,11 @@ else
             await _module.InvokeVoidAsync("initializeDragAndDrop", _dotNetRef);
             _dragAndDropInitialized = true;
         }
+
+        if (_isLoaded && _module is not null)
+        {
+            await _module.InvokeVoidAsync("setEditMode", EditModeService.IsEnabled);
+        }
     }
 
     private void OpenSettings()

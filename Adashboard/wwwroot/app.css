@@ -159,6 +159,12 @@ input {
     border-color: color-mix(in srgb, var(--text-main) 28%, var(--surface-border));
 }
 
+/* Перетаскивание доступно только в режиме редактирования. */
+html:not(.dashboard-edit-mode) .drag-handle,
+html:not(.dashboard-edit-mode) .category-actions {
+    display: none;
+}
+
 .dnd-placeholder {
     box-sizing: border-box;
     pointer-events: none;
