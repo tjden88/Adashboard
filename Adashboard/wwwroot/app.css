@@ -64,7 +64,6 @@ input {
 }
 
 .dnd-placeholder-category {
-    grid-column: span var(--span-desktop, 4);
     border-radius: 18px;
 }
 
@@ -87,20 +86,12 @@ body.dnd-active {
 }
 
 @media (max-width: 900px) {
-    .dnd-placeholder-category {
-        grid-column: span var(--span-mobile, 2);
-    }
-
     .dnd-placeholder-card {
         grid-column: span var(--card-span-mobile, 1);
     }
 }
 
 @media (max-width: 1200px) and (min-width: 901px) {
-    .dnd-placeholder-category {
-        grid-column: span var(--span-medium, 3);
-    }
-
     .dnd-placeholder-card {
         grid-column: span var(--card-span-medium, 1);
     }

@@ -1,6 +1,6 @@
 .dashboard-category {
     --cards-current: var(--cards-desktop, 4);
-    grid-column: span var(--span-desktop);
+    position: absolute;
     display: grid;
     /* Одна колонка по ширине категории, чтобы длинный заголовок обрезался, а не растягивал блок. */
     grid-template-columns: minmax(0, 1fr);
@@ -86,14 +86,12 @@
 @media (max-width: 900px) {
     .dashboard-category {
         --cards-current: var(--cards-mobile, 1);
-        grid-column: span var(--span-mobile);
     }
 }
 
 @media (max-width: 1200px) and (min-width: 901px) {
     .dashboard-category {
         --cards-current: var(--cards-medium, 1);
-        grid-column: span var(--span-medium);
     }
 
     .category-cards {

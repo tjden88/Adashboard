@@ -36,9 +36,9 @@ export function setThemeMode(mode) {
     applyTheme(mode);
 }
 
-// Собственный drag-and-drop на Pointer Events.
-// Важно: во время перетаскивания порядок списков не меняется — двигается только
-// placeholder. Итоговый порядок Blazor применяет сам, поэтому DOM всегда согласован.
+// Раскладка категорий и собственный drag-and-drop на Pointer Events.
+// Категории позиционируются абсолютно (masonry-алгоритм), порядок списков во время
+// перетаскивания меняет только Blazor — это исключает рассинхрон DOM.
 const DRAG_THRESHOLD_PX = 6;
 
 let dotNetRef = null;
@@ -46,6 +46,17 @@ let dragState = null;
 let suppressClick = false;
 let syncQueue = [];
 let syncInProgress = false;
+
+let gridResizeObserver = null;
+let itemResizeObserver = null;
+let gridMutationObserver = null;
+let layoutFrame = 0;
+const observedCategories = new Set();
+
+// После drop категории превью держится до перерисовки Blazor, чтобы не было
+// видимого отката к старому порядку.
+let pendingCategoryDrop = null;
+let pendingCategoryDropTimer = 0;
 
 function getGrid() {
     return document.getElementById("dashboard-grid");
@@ -56,8 +67,56 @@ function parseId(value) {
     return Number.isInteger(parsed) ? parsed : null;
 }
 
-// Определяет, перед каким элементом вставить placeholder. Работает и для строк,
-// и для сетки с переносом: сначала сравниваем по строке, затем по горизонтали.
+function getColumnCount() {
+    const width = window.innerWidth;
+
+    if (width <= 900) {
+        return 4;
+    }
+
+    if (width <= 1200) {
+        return 6;
+    }
+
+    return 12;
+}
+
+function getSpanVariable() {
+    const width = window.innerWidth;
+
+    if (width <= 900) {
+        return "--span-mobile";
+    }
+
+    if (width <= 1200) {
+        return "--span-medium";
+    }
+
+    return "--span-desktop";
+}
+
+function readSpan(element) {
+    const value = Number.parseFloat(getComputedStyle(element).getPropertyValue(getSpanVariable()));
+    return Number.isFinite(value) ? value : 1;
+}
+
+function getColumnGap(grid) {
+    const gap = Number.parseFloat(getComputedStyle(grid).columnGap);
+    return Number.isFinite(gap) ? gap : 16;
+}
+
+function getCategories() {
+    const grid = getGrid();
+    if (!grid) {
+        return [];
+    }
+
+    return Array.from(grid.children).filter(
+        (child) => child.classList.contains("dashboard-category") && child.style.display !== "none");
+}
+
+// Определяет, перед каким элементом вставить placeholder. Скан в порядке чтения:
+// сначала сравниваем по строкам, затем по горизонтали внутри строки.
 function findInsertBefore(elements, x, y) {
     for (const element of elements) {
         const rect = element.getBoundingClientRect();
@@ -74,18 +133,161 @@ function findInsertBefore(elements, x, y) {
     return null;
 }
 
+// Полная укладка: каждому элементу подбираем самое верхнее место, где помещается его
+// ширина, не выходя за уже занятые области колонок.
+function pack(entries, columns, columnWidth, gap) {
+    const heights = new Array(columns).fill(0);
+    const positions = [];
+
+    for (const entry of entries) {
+        const span = Math.min(Math.max(entry.span, 1), columns);
+
+        let bestColumn = 0;
+        let bestTop = Number.POSITIVE_INFINITY;
+
+        for (let column = 0; column + span <= columns; column++) {
+            let top = 0;
+            for (let k = column; k < column + span; k++) {
+                top = Math.max(top, heights[k]);
+            }
+
+            if (top < bestTop - 0.5) {
+                bestTop = top;
+                bestColumn = column;
+            }
+        }
+
+        const width = span * columnWidth + (span - 1) * gap;
+        positions.push({ element: entry.element, x: bestColumn * (columnWidth + gap), y: bestTop, width });
+
+        const bottom = bestTop + entry.height + gap;
+        for (let k = bestColumn; k < bestColumn + span; k++) {
+            heights[k] = bottom;
+        }
+    }
+
+    const maxBottom = entries.length === 0 ? 0 : Math.max(...heights) - gap;
+    return { positions, maxBottom: Math.max(0, maxBottom) };
+}
+
+function setPosition(element, x, y, width) {
+    const left = `${x}px`;
+    const top = `${y}px`;
+    const pixelWidth = `${width}px`;
+
+    if (element.style.left !== left) {
+        element.style.left = left;
+    }
+
+    if (element.style.top !== top) {
+        element.style.top = top;
+    }
+
+    if (element.style.width !== pixelWidth) {
+        element.style.width = pixelWidth;
+    }
+}
+
+function layout() {
+    const grid = getGrid();
+    if (!grid) {
+        return;
+    }
+
+    // Во время перетаскивания позиции задаёт превью/placeholder, а не общий layout.
+    if (dragState && dragState.active) {
+        return;
+    }
+
+    // Пока держится превью после drop, старый порядок не раскладываем.
+    if (pendingCategoryDrop) {
+        return;
+    }
+
+    const width = grid.clientWidth;
+    if (width <= 0) {
+        return;
+    }
+
+    const columns = getColumnCount();
+    const gap = getColumnGap(grid);
+    const columnWidth = (width - (columns - 1) * gap) / columns;
+    const categories = getCategories();
+
+    const entries = categories.map((element) => {
+        const span = Math.min(Math.max(readSpan(element), 1), columns);
+        const itemWidth = span * columnWidth + (span - 1) * gap;
+
+        if (element.style.width !== `${itemWidth}px`) {
+            element.style.width = `${itemWidth}px`;
+        }
+
+        return { element, span, height: 0 };
+    });
+
+    // Форсируем reflow, чтобы высоты измерились уже по заданной ширине.
+    void grid.offsetHeight;
+
+    for (const entry of entries) {
+        entry.height = entry.element.offsetHeight;
+    }
+
+    const { positions, maxBottom } = pack(entries, columns, columnWidth, gap);
+
+    for (const position of positions) {
+        setPosition(position.element, position.x, position.y, position.width);
+    }
+
+    const height = `${maxBottom}px`;
+    if (grid.style.height !== height) {
+        grid.style.height = height;
+    }
+}
+
+function scheduleLayout() {
+    if (layoutFrame !== 0) {
+        return;
+    }
+
+    layoutFrame = window.requestAnimationFrame(() => {
+        layoutFrame = 0;
+        layout();
+    });
+}
+
+function syncObservedCategories() {
+    const grid = getGrid();
+    if (!grid || !itemResizeObserver) {
+        return;
+    }
+
+    for (const element of grid.children) {
+        if (element.classList.contains("dashboard-category") && !observedCategories.has(element)) {
+            observedCategories.add(element);
+            itemResizeObserver.observe(element);
+        }
+    }
+
+    for (const element of observedCategories) {
+        if (!element.isConnected) {
+            itemResizeObserver.unobserve(element);
+            observedCategories.delete(element);
+        }
+    }
+}
+
 function createPlaceholder(kind, source, rect) {
     const placeholder = document.createElement("div");
-    placeholder.className = kind === "category"
-        ? "dnd-placeholder dnd-placeholder-category"
-        : "dnd-placeholder dnd-placeholder-card";
-
-    // Копируем CSS-переменные (span/colspan), чтобы placeholder совпадал по размеру.
-    placeholder.style.cssText = source.style.cssText;
 
     if (kind === "category") {
-        placeholder.style.minHeight = `${rect.height}px`;
+        placeholder.className = "dnd-placeholder dnd-placeholder-category";
+        placeholder.style.position = "absolute";
+        placeholder.style.width = `${rect.width}px`;
+        placeholder.style.height = `${rect.height}px`;
     } else {
+        placeholder.className = "dnd-placeholder dnd-placeholder-card";
+        // Копируем CSS-переменные (span карточки), чтобы placeholder совпадал по размеру.
+        placeholder.style.cssText = source.style.cssText;
         placeholder.style.height = `${rect.height}px`;
     }
 
@@ -147,10 +349,47 @@ function updateCategoryTarget(x, y) {
         return;
     }
 
-    const categories = Array.from(grid.children).filter(
-        (child) => child.classList.contains("dashboard-category") && child !== state.item);
+    const categories = getCategories();
+    const before = findInsertBefore(categories, x, y);
+    const index = before ? categories.indexOf(before) : categories.length;
 
-    movePlaceholder(grid, state.placeholder, findInsertBefore(categories, x, y));
+    const columns = getColumnCount();
+    const gap = getColumnGap(grid);
+    const columnWidth = (grid.clientWidth - (columns - 1) * gap) / columns;
+
+    const placeholderEntry = {
+        element: state.placeholder,
+        span: state.sourceSpan,
+        height: state.sourceHeight,
+        isPlaceholder: true
+    };
+
+    const entries = [];
+    for (let i = 0; i < categories.length; i++) {
+        if (i === index) {
+            entries.push(placeholderEntry);
+        }
+
+        const element = categories[i];
+        entries.push({ element, span: readSpan(element), height: element.offsetHeight });
+    }
+
+    if (index >= categories.length) {
+        entries.push(placeholderEntry);
+    }
+
+    const { positions, maxBottom } = pack(entries, columns, columnWidth, gap);
+
+    for (const position of positions) {
+        setPosition(position.element, position.x, position.y, position.width);
+    }
+
+    grid.style.height = `${maxBottom}px`;
+
+    const sourceId = parseId(state.item.dataset.categoryId);
+    state.previewIds = entries
+        .map((entry) => (entry.isPlaceholder ? sourceId : parseId(entry.element.dataset.categoryId)))
+        .filter((id) => id !== null);
 }
 
 function updateCardTarget(x, y) {
@@ -166,22 +405,10 @@ function updateCardTarget(x, y) {
     movePlaceholder(container, state.placeholder, findInsertBefore(cards, x, y));
 }
 
-function collectCategoryOrder(grid, placeholder, item) {
+function collectCategoryOrder(grid) {
     const ids = [];
 
     for (const child of grid.children) {
-        if (child === item) {
-            continue;
-        }
-
-        if (child === placeholder) {
-            const movedId = parseId(item.dataset.categoryId);
-            if (movedId !== null) {
-                ids.push(movedId);
-            }
-            continue;
-        }
-
         if (child.classList.contains("dashboard-category")) {
             const id = parseId(child.dataset.categoryId);
             if (id !== null) {
@@ -231,7 +458,8 @@ function startSession(kind, item, container, event) {
         startX: event.clientX,
         startY: event.clientY,
         rect,
-        active: false
+        active: false,
+        previewIds: null
     };
 
     document.addEventListener("pointermove", onPointerMove, true);
@@ -276,13 +504,22 @@ function onPointerDown(event) {
 function activateDrag(event) {
     const state = dragState;
     const rect = state.rect;
+    const grid = getGrid();
 
     state.active = true;
     state.offsetX = event.clientX - rect.left;
     state.offsetY = event.clientY - rect.top;
 
     const placeholder = createPlaceholder(state.kind, state.item, rect);
-    state.item.parentElement.insertBefore(placeholder, state.item);
+
+    if (state.kind === "category" && grid) {
+        state.sourceSpan = readSpan(state.item);
+        state.sourceHeight = state.item.offsetHeight;
+        grid.appendChild(placeholder);
+    } else {
+        state.item.parentElement.insertBefore(placeholder, state.item);
+    }
+
     state.placeholder = placeholder;
 
     // Фантом создаём до скрытия источника, иначе он унаследует display:none.
@@ -291,8 +528,7 @@ function activateDrag(event) {
     document.body.appendChild(clone);
     state.clone = clone;
 
-    // Исходный элемент убираем из потока: его место занимает placeholder,
-    // а за курсором следует полупрозрачный фантом.
+    // Исходный элемент убираем из потока: его место занимает placeholder.
     state.item.style.display = "none";
 
     document.body.classList.add("dnd-active");
@@ -339,6 +575,36 @@ function cleanup() {
     state.clone = null;
 }
 
+function finalizeCategoryDrop() {
+    if (!pendingCategoryDrop) {
+        return;
+    }
+
+    const { item, placeholder } = pendingCategoryDrop;
+    pendingCategoryDrop = null;
+
+    if (pendingCategoryDropTimer !== 0) {
+        window.clearTimeout(pendingCategoryDropTimer);
+        pendingCategoryDropTimer = 0;
+    }
+
+    if (item && placeholder) {
+        if (placeholder.style.left !== "") {
+            item.style.left = placeholder.style.left;
+            item.style.top = placeholder.style.top;
+            item.style.width = placeholder.style.width;
+        }
+
+        item.style.display = "";
+    }
+
+    if (placeholder && placeholder.parentElement) {
+        placeholder.remove();
+    }
+
+    scheduleLayout();
+}
+
 function finishDrag() {
     const state = dragState;
     if (!state) {
@@ -347,12 +613,39 @@ function finishDrag() {
 
     const { kind, item, placeholder } = state;
     const grid = getGrid();
-    let task = null;
 
     if (kind === "category" && grid) {
-        const orderedIds = collectCategoryOrder(grid, placeholder, item);
-        task = () => dotNetRef.invokeMethodAsync("OnCategoriesReordered", orderedIds);
-    } else if (kind === "card") {
+        const orderedIds = state.previewIds ?? collectCategoryOrder(grid);
+
+        // Фантом убираем сразу, а placeholder и скрытый источник — после того,
+        // как Blazor применит новый порядок (чтобы не было отката позиций).
+        if (state.clone && state.clone.parentElement) {
+            state.clone.remove();
+        }
+
+        document.body.classList.remove("dnd-active");
+        state.placeholder = null;
+        state.clone = null;
+
+        pendingCategoryDrop = { item, placeholder };
+        pendingCategoryDropTimer = window.setTimeout(finalizeCategoryDrop, 800);
+
+        endSession();
+
+        if (dotNetRef) {
+            enqueueSync(() => dotNetRef.invokeMethodAsync("OnCategoriesReordered", orderedIds));
+        }
+
+        setTimeout(() => {
+            suppressClick = false;
+        }, 0);
+
+        return;
+    }
+
+    let task = null;
+
+    if (kind === "card") {
         const sourceContainer = state.container;
         const targetContainer = placeholder.parentElement;
         const sourceCategoryId = parseId(sourceContainer.dataset.categoryId);
@@ -379,6 +672,8 @@ function finishDrag() {
     if (task && dotNetRef) {
         enqueueSync(task);
     }
+
+    scheduleLayout();
 
     setTimeout(() => {
         suppressClick = false;
@@ -445,6 +740,7 @@ function onKeyDown(event) {
     if (event.key === "Escape" && dragState) {
         cleanup();
         endSession();
+        scheduleLayout();
     }
 }
 
@@ -481,10 +777,33 @@ export function initializeDragAndDrop(ref) {
     disposeDragAndDrop();
 
     dotNetRef = ref;
+
     document.addEventListener("pointerdown", onPointerDown, true);
     document.addEventListener("click", onClickCapture, true);
     document.addEventListener("dragstart", onDragStart, true);
     document.addEventListener("keydown", onKeyDown, true);
+
+    const grid = getGrid();
+    if (grid) {
+        gridResizeObserver = new ResizeObserver(() => scheduleLayout());
+        gridResizeObserver.observe(grid);
+
+        itemResizeObserver = new ResizeObserver(() => scheduleLayout());
+
+        gridMutationObserver = new MutationObserver(() => {
+            if (pendingCategoryDrop) {
+                finalizeCategoryDrop();
+                return;
+            }
+
+            syncObservedCategories();
+            scheduleLayout();
+        });
+        gridMutationObserver.observe(grid, { childList: true });
+
+        syncObservedCategories();
+        scheduleLayout();
+    }
 }
 
 export function disposeDragAndDrop() {
@@ -493,8 +812,31 @@ export function disposeDragAndDrop() {
     document.removeEventListener("dragstart", onDragStart, true);
     document.removeEventListener("keydown", onKeyDown, true);
 
+    if (gridResizeObserver) {
+        gridResizeObserver.disconnect();
+        gridResizeObserver = null;
+    }
+
+    if (itemResizeObserver) {
+        itemResizeObserver.disconnect();
+        itemResizeObserver = null;
+    }
+
+    if (gridMutationObserver) {
+        gridMutationObserver.disconnect();
+        gridMutationObserver = null;
+    }
+
+    if (layoutFrame !== 0) {
+        window.cancelAnimationFrame(layoutFrame);
+        layoutFrame = 0;
+    }
+
+    observedCategories.clear();
+
     cleanup();
     endSession();
+    finalizeCategoryDrop();
 
     dotNetRef = null;
     syncQueue = [];
