@@ -105,6 +105,7 @@ function createClone(item, rect, dataAttribute) {
     clone.style.top = "0";
     clone.style.left = "0";
     clone.style.margin = "0";
+    clone.style.display = "";
     clone.style.width = `${rect.width}px`;
     clone.style.height = `${rect.height}px`;
     clone.style.pointerEvents = "none";
@@ -284,26 +285,15 @@ function activateDrag(event) {
     state.item.parentElement.insertBefore(placeholder, state.item);
     state.placeholder = placeholder;
 
-    // Исходный элемент убираем из потока: его место занимает placeholder.
-    state.item.style.display = "none";
+    // Фантом создаём до скрытия источника, иначе он унаследует display:none.
+    const dataAttribute = state.kind === "card" ? "data-card-id" : "data-category-id";
+    const clone = createClone(state.item, rect, dataAttribute);
+    document.body.appendChild(clone);
+    state.clone = clone;
 
-    if (state.kind === "card") {
-        const clone = state.item.cloneNode(true);
-        clone.classList.add("dnd-clone");
-        clone.removeAttribute("data-card-id");
-        clone.style.position = "fixed";
-        clone.style.top = "0";
-        clone.style.left = "0";
-        clone.style.margin = "0";
-        clone.style.width = `${rect.width}px`;
-        clone.style.height = `${rect.height}px`;
-        clone.style.pointerEvents = "none";
-        clone.style.zIndex = "1000";
-        clone.style.transition = "none";
-        clone.style.transform = `translate(${rect.left}px, ${rect.top}px)`;
-        document.body.appendChild(clone);
-        state.clone = clone;
-    }
+    // Исходный элемент убираем из потока: его место занимает placeholder,
+    // а за курсором следует полупрозрачный фантом.
+    state.item.style.display = "none";
 
     document.body.classList.add("dnd-active");
     suppressClick = true;
