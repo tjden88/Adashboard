@@ -63,17 +63,8 @@
     flex-shrink: 0;
 }
 
-.category-actions label {
-    color: var(--text-muted);
-    font-size: 0.82rem;
-}
-
-.category-actions select {
-    border: 1px solid var(--surface-border);
+.category-actions .btn {
     border-radius: 10px;
-    padding: 0.32rem 0.4rem;
-    background: var(--surface-strong);
-    color: var(--text-main);
 }
 
 .category-cards {

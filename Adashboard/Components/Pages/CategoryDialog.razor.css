@@ -1,0 +1,43 @@
+.category-dialog {
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+}
+
+.category-dialog__label {
+    display: block;
+    margin-bottom: 0.4rem;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.category-dialog__slider-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.category-dialog__slider-head .category-dialog__label {
+    margin-bottom: 0;
+}
+
+.category-dialog__width-value {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.category-dialog input[type="range"] {
+    width: 100%;
+    margin: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.category-dialog__actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.2rem;
+}

@@ -11,15 +11,13 @@
             <h2>@Model.Title</h2>
         </div>
         <div class="category-actions">
-            <label for="width-@Model.Id">Ширина</label>
-            <select id="width-@Model.Id"
-                    value="@Model.Position.Width"
-                    @onchange="WidthChanged">
-                @for (var width = 1; width <= 12; width++)
-                {
-                    <option value="@width">@width</option>
-                }
-            </select>
+            <button type="button"
+                    class="btn btn-sm btn-outline-secondary"
+                    @onclick="OnEdit"
+                    aria-label="Редактировать категорию @Model.Title"
+                    title="Редактировать категорию">
+                <i class="fa-solid fa-pen" aria-hidden="true"></i>Редактировать
+            </button>
         </div>
     </header>
 
@@ -39,7 +37,9 @@
     public DashboardCategory Model { get; set; } = null!;
 
     [Parameter, EditorRequired]
-    public EventCallback<ChangeEventArgs> WidthChanged { get; set; }
+    public EventCallback<DashboardCategory> EditRequested { get; set; }
+
+    private Task OnEdit() => EditRequested.InvokeAsync(Model);
 
     private int DesktopWidth => Model.Position.Width;
 

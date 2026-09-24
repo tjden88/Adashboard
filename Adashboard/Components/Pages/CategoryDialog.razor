@@ -1,0 +1,95 @@
+@using Adashboard.Models.Dashboard
+
+<div class="category-dialog">
+    <div class="category-dialog__field">
+        <label for="categoryTitle" class="category-dialog__label">Название категории</label>
+        <input id="categoryTitle"
+               class="form-control"
+               type="text"
+               maxlength="120"
+               autocomplete="off"
+               placeholder="Например: Ссылки"
+               value="@_title"
+               @oninput="args => _title = args.Value?.ToString() ?? string.Empty" />
+    </div>
+
+    <div class="category-dialog__field">
+        <div class="category-dialog__slider-head">
+            <label for="categoryWidth" class="category-dialog__label">Ширина</label>
+            <span class="category-dialog__width-value" aria-hidden="true">
+                @_width из 12
+            </span>
+        </div>
+        <input id="categoryWidth"
+               type="range"
+               min="1"
+               max="12"
+               step="1"
+               value="@_width"
+               @oninput="OnWidthInput"
+               aria-valuetext="@_width из 12 колонок" />
+    </div>
+
+    <div class="category-dialog__actions">
+        <button type="button" class="btn btn-primary" @onclick="Save" disabled="@_titleInvalid">
+            <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>Сохранить
+        </button>
+    </div>
+</div>
+
+@code {
+    private string _title = string.Empty;
+    private int _width = 4;
+
+    /// <summary>Категория для редактирования или <c>null</c> при создании.</summary>
+    [Parameter]
+    public DashboardCategory? Category { get; set; }
+
+    [Parameter, EditorRequired]
+    public required EventCallback<DashboardCategory> OnSave { get; set; }
+
+    private bool _titleInvalid => string.IsNullOrWhiteSpace(_title);
+
+    protected override void OnInitialized()
+    {
+        if (Category is not null)
+        {
+            _title = Category.Title;
+            _width = Math.Clamp(Category.Position.Width, 1, 12);
+        }
+    }
+
+    private void OnWidthInput(ChangeEventArgs args)
+    {
+        if (int.TryParse(args.Value?.ToString(), out var width))
+        {
+            _width = Math.Clamp(width, 1, 12);
+        }
+    }
+
+    private async Task Save()
+    {
+        if (_titleInvalid)
+        {
+            return;
+        }
+
+        var trimmedTitle = _title.Trim();
+
+        if (Category is null)
+        {
+            // Создание: родитель назначит Id и порядок.
+            await OnSave.InvokeAsync(new DashboardCategory
+            {
+                Title = trimmedTitle,
+                Position = new CategoryPosition { Width = _width }
+            });
+        }
+        else
+        {
+            Category.Title = trimmedTitle;
+            Category.Position.Width = _width;
+            await OnSave.InvokeAsync(Category);
+        }
+    }
+}

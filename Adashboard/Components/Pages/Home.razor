@@ -44,6 +44,10 @@ else
                
                 @if (EditModeService.IsEnabled)
                 {
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="OpenAddCategoryDialog" aria-label="Добавить категорию" title="Добавить категорию">
+                        <i class="fa-solid fa-plus" aria-hidden="true"></i>Добавить категорию
+                    </button>
+
                     <button type="button" class="btn btn-icon btn-sm btn-outline-secondary" @onclick="OpenSettings" aria-label="Открыть настройки" title="Настройки">
                         <i class="fa-solid fa-gear" aria-hidden="true"></i>
                     </button>
@@ -64,7 +68,7 @@ else
         <div class="dashboard-grid" id="dashboard-grid">
             @foreach (var category in _categories)
             {
-                <Category @key="category.Id" Model="@category" WidthChanged="args => OnCategoryWidthChanged(category.Id, args)" />
+                <Category @key="category.Id" Model="@category" EditRequested="category => OpenEditCategoryDialog(category)" />
             }
         </div>
     </section>
@@ -148,21 +152,46 @@ else
         await _module.InvokeVoidAsync("setThemeMode", _themeMode);
     }
 
-    private async Task OnCategoryWidthChanged(int categoryId, ChangeEventArgs args)
+    private void OpenAddCategoryDialog()
     {
-        if (!int.TryParse(args.Value?.ToString(), out var width))
+        var parameters = new Dictionary<string, object?>
         {
-            return;
-        }
+            [nameof(CategoryDialog.OnSave)] = EventCallback.Factory.Create<DashboardCategory>(this, AddCategory)
+        };
 
-        var category = _layout.Categories.FirstOrDefault(x => x.Id == categoryId);
-        if (category is null)
+        DialogService.Show<CategoryDialog>("Создать категорию", parameters, closeOnOverlayClick: false);
+    }
+
+    private void OpenEditCategoryDialog(DashboardCategory category)
+    {
+        var parameters = new Dictionary<string, object?>
         {
-            return;
-        }
+            [nameof(CategoryDialog.Category)] = category,
+            [nameof(CategoryDialog.OnSave)] = EventCallback.Factory.Create<DashboardCategory>(this, SaveCategory)
+        };
 
-        category.Position.Width = Math.Clamp(width, 1, 12);
+        DialogService.Show<CategoryDialog>("Редактировать категорию", parameters, closeOnOverlayClick: false);
+    }
+
+    private async Task AddCategory(DashboardCategory category)
+    {
+        // Id больше, чем у всех существующих: раскладка сохраняется целиком, поэтому
+        // идентификатор стабильно переживает перезапись.
+        category.Id = _layout.Categories.Count > 0 ? _layout.Categories.Max(x => x.Id) + 1 : 1;
+        category.DashboardLayoutId = _layout.Id;
+        category.Position.Order = _layout.Categories.Count > 0 ? _layout.Categories.Max(x => x.Position.Order) + 1 : 0;
+        _layout.Categories.Add(category);
+
         await SaveLayoutAsync();
+        await InvokeAsync(StateHasChanged);
+        DialogService.Close();
+    }
+
+    private async Task SaveCategory(DashboardCategory category)
+    {
+        await SaveLayoutAsync();
+        await InvokeAsync(StateHasChanged);
+        DialogService.Close();
     }
 
     [JSInvokable]
@@ -376,9 +405,10 @@ else
     {
         EditModeService.OnChange -= OnEditModeChanged;
 
-        // Диалог настроек держит колбэк на текущую страницу: закрываем его при уходе, чтобы
-        // не вызывать метод у уже удалённого компонента.
-        if (DialogService.Current?.ComponentType == typeof(SettingsDialog))
+        // Диалоги настроек и категории держат колбэк на текущую страницу: закрываем их
+        // при уходе, чтобы не вызывать метод у уже удалённого компонента.
+        if (DialogService.Current is not null &&
+            (DialogService.Current.ComponentType == typeof(SettingsDialog) || DialogService.Current.ComponentType == typeof(CategoryDialog)))
         {
             DialogService.Close();
         }
