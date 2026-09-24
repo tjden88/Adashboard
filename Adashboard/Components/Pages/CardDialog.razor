@@ -26,22 +26,8 @@
     </div>
 
     <div class="card-dialog__field">
-        <label for="cardColorText" class="card-dialog__label">Цвет фона</label>
-        <div class="card-dialog__color">
-            <input class="card-dialog__color-picker"
-                   type="color"
-                   value="@(_color)"
-                   @oninput="OnColorPick"
-                   aria-label="Выбрать цвет фона" />
-            <input id="cardColorText"
-                   class="form-control"
-                   type="text"
-                   maxlength="7"
-                   autocomplete="off"
-                   placeholder="#1e40af"
-                   value="@_color"
-                   @oninput="args => _color = args.Value?.ToString() ?? string.Empty" />
-        </div>
+        <label class="card-dialog__label">Цвет фона</label>
+        <ColorPicker @bind-Value="_color" AriaLabel="Цвет фона карточки" />
     </div>
 
     <div class="card-dialog__field">
@@ -126,8 +112,6 @@
         _icon = Card.IconClass;
         _showStatus = Card.ShowStatus;
     }
-
-    private void OnColorPick(ChangeEventArgs args) => _color = args.Value?.ToString() ?? string.Empty;
 
     private void OnShowStatusChange(ChangeEventArgs args) => _showStatus = args.Value is bool value && value;
 
