@@ -4,6 +4,25 @@
 
 .icon-picker__field {
     display: flex;
+    align-items: stretch;
+}
+
+.icon-picker__search-link {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 2.7rem;
+    margin-left: 0.35rem;
+    border: 1px solid var(--surface-border);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--accent);
+    text-decoration: none;
+    transition: background-color 0.18s ease;
+}
+
+.icon-picker__search-link:hover {
+    background: var(--surface-strong);
 }
 
 .icon-picker__preview {

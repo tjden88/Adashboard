@@ -271,8 +271,9 @@ ServiceFabricBackup/
 *.db-shm
 *.db-wal
 
-# Загруженные пользователем иконки карточек (создаются во время работы)
-Adashboard/wwwroot/uploads/
+# Пользовательские загрузки во время работы; фоны поставляются с приложением
+Adashboard/wwwroot/uploads/*
+!Adashboard/wwwroot/uploads/backgrounds/
 
 # Business Intelligence projects
 *.rdl.data

@@ -13,6 +13,14 @@
                @oninput="OnInput"
                @onkeydown="OnKeyDown"
                aria-label="Поиск иконки" />
+        <a class="icon-picker__search-link"
+           href="https://fontawesome.com/v6/search"
+           target="_blank"
+           rel="noopener noreferrer"
+           title="Поиск иконок на fontawesome.com"
+           aria-label="Открыть поиск иконок Font Awesome в новой вкладке">
+            <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
+        </a>
     </div>
 
     @if (_filteredIcons.Count > 0)

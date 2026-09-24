@@ -1,6 +1,6 @@
 @using Adashboard.Models.Dashboard
 
-<div class="category-dialog">
+<form class="category-dialog" @onsubmit="Save" @onsubmit:preventDefault>
     <div class="category-dialog__field">
         <label for="categoryTitle" class="category-dialog__label">Название категории</label>
         <input id="categoryTitle"
@@ -31,11 +31,11 @@
     </div>
 
     <div class="category-dialog__actions">
-        <button type="button" class="btn btn-primary" @onclick="Save" disabled="@_titleInvalid">
+        <button type="submit" class="btn btn-primary" disabled="@_titleInvalid">
             <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>Сохранить
         </button>
     </div>
-</div>
+</form>
 
 @code {
     private string _title = string.Empty;

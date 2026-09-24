@@ -1,4 +1,4 @@
-<div class="settings-dialog">
+<form class="settings-dialog" @onsubmit="Save" @onsubmit:preventDefault>
     <div class="settings-section">
         <label for="siteTitle">Заголовок dashboard</label>
         <input id="siteTitle"
@@ -31,11 +31,11 @@
     </div>
 
     <div class="settings-dialog__actions">
-        <button type="button" class="btn btn-primary" @onclick="Save">
+        <button type="submit" class="btn btn-primary">
             <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>Сохранить
         </button>
     </div>
-</div>
+</form>
 
 @using Adashboard.Models.Dashboard
 

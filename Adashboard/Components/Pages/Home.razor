@@ -208,8 +208,15 @@ else
         DialogService.Close();
     }
 
-    private void OpenDeleteCategoryConfirm(DashboardCategory category)
+    private async Task OpenDeleteCategoryConfirm(DashboardCategory category)
     {
+        // Пустую категорию удаляем сразу: подтверждать нечего.
+        if (category.Cards.Count == 0)
+        {
+            await DeleteCategory(category);
+            return;
+        }
+
         var parameters = new Dictionary<string, object?>
         {
             [nameof(ConfirmDialog.Message)] = $"Удалить категорию «{category.Title}» вместе со всеми ссылками?",

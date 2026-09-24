@@ -4,7 +4,7 @@
 @inject IImageIconService ImageIconService
 @inject IJSRuntime JS
 
-<div class="card-dialog">
+<form class="card-dialog" @onsubmit="Save" @onsubmit:preventDefault>
     <div class="card-dialog__field">
         <label for="cardTitle" class="card-dialog__label">Заголовок</label>
         <input id="cardTitle"
@@ -134,11 +134,11 @@
             </button>
         }
 
-        <button type="button" class="btn btn-primary" @onclick="Save" disabled="@_isSaving">
+        <button type="submit" class="btn btn-primary" disabled="@_isSaving">
             <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>@(_isSaving ? "Сохранение..." : "Сохранить")
         </button>
     </div>
-</div>
+</form>
 
 @code {
     private const string DefaultColor = "#1e40af";
