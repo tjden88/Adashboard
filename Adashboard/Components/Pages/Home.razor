@@ -37,9 +37,15 @@ else
 {
     <section class="dashboard-shell">
         <header class="dashboard-header">
-            <div>
-                <h1>@_layout.SiteTitle</h1>
-                <p>@_layout.SiteDescription</p>
+            <div class="dashboard-header-brand">
+                @if (_layout.ShowLogo)
+                {
+                    <img class="dashboard-logo" src="uploads/backgrounds/logo.png" alt="" />
+                }
+                <div>
+                    <h1>@_layout.SiteTitle</h1>
+                    <p>@_layout.SiteDescription</p>
+                </div>
             </div>
             <div class="dashboard-header-actions">
 
@@ -140,6 +146,7 @@ else
             [nameof(SettingsDialog.ThemeMode)] = _themeMode,
             [nameof(SettingsDialog.SiteTitle)] = _layout.SiteTitle,
             [nameof(SettingsDialog.SiteDescription)] = _layout.SiteDescription,
+            [nameof(SettingsDialog.ShowLogo)] = _layout.ShowLogo,
             [nameof(SettingsDialog.OnSave)] = EventCallback.Factory.Create<SiteSettings>(this, OnSettingsSavedAsync)
         };
 
@@ -154,6 +161,7 @@ else
         _layout.ThemeMode = _themeMode;
         _layout.SiteTitle = settings.SiteTitle;
         _layout.SiteDescription = settings.SiteDescription;
+        _layout.ShowLogo = settings.ShowLogo;
 
         await SaveLayoutAsync();
         await InvokeAsync(StateHasChanged);

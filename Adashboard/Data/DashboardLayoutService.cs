@@ -79,6 +79,7 @@ public sealed class DashboardLayoutService(
             ThemeMode = source.ThemeMode,
             SiteTitle = source.SiteTitle,
             SiteDescription = source.SiteDescription,
+            ShowLogo = source.ShowLogo,
             Categories = []
         };
 

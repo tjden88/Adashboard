@@ -21,6 +21,15 @@
                @oninput="args => _description = args.Value?.ToString() ?? string.Empty" />
     </div>
 
+    <div class="form-check">
+        <input id="showLogo"
+               class="form-check-input"
+               type="checkbox"
+               checked="@_showLogo"
+               @onchange="args => _showLogo = args.Value is true" />
+        <label class="form-check-label" for="showLogo">Показывать логотип в шапке</label>
+    </div>
+
     <div class="settings-section">
         <label for="themeSelect">Выберите тему оформления:</label>
         <select id="themeSelect" class="form-select" value="@_themeMode" @onchange="OnThemeChange">
@@ -43,6 +52,7 @@
     private string _themeMode = "auto";
     private string _title = string.Empty;
     private string _description = string.Empty;
+    private bool _showLogo = true;
 
     [Parameter]
     public string ThemeMode { get; set; } = "auto";
@@ -53,6 +63,9 @@
     [Parameter]
     public string SiteDescription { get; set; } = string.Empty;
 
+    [Parameter]
+    public bool ShowLogo { get; set; } = true;
+
     [Parameter, EditorRequired]
     public required EventCallback<SiteSettings> OnSave { get; set; }
 
@@ -61,9 +74,10 @@
         _themeMode = ThemeMode;
         _title = SiteTitle;
         _description = SiteDescription;
+        _showLogo = ShowLogo;
     }
 
     private void OnThemeChange(ChangeEventArgs args) => _themeMode = args.Value?.ToString() ?? "auto";
 
-    private async Task Save() => await OnSave.InvokeAsync(new SiteSettings(_themeMode, _title.Trim(), _description.Trim()));
+    private async Task Save() => await OnSave.InvokeAsync(new SiteSettings(_themeMode, _title.Trim(), _description.Trim(), _showLogo));
 }

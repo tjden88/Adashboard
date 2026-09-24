@@ -26,6 +26,11 @@ public sealed class DashboardLayout
     public string SiteDescription { get; set; } = "Личная стартовая страница со ссылками и сервисами";
 
     /// <summary>
+    /// Признак отображения логотипа слева от заголовка в шапке dashboard.
+    /// </summary>
+    public bool ShowLogo { get; set; } = true;
+
+    /// <summary>
     /// Список категорий в раскладке.
     /// </summary>
     public List<DashboardCategory> Categories { get; set; } = [];

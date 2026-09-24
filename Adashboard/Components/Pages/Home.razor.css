@@ -107,6 +107,19 @@
     padding: 0;
 }
 
+.dashboard-header-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+}
+
+.dashboard-logo {
+    flex-shrink: 0;
+    width: 3rem;
+    height: 3rem;
+    object-fit: contain;
+}
+
 .dashboard-header h1 {
     margin: 0;
     font-family: var(--font-title);

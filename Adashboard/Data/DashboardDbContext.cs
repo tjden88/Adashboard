@@ -36,6 +36,7 @@ public sealed class DashboardDbContext(DbContextOptions<DashboardDbContext> opti
             builder.Property(x => x.ThemeMode).HasMaxLength(16);
             builder.Property(x => x.SiteTitle).HasMaxLength(120).HasColumnName("SiteTitle");
             builder.Property(x => x.SiteDescription).HasMaxLength(300).HasColumnName("SiteDescription");
+            builder.Property(x => x.ShowLogo).HasDefaultValue(true);
 
             builder.HasMany(x => x.Categories)
                 .WithOne()
