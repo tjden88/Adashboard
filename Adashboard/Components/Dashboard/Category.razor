@@ -13,6 +13,13 @@
         <div class="category-actions">
             <button type="button"
                     class="btn btn-sm btn-outline-secondary"
+                    @onclick="OnAddCard"
+                    aria-label="Добавить ссылку в категорию @Model.Title"
+                    title="Добавить ссылку">
+                <i class="fa-solid fa-plus" aria-hidden="true"></i>Добавить ссылку
+            </button>
+            <button type="button"
+                    class="btn btn-sm btn-outline-secondary"
                     @onclick="OnEdit"
                     aria-label="Редактировать категорию @Model.Title"
                     title="Редактировать категорию">
@@ -27,7 +34,8 @@
             <Card @key="card.Id" Model="@card"
                   DesktopColumns="@DesktopWidth"
                   MediumColumns="@MediumWidth"
-                  MobileColumns="@MobileWidth" />
+                  MobileColumns="@MobileWidth"
+                  EditRequested="CardEditRequested" />
         }
     </div>
 </section>
@@ -39,7 +47,15 @@
     [Parameter, EditorRequired]
     public EventCallback<DashboardCategory> EditRequested { get; set; }
 
+    [Parameter, EditorRequired]
+    public EventCallback<DashboardCategory> AddCardRequested { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback<DashboardCard> CardEditRequested { get; set; }
+
     private Task OnEdit() => EditRequested.InvokeAsync(Model);
+
+    private Task OnAddCard() => AddCardRequested.InvokeAsync(Model);
 
     private int DesktopWidth => Model.Position.Width;
 

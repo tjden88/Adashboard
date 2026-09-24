@@ -48,6 +48,11 @@ public sealed class DashboardCard
     public bool IsOnline { get; set; }
 
     /// <summary>
+    /// Нужно ли отображать индикатор статуса на карточке.
+    /// </summary>
+    public bool ShowStatus { get; set; } = true;
+
+    /// <summary>
     /// Положение карточки внутри категории.
     /// </summary>
     public CardPosition Position { get; set; } = new();

@@ -77,6 +77,8 @@ public sealed class DashboardLayoutService(
         {
             Id = source.Id,
             ThemeMode = source.ThemeMode,
+            SiteTitle = source.SiteTitle,
+            SiteDescription = source.SiteDescription,
             Categories = []
         };
 
@@ -107,6 +109,7 @@ public sealed class DashboardLayoutService(
                     BackgroundColor = card.BackgroundColor,
                     IsWide = card.IsWide,
                     IsOnline = card.IsOnline,
+                    ShowStatus = card.ShowStatus,
                     Position = new CardPosition
                     {
                         Order = card.Position.Order

@@ -1,0 +1,228 @@
+@using Adashboard.Models.Dashboard
+
+<div class="card-dialog">
+    <div class="card-dialog__field">
+        <label for="cardTitle" class="card-dialog__label">Название</label>
+        <input id="cardTitle"
+               class="form-control"
+               type="text"
+               maxlength="120"
+               autocomplete="off"
+               placeholder="Например: Grafana"
+               value="@_title"
+               @oninput="args => _title = args.Value?.ToString() ?? string.Empty" />
+    </div>
+
+    <div class="card-dialog__field">
+        <label for="cardUrl" class="card-dialog__label">Ссылка</label>
+        <input id="cardUrl"
+               class="form-control"
+               type="text"
+               maxlength="500"
+               autocomplete="off"
+               placeholder="https://example.local/service"
+               value="@_url"
+               @oninput="args => _url = args.Value?.ToString() ?? string.Empty" />
+    </div>
+
+    <div class="card-dialog__field">
+        <label for="cardColorText" class="card-dialog__label">Цвет фона</label>
+        <div class="card-dialog__color">
+            <input class="card-dialog__color-picker"
+                   type="color"
+                   value="@(_color)"
+                   @oninput="OnColorPick"
+                   aria-label="Выбрать цвет фона" />
+            <input id="cardColorText"
+                   class="form-control"
+                   type="text"
+                   maxlength="7"
+                   autocomplete="off"
+                   placeholder="#1e40af"
+                   value="@_color"
+                   @oninput="args => _color = args.Value?.ToString() ?? string.Empty" />
+        </div>
+    </div>
+
+    <div class="card-dialog__field">
+        <label for="cardIcon" class="card-dialog__label">Иконка</label>
+        <div class="card-dialog__icon">
+            <span class="card-dialog__icon-preview" aria-hidden="true">
+                <i class="@_icon"></i>
+            </span>
+            <input id="cardIcon"
+                   class="form-control"
+                   type="text"
+                   maxlength="120"
+                   autocomplete="off"
+                   placeholder="fa-solid fa-globe"
+                   value="@_icon"
+                   @oninput="args => _icon = args.Value?.ToString() ?? string.Empty" />
+        </div>
+    </div>
+
+    <label class="card-dialog__checkbox">
+        <input type="checkbox" checked="@_showStatus" @onchange="OnShowStatusChange" />
+        <span>Показывать статус (онлайн/офлайн)</span>
+    </label>
+
+    @if (_error is not null)
+    {
+        <p class="card-dialog__error" role="alert">@_error</p>
+    }
+
+    <div class="card-dialog__actions">
+        @if (Card is not null)
+        {
+            <button type="button" class="btn btn-outline-secondary" @onclick="Delete">
+                <i class="fa-solid fa-trash" aria-hidden="true"></i>Удалить
+            </button>
+        }
+
+        <button type="button" class="btn btn-primary" @onclick="Save">
+            <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>Сохранить
+        </button>
+    </div>
+</div>
+
+@code {
+    private const string DefaultColor = "#1e40af";
+    private const string DefaultIcon = "fa-solid fa-link";
+
+    private string _title = string.Empty;
+    private string _url = string.Empty;
+    private string _color = DefaultColor;
+    private string _icon = string.Empty;
+    private bool _showStatus = true;
+    private int _categoryId;
+    private string? _error;
+
+    /// <summary>Карточка для редактирования или <c>null</c> при создании.</summary>
+    [Parameter]
+    public DashboardCard? Card { get; set; }
+
+    /// <summary>Идентификатор категории, в которую добавляется новая карточка.</summary>
+    [Parameter]
+    public int CategoryId { get; set; }
+
+    [Parameter, EditorRequired]
+    public required EventCallback<DashboardCard> OnSave { get; set; }
+
+    [Parameter]
+    public EventCallback<DashboardCard> OnDelete { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (Card is null)
+        {
+            _categoryId = CategoryId;
+            return;
+        }
+
+        _categoryId = Card.CategoryId;
+        _title = Card.Title;
+        _url = Card.Url;
+        _color = Card.BackgroundColor;
+        _icon = Card.IconClass;
+        _showStatus = Card.ShowStatus;
+    }
+
+    private void OnColorPick(ChangeEventArgs args) => _color = args.Value?.ToString() ?? string.Empty;
+
+    private void OnShowStatusChange(ChangeEventArgs args) => _showStatus = args.Value is bool value && value;
+
+    private async Task Save()
+    {
+        _error = null;
+
+        var title = _title.Trim();
+        var url = _url.Trim();
+        var color = _color.Trim();
+        var icon = _icon.Trim();
+
+        if (title.Length == 0)
+        {
+            _error = "Введите название ссылки.";
+            return;
+        }
+
+        if (!IsValidUrl(url))
+        {
+            _error = "Введите корректный адрес, начинающийся с http:// или https://.";
+            return;
+        }
+
+        if (color.Length == 0)
+        {
+            color = DefaultColor;
+        }
+
+        if (!IsValidHexColor(color))
+        {
+            _error = "Цвет фона должен быть в формате #RRGGBB.";
+            return;
+        }
+
+        if (icon.Length == 0)
+        {
+            icon = DefaultIcon;
+        }
+
+        if (Card is null)
+        {
+            // Создание: идентификатор и порядок назначит родитель.
+            await OnSave.InvokeAsync(new DashboardCard
+            {
+                CategoryId = _categoryId,
+                Title = title,
+                Url = url,
+                IconClass = icon,
+                BackgroundColor = color,
+                ShowStatus = _showStatus
+            });
+            return;
+        }
+
+        Card.Title = title;
+        Card.Url = url;
+        Card.IconClass = icon;
+        Card.BackgroundColor = color;
+        Card.ShowStatus = _showStatus;
+        await OnSave.InvokeAsync(Card);
+    }
+
+    private async Task Delete()
+    {
+        if (Card is not null)
+        {
+            await OnDelete.InvokeAsync(Card);
+        }
+    }
+
+    /// <summary>
+    /// Проверяет, что адрес абсолютный и использует безопасную схему http/https.
+    /// </summary>
+    private static bool IsValidUrl(string url)
+    {
+        return Uri.TryCreate(url, UriKind.Absolute, out var uri)
+               && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+    }
+
+    private static bool IsValidHexColor(string color)
+    {
+        if (color.Length != 7 || color[0] != '#')
+        {
+            return false;
+        }
+
+        for (var i = 1; i < color.Length; i++)
+        {
+            if (!Uri.IsHexDigit(color[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+}

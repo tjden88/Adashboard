@@ -1,16 +1,23 @@
 @using Adashboard.Models.Dashboard
+@using Adashboard.Services
+@inject EditModeService EditModeService
 
 <a class="dashboard-card"
    data-card-id="@Model.Id"
    href="@Model.Url"
    target="_blank"
    rel="noopener noreferrer"
+   @onclick="OnCardClick"
+   @onclick:preventDefault="@EditModeService.IsEnabled"
    style="--card-bg:@Model.BackgroundColor; --card-icon-color:@Model.GetIconColor(); --card-text-color:@Model.GetTextColor(); --card-span-desktop:@CardSpanDesktop; --card-span-medium:@CardSpanMedium; --card-span-mobile:@CardSpanMobile;">
     <span class="card-title">@Model.Title</span>
     <div class="card-icon" aria-hidden="true">
         <i class="@Model.IconClass"></i>
     </div>
-    <span class="status-dot @(Model.IsOnline ? "online" : "offline")" aria-label="Статус"></span>
+    @if (Model.ShowStatus)
+    {
+        <span class="status-dot @(Model.IsOnline ? "online" : "offline")" aria-label="Статус"></span>
+    }
 </a>
 
 @code {
@@ -26,11 +33,18 @@
     [Parameter, EditorRequired]
     public int MobileColumns { get; set; }
 
+    [Parameter, EditorRequired]
+    public EventCallback<DashboardCard> EditRequested { get; set; }
+
     private int CardSpanDesktop => GetCardSpan(Model.IsWide, DesktopColumns);
 
     private int CardSpanMedium => GetCardSpan(Model.IsWide, MediumColumns);
 
     private int CardSpanMobile => GetCardSpan(Model.IsWide, MobileColumns);
+
+    // В режиме редактирования переход по ссылке отключён: клик открывает окно редактирования.
+    private Task OnCardClick()
+        => EditModeService.IsEnabled ? EditRequested.InvokeAsync(Model) : Task.CompletedTask;
 
     private static int GetCardSpan(bool isWide, int categoryColumns)
     {

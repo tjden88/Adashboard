@@ -37,8 +37,8 @@ else
     <section class="dashboard-shell">
         <header class="dashboard-header">
             <div>
-                <h1>Adashboard</h1>
-                <p>Личная стартовая страница со ссылками и сервисами</p>
+                <h1>@_layout.SiteTitle</h1>
+                <p>@_layout.SiteDescription</p>
             </div>
             <div class="dashboard-header-actions">
                
@@ -68,7 +68,10 @@ else
         <div class="dashboard-grid" id="dashboard-grid">
             @foreach (var category in _categories)
             {
-                <Category @key="category.Id" Model="@category" EditRequested="category => OpenEditCategoryDialog(category)" />
+                <Category @key="category.Id" Model="@category"
+                          EditRequested="category => OpenEditCategoryDialog(category)"
+                          AddCardRequested="category => OpenAddCardDialog(category)"
+                          CardEditRequested="card => OpenEditCardDialog(card)" />
             }
         </div>
     </section>
@@ -133,23 +136,32 @@ else
         var parameters = new Dictionary<string, object?>
         {
             [nameof(SettingsDialog.ThemeMode)] = _themeMode,
-            [nameof(SettingsDialog.OnThemeChanged)] = EventCallback.Factory.Create<string>(this, OnThemeModeChangedAsync)
+            [nameof(SettingsDialog.SiteTitle)] = _layout.SiteTitle,
+            [nameof(SettingsDialog.SiteDescription)] = _layout.SiteDescription,
+            [nameof(SettingsDialog.OnSave)] = EventCallback.Factory.Create<SiteSettings>(this, OnSettingsSavedAsync)
         };
 
         DialogService.Show<SettingsDialog>("Настройки", parameters, closeOnOverlayClick: false);
     }
 
-    private async Task OnThemeModeChangedAsync(string next)
+    private async Task OnSettingsSavedAsync(SiteSettings settings)
     {
-        if (string.IsNullOrWhiteSpace(next) || _module is null)
+        // Пустые значения заголовка и описания сохраняются как есть: пользователь может
+        // намеренно очистить их, и дефолты подставлять не нужно.
+        _themeMode = string.IsNullOrWhiteSpace(settings.ThemeMode) ? "auto" : settings.ThemeMode;
+        _layout.ThemeMode = _themeMode;
+        _layout.SiteTitle = settings.SiteTitle;
+        _layout.SiteDescription = settings.SiteDescription;
+
+        await SaveLayoutAsync();
+        await InvokeAsync(StateHasChanged);
+
+        if (_module is not null)
         {
-            return;
+            await _module.InvokeVoidAsync("setThemeMode", _themeMode);
         }
 
-        _themeMode = next;
-        _layout.ThemeMode = next;
-        await SaveLayoutAsync();
-        await _module.InvokeVoidAsync("setThemeMode", _themeMode);
+        DialogService.Close();
     }
 
     private void OpenAddCategoryDialog()
@@ -189,6 +201,70 @@ else
 
     private async Task SaveCategory(DashboardCategory category)
     {
+        await SaveLayoutAsync();
+        await InvokeAsync(StateHasChanged);
+        DialogService.Close();
+    }
+
+    private void OpenAddCardDialog(DashboardCategory category)
+    {
+        var parameters = new Dictionary<string, object?>
+        {
+            [nameof(CardDialog.CategoryId)] = category.Id,
+            [nameof(CardDialog.OnSave)] = EventCallback.Factory.Create<DashboardCard>(this, AddCard)
+        };
+
+        DialogService.Show<CardDialog>("Добавить ссылку", parameters, closeOnOverlayClick: false);
+    }
+
+    private void OpenEditCardDialog(DashboardCard card)
+    {
+        var parameters = new Dictionary<string, object?>
+        {
+            [nameof(CardDialog.Card)] = card,
+            [nameof(CardDialog.OnSave)] = EventCallback.Factory.Create<DashboardCard>(this, SaveCard),
+            [nameof(CardDialog.OnDelete)] = EventCallback.Factory.Create<DashboardCard>(this, DeleteCard)
+        };
+
+        DialogService.Show<CardDialog>("Редактировать ссылку", parameters, closeOnOverlayClick: false);
+    }
+
+    private async Task AddCard(DashboardCard card)
+    {
+        var category = _layout.Categories.FirstOrDefault(x => x.Id == card.CategoryId);
+        if (category is null)
+        {
+            DialogService.Close();
+            return;
+        }
+
+        // Id больше, чем у всех существующих: раскладка сохраняется целиком, поэтому
+        // идентификатор стабильно переживает перезапись.
+        card.Id = _layout.Categories.SelectMany(x => x.Cards).Select(x => x.Id).DefaultIfEmpty(0).Max() + 1;
+        card.Position.Order = category.Cards.Count > 0 ? category.Cards.Max(x => x.Position.Order) + 1 : 0;
+        category.Cards.Add(card);
+
+        await SaveLayoutAsync();
+        await InvokeAsync(StateHasChanged);
+        DialogService.Close();
+    }
+
+    private async Task SaveCard(DashboardCard card)
+    {
+        await SaveLayoutAsync();
+        await InvokeAsync(StateHasChanged);
+        DialogService.Close();
+    }
+
+    private async Task DeleteCard(DashboardCard card)
+    {
+        var category = _layout.Categories.FirstOrDefault(x => x.Id == card.CategoryId);
+        if (category is not null)
+        {
+            category.Cards.Remove(card);
+            AssignCardOrder(category);
+        }
+
         await SaveLayoutAsync();
         await InvokeAsync(StateHasChanged);
         DialogService.Close();
@@ -405,10 +481,12 @@ else
     {
         EditModeService.OnChange -= OnEditModeChanged;
 
-        // Диалоги настроек и категории держат колбэк на текущую страницу: закрываем их
-        // при уходе, чтобы не вызывать метод у уже удалённого компонента.
+        // Диалоги настроек, категории и карточки держат колбэк на текущую страницу: закрываем
+        // их при уходе, чтобы не вызывать метод у уже удалённого компонента.
         if (DialogService.Current is not null &&
-            (DialogService.Current.ComponentType == typeof(SettingsDialog) || DialogService.Current.ComponentType == typeof(CategoryDialog)))
+            (DialogService.Current.ComponentType == typeof(SettingsDialog)
+             || DialogService.Current.ComponentType == typeof(CategoryDialog)
+             || DialogService.Current.ComponentType == typeof(CardDialog)))
         {
             DialogService.Close();
         }

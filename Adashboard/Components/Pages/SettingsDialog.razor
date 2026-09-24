@@ -1,24 +1,69 @@
 <div class="settings-dialog">
     <div class="settings-section">
+        <label for="siteTitle">Заголовок dashboard</label>
+        <input id="siteTitle"
+               class="form-control"
+               type="text"
+               maxlength="120"
+               autocomplete="off"
+               value="@_title"
+               @oninput="args => _title = args.Value?.ToString() ?? string.Empty" />
+    </div>
+
+    <div class="settings-section">
+        <label for="siteDescription">Описание</label>
+        <input id="siteDescription"
+               class="form-control"
+               type="text"
+               maxlength="300"
+               autocomplete="off"
+               value="@_description"
+               @oninput="args => _description = args.Value?.ToString() ?? string.Empty" />
+    </div>
+
+    <div class="settings-section">
         <label for="themeSelect">Выберите тему оформления:</label>
-        <select id="themeSelect" class="form-select" value="@ThemeMode" @onchange="OnThemeChangedHandler">
+        <select id="themeSelect" class="form-select" value="@_themeMode" @onchange="OnThemeChange">
             <option value="auto">Автоматическая</option>
             <option value="dark">Тёмная</option>
             <option value="light">Светлая</option>
         </select>
     </div>
+
+    <div class="settings-dialog__actions">
+        <button type="button" class="btn btn-primary" @onclick="Save">
+            <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>Сохранить
+        </button>
+    </div>
 </div>
 
+@using Adashboard.Models.Dashboard
+
 @code {
-    [Parameter, EditorRequired]
+    private string _themeMode = "auto";
+    private string _title = string.Empty;
+    private string _description = string.Empty;
+
+    [Parameter]
     public string ThemeMode { get; set; } = "auto";
 
-    [Parameter, EditorRequired]
-    public EventCallback<string> OnThemeChanged { get; set; }
+    [Parameter]
+    public string SiteTitle { get; set; } = string.Empty;
 
-    private async Task OnThemeChangedHandler(ChangeEventArgs args)
+    [Parameter]
+    public string SiteDescription { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public required EventCallback<SiteSettings> OnSave { get; set; }
+
+    protected override void OnInitialized()
     {
-        var next = args.Value?.ToString() ?? "auto";
-        await OnThemeChanged.InvokeAsync(next);
+        _themeMode = ThemeMode;
+        _title = SiteTitle;
+        _description = SiteDescription;
     }
+
+    private void OnThemeChange(ChangeEventArgs args) => _themeMode = args.Value?.ToString() ?? "auto";
+
+    private async Task Save() => await OnSave.InvokeAsync(new SiteSettings(_themeMode, _title.Trim(), _description.Trim()));
 }

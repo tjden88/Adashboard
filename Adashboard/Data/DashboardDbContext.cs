@@ -34,6 +34,8 @@ public sealed class DashboardDbContext(DbContextOptions<DashboardDbContext> opti
             builder.HasKey(x => x.Id);
             builder.Property(x => x.Id).ValueGeneratedNever();
             builder.Property(x => x.ThemeMode).HasMaxLength(16);
+            builder.Property(x => x.SiteTitle).HasMaxLength(120).HasColumnName("SiteTitle");
+            builder.Property(x => x.SiteDescription).HasMaxLength(300).HasColumnName("SiteDescription");
 
             builder.HasMany(x => x.Categories)
                 .WithOne()
@@ -69,6 +71,7 @@ public sealed class DashboardDbContext(DbContextOptions<DashboardDbContext> opti
             builder.Property(x => x.Url).HasMaxLength(500);
             builder.Property(x => x.IconClass).HasMaxLength(120);
             builder.Property(x => x.BackgroundColor).HasMaxLength(32);
+            builder.Property(x => x.ShowStatus).HasDefaultValue(true);
 
             builder.OwnsOne(x => x.Position, positionBuilder =>
             {

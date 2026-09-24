@@ -16,6 +16,16 @@ public sealed class DashboardLayout
     public string ThemeMode { get; set; } = "auto";
 
     /// <summary>
+    /// Заголовок, отображаемый в шапке dashboard.
+    /// </summary>
+    public string SiteTitle { get; set; } = "Adashboard";
+
+    /// <summary>
+    /// Подзаголовок (описание), отображаемый в шапке dashboard.
+    /// </summary>
+    public string SiteDescription { get; set; } = "Личная стартовая страница со ссылками и сервисами";
+
+    /// <summary>
     /// Список категорий в раскладке.
     /// </summary>
     public List<DashboardCategory> Categories { get; set; } = [];
