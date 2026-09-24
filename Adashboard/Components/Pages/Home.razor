@@ -285,9 +285,11 @@ else
 
     private void OpenDeleteCardConfirm(DashboardCard card)
     {
+        var displayName = string.IsNullOrWhiteSpace(card.Title) ? card.Url : card.Title;
+
         var parameters = new Dictionary<string, object?>
         {
-            [nameof(ConfirmDialog.Message)] = $"Удалить ссылку «{card.Title}»?",
+            [nameof(ConfirmDialog.Message)] = $"Удалить ссылку «{displayName}»?",
             [nameof(ConfirmDialog.ConfirmLabel)] = "Удалить",
             [nameof(ConfirmDialog.OnConfirm)] = EventCallback.Factory.Create(this, () => DeleteCard(card))
         };

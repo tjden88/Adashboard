@@ -23,9 +23,14 @@ public sealed class DashboardCard
     public string Title { get; set; } = string.Empty;
 
     /// <summary>
-    /// Адрес перехода по карточке.
+    /// Адрес перехода по карточке (без схемы).
     /// </summary>
     public string Url { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Схема, добавляемая к адресу при открытии: "http://", "https://" или пустая строка.
+    /// </summary>
+    public string UrlScheme { get; set; } = string.Empty;
 
     /// <summary>
     /// CSS-класс иконки Font Awesome.

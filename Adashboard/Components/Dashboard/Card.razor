@@ -4,7 +4,7 @@
 
 <a class="dashboard-card"
    data-card-id="@Model.Id"
-   href="@Model.Url"
+   href="@(Model.UrlScheme + Model.Url)"
    target="_blank"
    rel="noopener noreferrer"
    @onclick="OnCardClick"

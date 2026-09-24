@@ -15,14 +15,23 @@
 
     <div class="card-dialog__field">
         <label for="cardUrl" class="card-dialog__label">URL (ссылка)</label>
-        <input id="cardUrl"
-               class="form-control"
-               type="text"
-               maxlength="500"
-               autocomplete="off"
-               placeholder="https://example.com"
-               value="@_url"
-               @oninput="args => _url = args.Value?.ToString() ?? string.Empty" />
+        <div class="card-dialog__url">
+            <button type="button"
+                    class="card-dialog__scheme"
+                    @onclick="CycleScheme"
+                    title="Схема ссылки"
+                    aria-label="@($"Схема ссылки: {SchemeLabel}")">
+                @SchemeLabel
+            </button>
+            <input id="cardUrl"
+                   class="form-control card-dialog__url-input"
+                   type="text"
+                   maxlength="500"
+                   autocomplete="off"
+                   placeholder="example.com"
+                   value="@_url"
+                   @oninput="args => _url = args.Value?.ToString() ?? string.Empty" />
+        </div>
     </div>
 
     <div class="card-dialog__field">
@@ -65,11 +74,14 @@
 
     private string _title = string.Empty;
     private string _url = string.Empty;
+    private string _scheme = "https://";
     private string _color = DefaultColor;
     private string _icon = string.Empty;
     private bool _showStatus = true;
     private int _categoryId;
     private string? _error;
+
+    private string SchemeLabel => _scheme.Length == 0 ? "○" : _scheme;
 
     /// <summary>Карточка для редактирования или <c>null</c> при создании.</summary>
     [Parameter]
@@ -95,10 +107,30 @@
 
         _categoryId = Card.CategoryId;
         _title = Card.Title;
-        _url = Card.Url;
         _color = Card.BackgroundColor;
         _icon = Card.IconClass;
         _showStatus = Card.ShowStatus;
+
+        // У новых карточек схема хранится отдельно, у старых — внутри адреса.
+        if (Card.UrlScheme.Length > 0)
+        {
+            _scheme = Card.UrlScheme;
+            _url = Card.Url;
+        }
+        else
+        {
+            (_scheme, _url) = SplitScheme(Card.Url);
+        }
+    }
+
+    private void CycleScheme()
+    {
+        _scheme = _scheme switch
+        {
+            "http://" => "https://",
+            "https://" => string.Empty,
+            _ => "http://"
+        };
     }
 
     private void OnShowStatusChange(ChangeEventArgs args) => _showStatus = args.Value is bool value && value;
@@ -108,19 +140,19 @@
         _error = null;
 
         var title = _title.Trim();
-        var url = _url.Trim();
         var color = _color.Trim();
         var icon = _icon.Trim();
+        var (scheme, url) = NormalizeUrl(_scheme, _url);
 
-        if (title.Length == 0)
+        if (url.Length == 0)
         {
-            _error = "Введите название ссылки.";
+            _error = "Введите ссылку.";
             return;
         }
 
-        if (!IsValidUrl(url))
+        if (!IsSafeUrl(scheme, url))
         {
-            _error = "Введите корректный адрес, начинающийся с http:// или https://.";
+            _error = "Недопустимая схема ссылки.";
             return;
         }
 
@@ -148,6 +180,7 @@
                 CategoryId = _categoryId,
                 Title = title,
                 Url = url,
+                UrlScheme = scheme,
                 IconClass = icon,
                 BackgroundColor = color,
                 ShowStatus = _showStatus
@@ -157,6 +190,7 @@
 
         Card.Title = title;
         Card.Url = url;
+        Card.UrlScheme = scheme;
         Card.IconClass = icon;
         Card.BackgroundColor = color;
         Card.ShowStatus = _showStatus;
@@ -172,12 +206,51 @@
     }
 
     /// <summary>
-    /// Проверяет, что адрес абсолютный и использует безопасную схему http/https.
+    /// Выделяет схему из адреса, если она там уже указана.
     /// </summary>
-    private static bool IsValidUrl(string url)
+    private static (string Scheme, string Url) SplitScheme(string url)
     {
-        return Uri.TryCreate(url, UriKind.Absolute, out var uri)
-               && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+        if (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("http://", url[7..]);
+        }
+
+        if (url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("https://", url[8..]);
+        }
+
+        return (string.Empty, url);
+    }
+
+    /// <summary>
+    /// Нормализует адрес: схема в самом адресе имеет приоритет над переключателем.
+    /// </summary>
+    private static (string Scheme, string Url) NormalizeUrl(string scheme, string rawUrl)
+    {
+        var trimmed = rawUrl.Trim();
+        var split = SplitScheme(trimmed);
+
+        return split.Scheme.Length > 0 ? split : (scheme, trimmed);
+    }
+
+    /// <summary>
+    /// Запрещает опасные схемы, если адрес задаётся без префикса.
+    /// </summary>
+    private static bool IsSafeUrl(string scheme, string url)
+    {
+        if (scheme.Length > 0)
+        {
+            return true;
+        }
+
+        var normalized = url.TrimStart().ToLowerInvariant();
+
+        return !normalized.StartsWith("javascript:", StringComparison.Ordinal)
+               && !normalized.StartsWith("data:", StringComparison.Ordinal)
+               && !normalized.StartsWith("vbscript:", StringComparison.Ordinal)
+               && !normalized.StartsWith("file:", StringComparison.Ordinal)
+               && !normalized.StartsWith("blob:", StringComparison.Ordinal);
     }
 
     private static bool IsValidHexColor(string color)

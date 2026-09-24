@@ -12,6 +12,32 @@
     font-weight: 600;
 }
 
+.card-dialog__url {
+    display: flex;
+}
+
+.card-dialog__scheme {
+    flex-shrink: 0;
+    min-width: 4.6rem;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--surface-border);
+    border-right: none;
+    border-radius: 12px 0 0 12px;
+    background: var(--surface);
+    color: var(--accent);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.18s ease;
+}
+
+.card-dialog__scheme:hover {
+    background: var(--surface-strong);
+}
+
+.card-dialog__url-input {
+    border-radius: 0 12px 12px 0;
+}
+
 .card-dialog__checkbox {
     display: flex;
     align-items: center;
