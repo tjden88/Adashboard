@@ -42,11 +42,11 @@ else
                 <p>@_layout.SiteDescription</p>
             </div>
             <div class="dashboard-header-actions">
-               
+
                 @if (EditModeService.IsEnabled)
                 {
                     <button type="button" class="btn btn-icon btn-sm btn-success" @onclick="OpenAddCategoryDialog" aria-label="Добавить категорию" title="Добавить категорию">
-                        <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                        <i class="fa-regular fa-layer-plus"></i>
                     </button>
 
                     <button type="button" class="btn btn-icon btn-sm btn-outline-secondary" @onclick="OpenSettings" aria-label="Открыть настройки" title="Настройки">
@@ -59,7 +59,7 @@ else
                         @onclick="ToggleEditMode"
                         aria-pressed="@EditModeService.IsEnabled"
                         aria-label="Переключить режим редактирования"
-                        title="Режим редактирования">
+                        title="@(EditModeService.IsEnabled ? "Завершить редактирование" : "Редактировать")">
                     <i class="fa-solid @(EditModeService.IsEnabled ? "fa-check" : "fa-pen-nib")" aria-hidden="true"></i>
                 </button>
 
@@ -256,7 +256,7 @@ else
             [nameof(CardDialog.OnSave)] = EventCallback.Factory.Create<DashboardCard>(this, AddCard)
         };
 
-        DialogService.Show<CardDialog>("Добавить плитку", parameters, closeOnOverlayClick: false);
+        DialogService.Show<CardDialog>("Добавить карточку", parameters, closeOnOverlayClick: false);
     }
 
     private void OpenEditCardDialog(DashboardCard card)
@@ -268,7 +268,7 @@ else
             [nameof(CardDialog.OnDelete)] = EventCallback.Factory.Create<DashboardCard>(this, OpenDeleteCardConfirm)
         };
 
-        DialogService.Show<CardDialog>($"Редактировать плитку: {card.Title}", parameters, closeOnOverlayClick: false);
+        DialogService.Show<CardDialog>($"Редактировать карточку: {card.Title}", parameters, closeOnOverlayClick: false);
     }
 
     private async Task AddCard(DashboardCard card)
