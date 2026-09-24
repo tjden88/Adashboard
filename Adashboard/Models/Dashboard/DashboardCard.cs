@@ -56,7 +56,7 @@ public sealed class DashboardCard
     /// <summary>
     /// Режим проверки доступности сервиса. Определяет, проверять ли статус и что считать успехом.
     /// </summary>
-    public CardStatusMode StatusMode { get; set; } = CardStatusMode.Reachable;
+    public CardStatusMode StatusMode { get; set; } = CardStatusMode.None;
 
     /// <summary>
     /// Положение карточки внутри категории.

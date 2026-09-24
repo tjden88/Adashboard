@@ -101,6 +101,7 @@ else
     private DotNetObjectReference<Home>? _dotNetRef;
     private readonly SemaphoreSlim _reorderLock = new(1, 1);
     private readonly ConcurrentDictionary<int, ServiceHealthState> _health = new();
+    private readonly CancellationTokenSource _pageCts = new();
     private CancellationTokenSource? _healthCts;
     private Task? _healthLoop;
     private string _themeMode = "auto";
@@ -216,6 +217,32 @@ else
         catch (Exception) when (cancellationToken.IsCancellationRequested)
         {
             // Circuit уже завершается: обновлять UI не нужно.
+        }
+    }
+
+    // Немедленная проверка одной карточки после добавления или редактирования.
+    private async Task CheckCardNowAsync(DashboardCard card)
+    {
+        try
+        {
+            if (card.StatusMode == CardStatusMode.None)
+            {
+                _health.TryRemove(card.Id, out _);
+            }
+            else
+            {
+                _health[card.Id] = await HealthCheckService.CheckAsync(card, _pageCts.Token);
+            }
+
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException)
+        {
+            // Страница закрывается: результат проверки больше не нужен.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Не удалось выполнить немедленную проверку статуса карточки {CardId}.", card.Id);
         }
     }
 
@@ -426,6 +453,9 @@ else
         await SaveLayoutAsync();
         await InvokeAsync(StateHasChanged);
         DialogService.Close();
+
+        // Не ждём очередного цикла: проверяем новую карточку сразу.
+        _ = CheckCardNowAsync(card);
     }
 
     private async Task SaveCard(DashboardCard card)
@@ -434,6 +464,9 @@ else
         await SaveLayoutAsync();
         await InvokeAsync(StateHasChanged);
         DialogService.Close();
+
+        // Не ждём очередного цикла: проверяем изменённую карточку сразу.
+        _ = CheckCardNowAsync(card);
     }
 
     private void OpenDeleteCardConfirm(DashboardCard card)
@@ -683,6 +716,7 @@ else
     {
         EditModeService.OnChange -= OnEditModeChanged;
 
+        _pageCts.Cancel();
         _healthCts?.Cancel();
         if (_healthLoop is not null)
         {
@@ -696,6 +730,7 @@ else
         }
 
         _healthCts?.Dispose();
+        _pageCts.Dispose();
 
         // Диалоги настроек, категории, карточки и подтверждения держат колбэк на текущую
         // страницу: закрываем их при уходе, чтобы не вызывать метод у уже удалённого компонента.

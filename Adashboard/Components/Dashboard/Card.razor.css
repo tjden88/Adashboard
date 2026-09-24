@@ -77,6 +77,8 @@
     height: 0.52rem;
     border-radius: 999px;
     background: #a1a1aa;
+    box-shadow:
+        0 0 0 1px rgba(0, 0, 0, 0.28);
 }
 
 .status-dot.online {
@@ -84,8 +86,15 @@
 }
 
 .status-dot.offline {
-    background: red;
-    animation: status-pulse 2.6s cubic-bezier(0.45, 0.05, 0.25, 1) infinite;
+    background: #ef4444;
+}
+
+.status-dot.offline::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    animation: status-pulse 1.4s ease-out infinite;
 }
 
 /* Серый индикатор до первого ответа проверки. */
@@ -107,16 +116,11 @@
 
 @keyframes status-pulse {
     0% {
-        transform: scale(1);
-        opacity: 1;
-        box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.65);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.65);
     }
 
-    70%,
     100% {
-        transform: scale(1.6);
-        opacity: 0.65;
-        box-shadow: 0 0 0 0.6rem rgba(249, 115, 22, 0);
+        box-shadow: 0 0 0 0.55rem rgba(239, 68, 68, 0);
     }
 }
 
