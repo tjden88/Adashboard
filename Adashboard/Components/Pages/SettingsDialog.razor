@@ -39,6 +39,19 @@
         </select>
     </div>
 
+    <div class="settings-section">
+        <label for="healthInterval">Интервал проверки статуса, сек</label>
+        <input id="healthInterval"
+               class="form-control"
+               type="number"
+               min="10"
+               max="600"
+               step="5"
+               value="@_healthInterval"
+               @oninput="args => _healthInterval = ParseInterval(args.Value)" />
+        <p class="settings-dialog__hint">Как часто проверять доступность сервисов с включённым статусом (10–600 секунд).</p>
+    </div>
+
     <div class="settings-dialog__actions">
         <button type="submit" class="btn btn-primary">
             <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>Сохранить
@@ -49,10 +62,14 @@
 @using Adashboard.Models.Dashboard
 
 @code {
+    private const int MinHealthIntervalSeconds = 10;
+    private const int MaxHealthIntervalSeconds = 600;
+
     private string _themeMode = "auto";
     private string _title = string.Empty;
     private string _description = string.Empty;
     private bool _showLogo = true;
+    private int _healthInterval = 30;
 
     [Parameter]
     public string ThemeMode { get; set; } = "auto";
@@ -66,6 +83,9 @@
     [Parameter]
     public bool ShowLogo { get; set; } = true;
 
+    [Parameter]
+    public int HealthCheckIntervalSeconds { get; set; } = 30;
+
     [Parameter, EditorRequired]
     public required EventCallback<SiteSettings> OnSave { get; set; }
 
@@ -75,9 +95,25 @@
         _title = SiteTitle;
         _description = SiteDescription;
         _showLogo = ShowLogo;
+        _healthInterval = Math.Clamp(HealthCheckIntervalSeconds, MinHealthIntervalSeconds, MaxHealthIntervalSeconds);
     }
 
     private void OnThemeChange(ChangeEventArgs args) => _themeMode = args.Value?.ToString() ?? "auto";
 
-    private async Task Save() => await OnSave.InvokeAsync(new SiteSettings(_themeMode, _title.Trim(), _description.Trim(), _showLogo));
+    private static int ParseInterval(object? value)
+    {
+        if (value is null || !int.TryParse(value.ToString(), out var parsed))
+        {
+            return 30;
+        }
+
+        return Math.Clamp(parsed, MinHealthIntervalSeconds, MaxHealthIntervalSeconds);
+    }
+
+    private async Task Save() => await OnSave.InvokeAsync(new SiteSettings(
+        _themeMode,
+        _title.Trim(),
+        _description.Trim(),
+        _showLogo,
+        Math.Clamp(_healthInterval, MinHealthIntervalSeconds, MaxHealthIntervalSeconds)));
 }

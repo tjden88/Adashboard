@@ -7,4 +7,10 @@ namespace Adashboard.Models.Dashboard;
 /// <param name="SiteTitle">Заголовок dashboard (может быть пустым намеренно).</param>
 /// <param name="SiteDescription">Описание dashboard (может быть пустым намеренно).</param>
 /// <param name="ShowLogo">Признак отображения логотипа в шапке dashboard.</param>
-public sealed record SiteSettings(string ThemeMode, string SiteTitle, string SiteDescription, bool ShowLogo);
+/// <param name="HealthCheckIntervalSeconds">Интервал проверки статуса карточек в секундах.</param>
+public sealed record SiteSettings(
+    string ThemeMode,
+    string SiteTitle,
+    string SiteDescription,
+    bool ShowLogo,
+    int HealthCheckIntervalSeconds);

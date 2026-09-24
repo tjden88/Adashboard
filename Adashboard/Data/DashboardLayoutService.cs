@@ -80,6 +80,7 @@ public sealed class DashboardLayoutService(
             SiteTitle = source.SiteTitle,
             SiteDescription = source.SiteDescription,
             ShowLogo = source.ShowLogo,
+            HealthCheckIntervalSeconds = source.HealthCheckIntervalSeconds,
             Categories = []
         };
 
@@ -111,8 +112,7 @@ public sealed class DashboardLayoutService(
                     ImagePath = card.ImagePath,
                     BackgroundColor = card.BackgroundColor,
                     IsWide = card.IsWide,
-                    IsOnline = card.IsOnline,
-                    ShowStatus = card.ShowStatus,
+                    StatusMode = card.StatusMode,
                     Position = new CardPosition
                     {
                         Order = card.Position.Order

@@ -116,10 +116,25 @@
         <ColorPicker @bind-Value="_color" AriaLabel="Цвет фона карточки" />
     </div>
 
-    <label class="card-dialog__checkbox">
-        <input type="checkbox" checked="@_showStatus" @onchange="OnShowStatusChange" />
-        <span>Показывать статус (онлайн/офлайн)</span>
-    </label>
+    <div class="card-dialog__field">
+        <label class="card-dialog__label">Проверка статуса</label>
+        <div class="card-dialog__status-options" role="radiogroup" aria-label="Режим проверки статуса">
+            @foreach (var option in StatusModeOptions)
+            {
+                <label class="card-dialog__status-option">
+                    <input type="radio"
+                           name="cardStatusMode"
+                           value="@option.Mode"
+                           checked="@(_statusMode == option.Mode)"
+                           @onchange="() => _statusMode = option.Mode" />
+                    <span class="card-dialog__status-text">
+                        <span class="card-dialog__status-title">@option.Title</span>
+                        <span class="card-dialog__status-description">@option.Description</span>
+                    </span>
+                </label>
+            }
+        </div>
+    </div>
 
     @if (_error is not null)
     {
@@ -144,12 +159,21 @@
     private const string DefaultColor = "#1e40af";
     private const string DefaultIcon = "fa-solid fa-link";
 
+    // Варианты проверки статуса, отображаемые в диалоге.
+    private static readonly (CardStatusMode Mode, string Title, string Description)[] StatusModeOptions =
+    [
+        (CardStatusMode.None, "Не проверять", "Индикатор на карточке не отображается."),
+        (CardStatusMode.Reachable, "Сервис отвечает", "Доступен при любом ответе сервера, включая форму входа."),
+        (CardStatusMode.NoServerError, "Без серверных ошибок", "Доступен, пока сервер не вернул ошибку 5xx."),
+        (CardStatusMode.Success, "Успешный ответ (2xx)", "Доступен только при успешном ответе 200–299.")
+    ];
+
     private string _title = string.Empty;
     private string _url = string.Empty;
     private string _scheme = "https://";
     private string _color = DefaultColor;
     private string _icon = string.Empty;
-    private bool _showStatus = true;
+    private CardStatusMode _statusMode = CardStatusMode.Reachable;
     private int _categoryId;
     private string? _error;
 
@@ -203,7 +227,7 @@
         _title = Card.Title;
         _color = Card.BackgroundColor;
         _icon = Card.IconClass;
-        _showStatus = Card.ShowStatus;
+        _statusMode = Card.StatusMode;
         _existingImagePath = string.IsNullOrWhiteSpace(Card.ImagePath) ? null : Card.ImagePath;
         _useCustomImage = _existingImagePath is not null;
 
@@ -247,8 +271,6 @@
             _ => "http://"
         };
     }
-
-    private void OnShowStatusChange(ChangeEventArgs args) => _showStatus = args.Value is bool value && value;
 
     private void OnImageUrlInput(ChangeEventArgs args)
     {
@@ -448,7 +470,7 @@
                 IconClass = icon,
                 ImagePath = imagePath,
                 BackgroundColor = color,
-                ShowStatus = _showStatus
+                StatusMode = _statusMode
             });
             return;
         }
@@ -459,7 +481,7 @@
         Card.IconClass = icon;
         Card.ImagePath = imagePath;
         Card.BackgroundColor = color;
-        Card.ShowStatus = _showStatus;
+        Card.StatusMode = _statusMode;
         await OnSave.InvokeAsync(Card);
     }
 

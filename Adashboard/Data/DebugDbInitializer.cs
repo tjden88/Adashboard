@@ -167,10 +167,10 @@ public static class DebugDbInitializer
                     Position = new CategoryPosition { Order = 0, Width = 6 },
                     Cards =
                     [
-                        CreateCard(1001, 101, "Nginx Proxy Manager", "https://example.local/nginx", "fa-solid fa-network-wired", "#f43f5e", true, true, 0),
-                        CreateCard(1002, 101, "Uptime Kuma", "https://example.local/uptime", "fa-solid fa-heart-pulse", "#22c55e", false, true, 1),
-                        CreateCard(1003, 101, "Portainer", "https://example.local/portainer", "fa-brands fa-docker", "#0ea5e9", true, true, 2),
-                        CreateCard(1004, 101, "Ansible", "https://example.local/ansible", "fa-solid fa-terminal", "#8b5cf6", false, true, 3)
+                        CreateCard(1001, 101, "Nginx Proxy Manager", "https://example.local/nginx", "fa-solid fa-network-wired", "#f43f5e", true, 0),
+                        CreateCard(1002, 101, "Uptime Kuma", "https://example.local/uptime", "fa-solid fa-heart-pulse", "#22c55e", false, 1),
+                        CreateCard(1003, 101, "Portainer", "https://example.local/portainer", "fa-brands fa-docker", "#0ea5e9", true, 2),
+                        CreateCard(1004, 101, "Ansible", "https://example.local/ansible", "fa-solid fa-terminal", "#8b5cf6", false, 3)
                     ]
                 },
                 new DashboardCategory
@@ -181,12 +181,12 @@ public static class DebugDbInitializer
                     Position = new CategoryPosition { Order = 1, Width = 8 },
                     Cards =
                     [
-                        CreateCard(2001, 102, "Jellyfin", "https://example.local/jellyfin", "fa-solid fa-film", "#a78bfa", false, true, 0),
-                        CreateCard(2002, 102, "Sonarr", "https://example.local/sonarr", "fa-solid fa-satellite-dish", "#fb7185", true, true, 1),
-                        CreateCard(2003, 102, "Radarr", "https://example.local/radarr", "fa-solid fa-clapperboard", "#facc15", true, true, 2),
-                        CreateCard(2004, 102, "Bazarr", "https://example.local/bazarr", "fa-solid fa-closed-captioning", "#60a5fa", false, true, 3),
-                        CreateCard(2005, 102, "Lidarr", "https://example.local/lidarr", "fa-solid fa-compact-disc", "#34d399", true, true, 4),
-                        CreateCard(2006, 102, "SABnzbd", "https://example.local/sab", "fa-solid fa-download", "#22d3ee", true, true, 5)
+                        CreateCard(2001, 102, "Jellyfin", "https://example.local/jellyfin", "fa-solid fa-film", "#a78bfa", false, 0),
+                        CreateCard(2002, 102, "Sonarr", "https://example.local/sonarr", "fa-solid fa-satellite-dish", "#fb7185", true, 1),
+                        CreateCard(2003, 102, "Radarr", "https://example.local/radarr", "fa-solid fa-clapperboard", "#facc15", true, 2),
+                        CreateCard(2004, 102, "Bazarr", "https://example.local/bazarr", "fa-solid fa-closed-captioning", "#60a5fa", false, 3),
+                        CreateCard(2005, 102, "Lidarr", "https://example.local/lidarr", "fa-solid fa-compact-disc", "#34d399", true, 4),
+                        CreateCard(2006, 102, "SABnzbd", "https://example.local/sab", "fa-solid fa-download", "#22d3ee", true, 5)
                     ]
                 },
                 new DashboardCategory
@@ -197,9 +197,9 @@ public static class DebugDbInitializer
                     Position = new CategoryPosition { Order = 2, Width = 4 },
                     Cards =
                     [
-                        CreateCard(3001, 103, "Grafana", "https://example.local/grafana", "fa-solid fa-chart-line", "#f97316", true, true, 0),
-                        CreateCard(3002, 103, "Prometheus", "https://example.local/prometheus", "fa-solid fa-chart-area", "#22d3ee", false, true, 1),
-                        CreateCard(3003, 103, "Adminer", "https://example.local/adminer", "fa-solid fa-database", "#f43f5e", true, false, 2)
+                        CreateCard(3001, 103, "Grafana", "https://example.local/grafana", "fa-solid fa-chart-line", "#f97316", true, 0),
+                        CreateCard(3002, 103, "Prometheus", "https://example.local/prometheus", "fa-solid fa-chart-area", "#22d3ee", false, 1),
+                        CreateCard(3003, 103, "Adminer", "https://example.local/adminer", "fa-solid fa-database", "#f43f5e", true, 2)
                     ]
                 }
             ]
@@ -211,7 +211,7 @@ public static class DebugDbInitializer
     /// <summary>
     /// Создаёт карточку с заданным идентификатором и позицией.
     /// </summary>
-    private static DashboardCard CreateCard(int id, int categoryId, string title, string url, string iconClass, string backgroundColor, bool isWide, bool isOnline, int order) =>
+    private static DashboardCard CreateCard(int id, int categoryId, string title, string url, string iconClass, string backgroundColor, bool isWide, int order) =>
         new()
         {
             Id = id,
@@ -221,7 +221,6 @@ public static class DebugDbInitializer
             IconClass = iconClass,
             BackgroundColor = backgroundColor,
             IsWide = isWide,
-            IsOnline = isOnline,
             Position = new CardPosition { Order = order }
         };
 }

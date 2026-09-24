@@ -1,4 +1,5 @@
 @using Adashboard.Models.Dashboard
+@using Adashboard.Services
 
 <section class="dashboard-category"
          data-category-id="@Model.Id"
@@ -42,6 +43,7 @@
                   DesktopColumns="@DesktopWidth"
                   MediumColumns="@MediumWidth"
                   MobileColumns="@MobileWidth"
+                  HealthState="@(HealthLookup?.Invoke(card) ?? ServiceHealthState.Unknown)"
                   EditRequested="CardEditRequested" />
         }
     </div>
@@ -62,6 +64,12 @@
 
     [Parameter, EditorRequired]
     public EventCallback<DashboardCard> CardEditRequested { get; set; }
+
+    /// <summary>
+    /// Поставщик состояния доступности карточки. Если не задан, статус считается неизвестным.
+    /// </summary>
+    [Parameter]
+    public Func<DashboardCard, ServiceHealthState>? HealthLookup { get; set; }
 
     private Task OnEdit() => EditRequested.InvokeAsync(Model);
 

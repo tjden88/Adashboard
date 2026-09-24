@@ -27,9 +27,9 @@
                  onerror="this.hidden = true" />
         }
     </div>
-    @if (Model.ShowStatus)
+    @if (Model.StatusMode != CardStatusMode.None)
     {
-        <span class="status-dot @(Model.IsOnline ? "online" : "offline")" aria-label="Статус"></span>
+        <span class="status-dot @StatusClass" role="img" aria-label="@StatusLabel" title="@StatusLabel"></span>
     }
 </a>
 
@@ -48,6 +48,26 @@
 
     [Parameter, EditorRequired]
     public EventCallback<DashboardCard> EditRequested { get; set; }
+
+    /// <summary>
+    /// Текущее состояние доступности сервиса, определённое последней проверкой.
+    /// </summary>
+    [Parameter]
+    public ServiceHealthState HealthState { get; set; }
+
+    private string StatusClass => HealthState switch
+    {
+        ServiceHealthState.Online => "online",
+        ServiceHealthState.Offline => "offline",
+        _ => "unknown"
+    };
+
+    private string StatusLabel => HealthState switch
+    {
+        ServiceHealthState.Online => "Сервис доступен",
+        ServiceHealthState.Offline => "Сервис недоступен",
+        _ => "Статус проверяется"
+    };
 
     private int CardSpanDesktop => GetCardSpan(Model.IsWide, DesktopColumns);
 

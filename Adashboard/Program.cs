@@ -22,6 +22,7 @@ builder.Services.AddDbContextFactory<DashboardDbContext>(options =>
     options.UseSqlite($"Data Source={databasePath}"));
 builder.Services.AddScoped<IDashboardLayoutService, DashboardLayoutService>();
 builder.Services.AddScoped<IImageIconService, ImageIconService>();
+builder.Services.AddScoped<IHealthCheckService, HealthCheckService>();
 builder.Services.AddScoped<DialogService>();
 builder.Services.AddScoped<EditModeService>();
 
@@ -31,6 +32,9 @@ builder.Services.AddHttpClient("IconDownloader")
     {
         AllowAutoRedirect = false
     });
+
+// Клиент проверки статуса обращается к домашним сервисам, поэтому редиректы (например, на форму входа) отслеживаются.
+builder.Services.AddHttpClient("HealthCheck");
 
 var app = builder.Build();
 

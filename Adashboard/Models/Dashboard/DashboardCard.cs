@@ -54,14 +54,9 @@ public sealed class DashboardCard
     public bool IsWide { get; set; }
 
     /// <summary>
-    /// Признак доступности сервиса.
+    /// Режим проверки доступности сервиса. Определяет, проверять ли статус и что считать успехом.
     /// </summary>
-    public bool IsOnline { get; set; }
-
-    /// <summary>
-    /// Нужно ли отображать индикатор статуса на карточке.
-    /// </summary>
-    public bool ShowStatus { get; set; } = true;
+    public CardStatusMode StatusMode { get; set; } = CardStatusMode.Reachable;
 
     /// <summary>
     /// Положение карточки внутри категории.

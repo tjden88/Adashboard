@@ -31,6 +31,11 @@ public sealed class DashboardLayout
     public bool ShowLogo { get; set; } = true;
 
     /// <summary>
+    /// Интервал периодической проверки статуса карточек в секундах.
+    /// </summary>
+    public int HealthCheckIntervalSeconds { get; set; } = 30;
+
+    /// <summary>
     /// Список категорий в раскладке.
     /// </summary>
     public List<DashboardCategory> Categories { get; set; } = [];
