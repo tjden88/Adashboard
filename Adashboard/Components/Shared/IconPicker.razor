@@ -1,0 +1,83 @@
+@using Adashboard.Models
+
+<div class="icon-picker">
+    <div class="icon-picker__field">
+        <span class="icon-picker__preview" aria-hidden="true">
+            <i class="@Value"></i>
+        </span>
+        <input class="form-control icon-picker__input"
+               type="text"
+               autocomplete="off"
+               placeholder="Например: house, github..."
+               value="@_searchText"
+               @oninput="OnInput"
+               @onkeydown="OnKeyDown"
+               aria-label="Поиск иконки" />
+    </div>
+
+    @if (_filteredIcons.Count > 0)
+    {
+        <ul class="icon-picker__list" role="listbox">
+            @foreach (var icon in _filteredIcons)
+            {
+                <li class="icon-picker__item" role="option" @onclick="() => SelectIcon(icon)">
+                    <i class="@icon" aria-hidden="true"></i>
+                    <span>@icon</span>
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    private const int MaxResults = 30;
+
+    private string _searchText = string.Empty;
+    private List<string> _filteredIcons = [];
+
+    /// <summary>Текущий CSS-класс иконки.</summary>
+    [Parameter]
+    public string Value { get; set; } = string.Empty;
+
+    /// <summary>Событие выбора иконки (поддерживает <c>@bind-Value</c>).</summary>
+    [Parameter]
+    public EventCallback<string> ValueChanged { get; set; }
+
+    private void OnInput(ChangeEventArgs args)
+    {
+        _searchText = args.Value?.ToString() ?? string.Empty;
+        FilterIcons();
+    }
+
+    private void OnKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape")
+        {
+            _filteredIcons = [];
+        }
+    }
+
+    private void FilterIcons()
+    {
+        var search = _searchText.Trim();
+        if (search.Length == 0)
+        {
+            _filteredIcons = [];
+            return;
+        }
+
+        _filteredIcons = FontAwesomeIcons.Icons
+            .Where(x => x.Contains(search, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .Take(MaxResults)
+            .ToList();
+    }
+
+    private async Task SelectIcon(string icon)
+    {
+        Value = icon;
+        _searchText = icon;
+        _filteredIcons = [];
+        await ValueChanged.InvokeAsync(icon);
+    }
+}

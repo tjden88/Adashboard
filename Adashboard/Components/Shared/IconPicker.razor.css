@@ -1,0 +1,62 @@
+.icon-picker {
+    position: relative;
+}
+
+.icon-picker__field {
+    display: flex;
+}
+
+.icon-picker__preview {
+    width: 2.7rem;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--surface-border);
+    border-right: none;
+    border-radius: 12px 0 0 12px;
+    background: var(--surface);
+    color: var(--accent);
+    font-size: 1rem;
+}
+
+.icon-picker__input {
+    border-radius: 0 12px 12px 0;
+}
+
+.icon-picker__list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    margin: 0.25rem 0 0;
+    padding: 0.3rem;
+    list-style: none;
+    max-height: 210px;
+    overflow-y: auto;
+    background: var(--surface-strong);
+    border: 1px solid var(--surface-border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-soft);
+}
+
+.icon-picker__item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.4rem 0.55rem;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-main);
+    font-size: 0.9rem;
+}
+
+.icon-picker__item:hover {
+    background: var(--accent-soft);
+}
+
+.icon-picker__item i {
+    width: 1.1rem;
+    text-align: center;
+    color: var(--accent);
+}

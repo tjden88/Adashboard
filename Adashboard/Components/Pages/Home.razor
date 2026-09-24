@@ -241,7 +241,7 @@ else
             [nameof(CardDialog.OnSave)] = EventCallback.Factory.Create<DashboardCard>(this, AddCard)
         };
 
-        DialogService.Show<CardDialog>("Добавить ссылку", parameters, closeOnOverlayClick: false);
+        DialogService.Show<CardDialog>("Добавить плитку", parameters, closeOnOverlayClick: false);
     }
 
     private void OpenEditCardDialog(DashboardCard card)
@@ -253,7 +253,7 @@ else
             [nameof(CardDialog.OnDelete)] = EventCallback.Factory.Create<DashboardCard>(this, OpenDeleteCardConfirm)
         };
 
-        DialogService.Show<CardDialog>("Редактировать ссылку", parameters, closeOnOverlayClick: false);
+        DialogService.Show<CardDialog>($"Редактировать плитку: {card.Title}", parameters, closeOnOverlayClick: false);
     }
 
     private async Task AddCard(DashboardCard card)

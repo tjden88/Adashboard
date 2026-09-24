@@ -12,25 +12,6 @@
     font-weight: 600;
 }
 
-.card-dialog__icon {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-}
-
-.card-dialog__icon-preview {
-    width: 2.6rem;
-    height: 2.35rem;
-    flex-shrink: 0;
-    display: grid;
-    place-items: center;
-    border: 1px solid var(--surface-border);
-    border-radius: 10px;
-    background: var(--surface);
-    color: var(--accent);
-    font-size: 1.1rem;
-}
-
 .card-dialog__checkbox {
     display: flex;
     align-items: center;

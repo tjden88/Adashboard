@@ -1,12 +1,15 @@
 @implements IAsyncDisposable
 @inject IJSRuntime Js
 
-<input class="form-control color-picker__input"
-       data-coloris
-       id="@_inputId"
-       value="@Value"
-       @oninput="OnInput"
-       aria-label="@AriaLabel" />
+<div class="color-picker">
+    <input class="form-control color-picker__input"
+           data-coloris
+           id="@_inputId"
+           value="@Value"
+           @oninput="OnInput"
+           aria-label="@AriaLabel" />
+    <span class="color-picker__swatch" style="background-color:@Value" aria-hidden="true"></span>
+</div>
 
 @code {
     private readonly string _inputId = $"coloris-{Guid.NewGuid():N}";

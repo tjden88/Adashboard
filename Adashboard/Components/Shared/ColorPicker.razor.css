@@ -1,3 +1,19 @@
+.color-picker {
+    position: relative;
+}
+
 .color-picker__input {
     cursor: pointer;
+    padding-right: 3.2rem;
+}
+
+.color-picker__swatch {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    bottom: 1px;
+    width: 2.6rem;
+    border-left: 1px solid var(--surface-border);
+    border-radius: 0 11px 11px 0;
+    pointer-events: none;
 }

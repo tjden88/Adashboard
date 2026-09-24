@@ -2,49 +2,37 @@
 
 <div class="card-dialog">
     <div class="card-dialog__field">
-        <label for="cardTitle" class="card-dialog__label">Название</label>
+        <label for="cardTitle" class="card-dialog__label">Заголовок</label>
         <input id="cardTitle"
                class="form-control"
                type="text"
                maxlength="120"
                autocomplete="off"
-               placeholder="Например: Grafana"
+               placeholder="Например: Node.js"
                value="@_title"
                @oninput="args => _title = args.Value?.ToString() ?? string.Empty" />
     </div>
 
     <div class="card-dialog__field">
-        <label for="cardUrl" class="card-dialog__label">Ссылка</label>
+        <label for="cardUrl" class="card-dialog__label">URL (ссылка)</label>
         <input id="cardUrl"
                class="form-control"
                type="text"
                maxlength="500"
                autocomplete="off"
-               placeholder="https://example.local/service"
+               placeholder="https://example.com"
                value="@_url"
                @oninput="args => _url = args.Value?.ToString() ?? string.Empty" />
     </div>
 
     <div class="card-dialog__field">
-        <label class="card-dialog__label">Цвет фона</label>
-        <ColorPicker @bind-Value="_color" AriaLabel="Цвет фона карточки" />
+        <label class="card-dialog__label">Иконка</label>
+        <IconPicker @bind-Value="_icon" />
     </div>
 
     <div class="card-dialog__field">
-        <label for="cardIcon" class="card-dialog__label">Иконка</label>
-        <div class="card-dialog__icon">
-            <span class="card-dialog__icon-preview" aria-hidden="true">
-                <i class="@_icon"></i>
-            </span>
-            <input id="cardIcon"
-                   class="form-control"
-                   type="text"
-                   maxlength="120"
-                   autocomplete="off"
-                   placeholder="fa-solid fa-globe"
-                   value="@_icon"
-                   @oninput="args => _icon = args.Value?.ToString() ?? string.Empty" />
-        </div>
+        <label class="card-dialog__label">Цвет фона</label>
+        <ColorPicker @bind-Value="_color" AriaLabel="Цвет фона карточки" />
     </div>
 
     <label class="card-dialog__checkbox">

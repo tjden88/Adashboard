@@ -68,6 +68,29 @@ input {
     font: inherit;
 }
 
+/* Поля ввода в оформлении проекта: следуют выбранной теме. */
+.form-control,
+.form-select {
+    border: 1px solid var(--surface-border);
+    border-radius: 12px;
+    padding: 0.55rem 0.75rem;
+    background-color: var(--surface);
+    color: var(--text-main);
+}
+
+.form-control::placeholder {
+    color: color-mix(in srgb, var(--text-muted) 75%, transparent);
+}
+
+.form-control:focus,
+.form-select:focus {
+    background-color: var(--surface-strong);
+    color: var(--text-main);
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--surface-border));
+    box-shadow: 0 0 0 3px var(--accent-soft);
+    outline: none;
+}
+
 /* Глобальный стиль кнопок: полупрозрачная «стеклянная» поверхность, как у карточек. */
 .btn {
     --btn-border: color-mix(in srgb, var(--surface-border) 90%, transparent);
