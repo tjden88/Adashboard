@@ -25,6 +25,13 @@
                     title="Редактировать категорию">
                 <i class="fa-solid fa-pen" aria-hidden="true"></i>Редактировать
             </button>
+            <button type="button"
+                    class="btn btn-sm btn-outline-secondary"
+                    @onclick="OnDelete"
+                    aria-label="Удалить категорию @Model.Title"
+                    title="Удалить категорию">
+                <i class="fa-solid fa-trash" aria-hidden="true"></i>Удалить
+            </button>
         </div>
     </header>
 
@@ -51,11 +58,16 @@
     public EventCallback<DashboardCategory> AddCardRequested { get; set; }
 
     [Parameter, EditorRequired]
+    public EventCallback<DashboardCategory> DeleteRequested { get; set; }
+
+    [Parameter, EditorRequired]
     public EventCallback<DashboardCard> CardEditRequested { get; set; }
 
     private Task OnEdit() => EditRequested.InvokeAsync(Model);
 
     private Task OnAddCard() => AddCardRequested.InvokeAsync(Model);
+
+    private Task OnDelete() => DeleteRequested.InvokeAsync(Model);
 
     private int DesktopWidth => Model.Position.Width;
 

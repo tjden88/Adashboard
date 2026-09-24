@@ -1,0 +1,37 @@
+@using Adashboard.Services
+@inject DialogService DialogService
+
+<div class="confirm-dialog">
+    <p class="confirm-dialog__message">@Message</p>
+
+    <div class="confirm-dialog__actions">
+        <button type="button" class="btn btn-outline-secondary" @onclick="Cancel">
+            Отмена
+        </button>
+        <button type="button" class="btn btn-danger" @onclick="Confirm">
+            <i class="fa-solid fa-trash" aria-hidden="true"></i>@ConfirmLabel
+        </button>
+    </div>
+</div>
+
+@code {
+    /// <summary>Текст вопроса о подтверждении.</summary>
+    [Parameter, EditorRequired]
+    public string Message { get; set; } = string.Empty;
+
+    /// <summary>Подпись кнопки подтверждения.</summary>
+    [Parameter]
+    public string ConfirmLabel { get; set; } = "Удалить";
+
+    /// <summary>Действие, выполняемое после подтверждения.</summary>
+    [Parameter, EditorRequired]
+    public required EventCallback OnConfirm { get; set; }
+
+    private async Task Confirm()
+    {
+        await OnConfirm.InvokeAsync();
+        DialogService.Close();
+    }
+
+    private void Cancel() => DialogService.Close();
+}

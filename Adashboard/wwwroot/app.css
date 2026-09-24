@@ -159,6 +159,18 @@ input {
     border-color: color-mix(in srgb, var(--text-main) 28%, var(--surface-border));
 }
 
+.btn-danger {
+    --btn-border: color-mix(in srgb, #dc2626 55%, var(--surface-border));
+    background: #dc2626;
+    border-color: color-mix(in srgb, #dc2626 45%, transparent);
+    color: #fff;
+    box-shadow: 0 8px 20px rgba(220, 38, 38, 0.22);
+}
+
+.btn-danger:hover {
+    background: color-mix(in srgb, #dc2626 88%, #ffffff);
+}
+
 /* Перетаскивание доступно только в режиме редактирования. */
 html:not(.dashboard-edit-mode) .drag-handle,
 html:not(.dashboard-edit-mode) .category-actions {

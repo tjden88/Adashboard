@@ -71,6 +71,7 @@ else
                 <Category @key="category.Id" Model="@category"
                           EditRequested="category => OpenEditCategoryDialog(category)"
                           AddCardRequested="category => OpenAddCardDialog(category)"
+                          DeleteRequested="category => OpenDeleteCategoryConfirm(category)"
                           CardEditRequested="card => OpenEditCardDialog(card)" />
             }
         </div>
@@ -206,6 +207,32 @@ else
         DialogService.Close();
     }
 
+    private void OpenDeleteCategoryConfirm(DashboardCategory category)
+    {
+        var parameters = new Dictionary<string, object?>
+        {
+            [nameof(ConfirmDialog.Message)] = $"Удалить категорию «{category.Title}» вместе со всеми ссылками?",
+            [nameof(ConfirmDialog.ConfirmLabel)] = "Удалить",
+            [nameof(ConfirmDialog.OnConfirm)] = EventCallback.Factory.Create(this, () => DeleteCategory(category))
+        };
+
+        DialogService.Show<ConfirmDialog>("Подтверждение удаления", parameters, closeOnOverlayClick: false);
+    }
+
+    private async Task DeleteCategory(DashboardCategory category)
+    {
+        _layout.Categories.Remove(category);
+
+        var ordered = _layout.Categories.OrderBy(x => x.Position.Order).ToList();
+        for (var i = 0; i < ordered.Count; i++)
+        {
+            ordered[i].Position.Order = i;
+        }
+
+        await SaveLayoutAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
     private void OpenAddCardDialog(DashboardCategory category)
     {
         var parameters = new Dictionary<string, object?>
@@ -223,7 +250,7 @@ else
         {
             [nameof(CardDialog.Card)] = card,
             [nameof(CardDialog.OnSave)] = EventCallback.Factory.Create<DashboardCard>(this, SaveCard),
-            [nameof(CardDialog.OnDelete)] = EventCallback.Factory.Create<DashboardCard>(this, DeleteCard)
+            [nameof(CardDialog.OnDelete)] = EventCallback.Factory.Create<DashboardCard>(this, OpenDeleteCardConfirm)
         };
 
         DialogService.Show<CardDialog>("Редактировать ссылку", parameters, closeOnOverlayClick: false);
@@ -256,6 +283,18 @@ else
         DialogService.Close();
     }
 
+    private void OpenDeleteCardConfirm(DashboardCard card)
+    {
+        var parameters = new Dictionary<string, object?>
+        {
+            [nameof(ConfirmDialog.Message)] = $"Удалить ссылку «{card.Title}»?",
+            [nameof(ConfirmDialog.ConfirmLabel)] = "Удалить",
+            [nameof(ConfirmDialog.OnConfirm)] = EventCallback.Factory.Create(this, () => DeleteCard(card))
+        };
+
+        DialogService.Show<ConfirmDialog>("Подтверждение удаления", parameters, closeOnOverlayClick: false);
+    }
+
     private async Task DeleteCard(DashboardCard card)
     {
         var category = _layout.Categories.FirstOrDefault(x => x.Id == card.CategoryId);
@@ -267,7 +306,6 @@ else
 
         await SaveLayoutAsync();
         await InvokeAsync(StateHasChanged);
-        DialogService.Close();
     }
 
     [JSInvokable]
@@ -481,12 +519,13 @@ else
     {
         EditModeService.OnChange -= OnEditModeChanged;
 
-        // Диалоги настроек, категории и карточки держат колбэк на текущую страницу: закрываем
-        // их при уходе, чтобы не вызывать метод у уже удалённого компонента.
+        // Диалоги настроек, категории, карточки и подтверждения держат колбэк на текущую
+        // страницу: закрываем их при уходе, чтобы не вызывать метод у уже удалённого компонента.
         if (DialogService.Current is not null &&
             (DialogService.Current.ComponentType == typeof(SettingsDialog)
              || DialogService.Current.ComponentType == typeof(CategoryDialog)
-             || DialogService.Current.ComponentType == typeof(CardDialog)))
+             || DialogService.Current.ComponentType == typeof(CardDialog)
+             || DialogService.Current.ComponentType == typeof(ConfirmDialog)))
         {
             DialogService.Close();
         }
