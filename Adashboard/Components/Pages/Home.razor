@@ -193,18 +193,27 @@ else
         var checks = cards.Select(async card =>
         {
             await throttler.WaitAsync(cancellationToken);
+            ServiceHealthState state;
             try
             {
-                _health[card.Id] = await HealthCheckService.CheckAsync(card, cancellationToken);
+                state = await HealthCheckService.CheckAsync(card, cancellationToken);
             }
             finally
             {
                 throttler.Release();
             }
+
+            _health[card.Id] = state;
+
+            // Обновляем интерфейс сразу по каждой карточке, не дожидаясь остальных проверок.
+            await NotifyHealthChangedAsync(cancellationToken);
         });
 
         await Task.WhenAll(checks);
+    }
 
+    private async Task NotifyHealthChangedAsync(CancellationToken cancellationToken)
+    {
         if (cancellationToken.IsCancellationRequested)
         {
             return;
