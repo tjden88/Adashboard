@@ -12,7 +12,20 @@
    style="--card-bg:@Model.BackgroundColor; --card-icon-color:@Model.GetIconColor(); --card-text-color:@Model.GetTextColor(); --card-span-desktop:@CardSpanDesktop; --card-span-medium:@CardSpanMedium; --card-span-mobile:@CardSpanMobile;">
     <span class="card-title">@Model.Title</span>
     <div class="card-icon" aria-hidden="true">
-        <i class="@Model.IconClass"></i>
+        @if (string.IsNullOrWhiteSpace(Model.ImagePath))
+        {
+            <i class="@Model.IconClass"></i>
+        }
+        else
+        {
+            @* За встроенной иконкой остаётся роль запасного варианта, если файл изображения пропал. *@
+            <i class="@Model.IconClass"></i>
+            <img class="card-icon__image"
+                 src="@Model.ImagePath"
+                 alt=""
+                 loading="lazy"
+                 onerror="this.hidden = true" />
+        }
     </div>
     @if (Model.ShowStatus)
     {

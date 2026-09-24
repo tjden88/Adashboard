@@ -71,6 +71,7 @@ public sealed class DashboardDbContext(DbContextOptions<DashboardDbContext> opti
             builder.Property(x => x.Url).HasMaxLength(500);
             builder.Property(x => x.UrlScheme).HasMaxLength(8);
             builder.Property(x => x.IconClass).HasMaxLength(120);
+            builder.Property(x => x.ImagePath).HasMaxLength(260);
             builder.Property(x => x.BackgroundColor).HasMaxLength(32);
             builder.Property(x => x.ShowStatus).HasDefaultValue(true);
 

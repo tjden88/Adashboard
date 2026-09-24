@@ -2,6 +2,7 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject IDashboardLayoutService DashboardLayoutService
+@inject IImageIconService ImageIconService
 @inject DialogService DialogService
 @inject EditModeService EditModeService
 @using Adashboard.Data
@@ -221,6 +222,12 @@ else
 
     private async Task DeleteCategory(DashboardCategory category)
     {
+        // Вместе с категорией удаляем файлы пользовательских иконок всех её карточек.
+        foreach (var card in category.Cards)
+        {
+            ImageIconService.Delete(card.Id);
+        }
+
         _layout.Categories.Remove(category);
 
         var ordered = _layout.Categories.OrderBy(x => x.Position.Order).ToList();
@@ -235,9 +242,17 @@ else
 
     private void OpenAddCardDialog(DashboardCategory category)
     {
+        // Идентификатор резервируется заранее: он нужен для имени файла пользовательской иконки.
+        var nextCardId = _layout.Categories
+            .SelectMany(x => x.Cards)
+            .Select(x => x.Id)
+            .DefaultIfEmpty(0)
+            .Max() + 1;
+
         var parameters = new Dictionary<string, object?>
         {
             [nameof(CardDialog.CategoryId)] = category.Id,
+            [nameof(CardDialog.CardId)] = nextCardId,
             [nameof(CardDialog.OnSave)] = EventCallback.Factory.Create<DashboardCard>(this, AddCard)
         };
 
@@ -266,8 +281,13 @@ else
         }
 
         // Id больше, чем у всех существующих: раскладка сохраняется целиком, поэтому
-        // идентификатор стабильно переживает перезапись.
-        card.Id = _layout.Categories.SelectMany(x => x.Cards).Select(x => x.Id).DefaultIfEmpty(0).Max() + 1;
+        // идентификатор стабильно переживает перезапись. Диалог уже мог зарезервировать
+        // id под файл иконки — тогда используем его.
+        if (card.Id <= 0)
+        {
+            card.Id = _layout.Categories.SelectMany(x => x.Cards).Select(x => x.Id).DefaultIfEmpty(0).Max() + 1;
+        }
+
         card.Position.Order = category.Cards.Count > 0 ? category.Cards.Max(x => x.Position.Order) + 1 : 0;
         category.Cards.Add(card);
 
@@ -299,6 +319,8 @@ else
 
     private async Task DeleteCard(DashboardCard card)
     {
+        ImageIconService.Delete(card.Id);
+
         var category = _layout.Categories.FirstOrDefault(x => x.Id == card.CategoryId);
         if (category is not null)
         {

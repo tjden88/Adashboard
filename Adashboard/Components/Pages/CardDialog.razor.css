@@ -38,6 +38,80 @@
     border-radius: 0 12px 12px 0;
 }
 
+.card-dialog__icon-modes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.25rem;
+    margin-bottom: 0.6rem;
+}
+
+.card-dialog__radio {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: var(--text-main);
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.card-dialog__radio input {
+    width: 1.05rem;
+    height: 1.05rem;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.card-dialog__image {
+    display: flex;
+    gap: 0.9rem;
+    align-items: flex-start;
+}
+
+.card-dialog__image-preview {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 4.6rem;
+    height: 4.6rem;
+    border: 1px solid var(--surface-border);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 1.6rem;
+    overflow: hidden;
+}
+
+.card-dialog__image-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.card-dialog__image-controls {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.card-dialog__image-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.card-dialog__image-upload {
+    margin: 0;
+}
+
+.card-dialog__hint {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    line-height: 1.35;
+}
+
 .card-dialog__checkbox {
     display: flex;
     align-items: center;

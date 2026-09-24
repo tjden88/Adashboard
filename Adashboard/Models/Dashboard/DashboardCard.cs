@@ -38,6 +38,12 @@ public sealed class DashboardCard
     public string IconClass { get; set; } = string.Empty;
 
     /// <summary>
+    /// Относительный путь к загруженному изображению-иконке или пустая строка.
+    /// Если задан, изображение имеет приоритет над <see cref="IconClass"/>.
+    /// </summary>
+    public string ImagePath { get; set; } = string.Empty;
+
+    /// <summary>
     /// Цвет фона карточки в формате CSS (например, #1e293b).
     /// </summary>
     public string BackgroundColor { get; set; } = "#1e40af";

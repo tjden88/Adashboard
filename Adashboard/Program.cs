@@ -1,6 +1,7 @@
 using Adashboard.Data;
 using Adashboard.Components;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using Adashboard.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,8 +21,16 @@ var databasePath = Path.Combine(builder.Environment.ContentRootPath, "adashboard
 builder.Services.AddDbContextFactory<DashboardDbContext>(options =>
     options.UseSqlite($"Data Source={databasePath}"));
 builder.Services.AddScoped<IDashboardLayoutService, DashboardLayoutService>();
+builder.Services.AddScoped<IImageIconService, ImageIconService>();
 builder.Services.AddScoped<DialogService>();
 builder.Services.AddScoped<EditModeService>();
+
+// Клиент для загрузки иконок отключён от редиректов: это снижает риск SSRF через перенаправление.
+builder.Services.AddHttpClient("IconDownloader")
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    {
+        AllowAutoRedirect = false
+    });
 
 var app = builder.Build();
 
@@ -33,6 +42,15 @@ if (!app.Environment.IsDevelopment())
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseAntiforgery();
 
+// MapStaticAssets отдаёт только известные на момент сборки файлы, поэтому отдельно
+// раздаём каталог с пользовательскими иконками, созданными во время работы.
+var uploadsPath = Path.Combine(app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot"), "uploads");
+Directory.CreateDirectory(uploadsPath);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadsPath),
+    RequestPath = "/uploads"
+});
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
