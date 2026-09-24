@@ -217,7 +217,7 @@ else
             [nameof(ConfirmDialog.OnConfirm)] = EventCallback.Factory.Create(this, () => DeleteCategory(category))
         };
 
-        DialogService.Show<ConfirmDialog>("Подтверждение удаления", parameters, closeOnOverlayClick: false);
+        DialogService.Show<ConfirmDialog>("Подтверждение удаления", parameters, closeOnOverlayClick: true);
     }
 
     private async Task DeleteCategory(DashboardCategory category)
@@ -314,7 +314,7 @@ else
             [nameof(ConfirmDialog.OnConfirm)] = EventCallback.Factory.Create(this, () => DeleteCard(card))
         };
 
-        DialogService.Show<ConfirmDialog>("Подтверждение удаления", parameters, closeOnOverlayClick: false);
+        DialogService.Show<ConfirmDialog>("Подтверждение удаления", parameters, closeOnOverlayClick: true);
     }
 
     private async Task DeleteCard(DashboardCard card)
