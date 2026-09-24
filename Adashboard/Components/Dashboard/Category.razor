@@ -12,25 +12,25 @@
         </div>
         <div class="category-actions">
             <button type="button"
-                    class="btn btn-sm btn-outline-secondary"
+                    class="btn btn-icon btn-sm btn-success"
                     @onclick="OnAddCard"
                     aria-label="Добавить ссылку в категорию @Model.Title"
                     title="Добавить ссылку">
-                <i class="fa-solid fa-plus" aria-hidden="true"></i>Добавить ссылку
+                <i class="fa-solid fa-plus" aria-hidden="true"></i>
             </button>
             <button type="button"
-                    class="btn btn-sm btn-outline-secondary"
+                    class="btn btn-icon btn-sm btn-primary"
                     @onclick="OnEdit"
                     aria-label="Редактировать категорию @Model.Title"
                     title="Редактировать категорию">
-                <i class="fa-solid fa-pen" aria-hidden="true"></i>Редактировать
+                <i class="fa-solid fa-pen-nib" aria-hidden="true"></i>
             </button>
             <button type="button"
-                    class="btn btn-sm btn-outline-secondary"
+                    class="btn btn-icon btn-sm btn-danger"
                     @onclick="OnDelete"
                     aria-label="Удалить категорию @Model.Title"
                     title="Удалить категорию">
-                <i class="fa-solid fa-trash" aria-hidden="true"></i>Удалить
+                <i class="fa-solid fa-trash" aria-hidden="true"></i>
             </button>
         </div>
     </header>
