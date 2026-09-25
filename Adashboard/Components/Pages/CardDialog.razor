@@ -110,7 +110,7 @@
                     </div>
 
                     <p class="card-dialog__hint">
-                        Ссылка, файл или вставка из буфера обмена (Ctrl+V). PNG, JPG, GIF, WEBP, BMP, AVIF до 2 МБ.
+                        Ссылка, файл или вставка из буфера обмена (Ctrl+V).
                     </p>
                 </div>
             </div>
@@ -126,17 +126,16 @@
         }
     </div>
 
-    <div class="card-dialog__field">
-        <label class="card-dialog__label">Цвет фона</label>
-        <ColorPicker @bind-Value="_color" AriaLabel="Цвет фона карточки" />
-    </div>
-
-    <div class="card-dialog__field">
-        <label class="card-dialog__radio">
+    <div class="card-dialog__row">
+        <div class="card-dialog__field card-dialog__field--grow">
+            <label class="card-dialog__label">Цвет фона</label>
+            <ColorPicker @bind-Value="_color" AriaLabel="Цвет фона карточки" />
+        </div>
+        <label class="card-dialog__toggle" title="Карточка займёт две колонки">
             <input type="checkbox"
                    checked="@_isWide"
                    @onchange="args => _isWide = args.Value is true" />
-            <span>Широкая карточка (2 колонки)</span>
+            <span>Широкая</span>
         </label>
     </div>
 
@@ -145,7 +144,7 @@
         <div class="card-dialog__status-options" role="radiogroup" aria-label="Режим проверки статуса">
             @foreach (var option in StatusModeOptions)
             {
-                <label class="card-dialog__status-option">
+                <label class="card-dialog__status-option" title="@option.Description">
                     <input type="radio"
                            name="cardStatusMode"
                            value="@option.Mode"
@@ -153,7 +152,7 @@
                            @onchange="() => _statusMode = option.Mode" />
                     <span class="card-dialog__status-text">
                         <span class="card-dialog__status-title">@option.Title</span>
-                        <span class="card-dialog__status-description">@option.Description</span>
+                        <span class="card-dialog__status-description">@option.Hint</span>
                     </span>
                 </label>
             }
@@ -184,12 +183,12 @@
     private const string DefaultIcon = "fa-solid fa-link";
 
     // Варианты проверки статуса, отображаемые в диалоге.
-    private static readonly (CardStatusMode Mode, string Title, string Description)[] StatusModeOptions =
+    private static readonly (CardStatusMode Mode, string Title, string Hint, string Description)[] StatusModeOptions =
     [
-        (CardStatusMode.None, "Не проверять", "Индикатор на карточке не отображается."),
-        (CardStatusMode.Reachable, "Сервис отвечает", "Доступен при любом ответе сервера, включая форму входа."),
-        (CardStatusMode.NoServerError, "Без серверных ошибок", "Доступен, пока сервер не вернул ошибку 5xx."),
-        (CardStatusMode.Success, "Успешный ответ (2xx)", "Доступен только при успешном ответе 200–299.")
+        (CardStatusMode.None, "Не проверять", "Индикатор скрыт.", "Индикатор на карточке не отображается."),
+        (CardStatusMode.Reachable, "Сервис отвечает", "Любой ответ сервера.", "Доступен при любом ответе сервера, включая форму входа."),
+        (CardStatusMode.NoServerError, "Без серверных ошибок", "Кроме ошибок 5xx.", "Доступен, пока сервер не вернул ошибку 5xx."),
+        (CardStatusMode.Success, "Успешный ответ (2xx)", "Только ответ 2xx.", "Доступен только при успешном ответе 200–299."),
     ];
 
     private string _title = string.Empty;
