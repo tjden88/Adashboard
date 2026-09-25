@@ -132,6 +132,11 @@
     color: var(--text-muted);
 }
 
+/* В светлой теме подзаголовок делаем темнее для лучшей читаемости. */
+html[data-theme="light"] .dashboard-header p {
+    color: #3c3d55;
+}
+
 .dashboard-header-actions {
     display: flex;
     flex-wrap: wrap;

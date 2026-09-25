@@ -13,7 +13,7 @@
 @using Microsoft.JSInterop
 @using System.Collections.Concurrent
 
-<PageTitle>Adashboard</PageTitle>
+<PageTitle>@PageTitleText</PageTitle>
 
 @if (!_isLoaded)
 {
@@ -96,6 +96,9 @@ else
     };
 
     private IEnumerable<DashboardCategory> _categories => _layout.Categories.OrderBy(x => x.Position.Order);
+
+    // Заголовок вкладки браузера повторяет заголовок в хедере, а при пустом значении — «Adashboard».
+    private string PageTitleText => string.IsNullOrWhiteSpace(_layout.SiteTitle) ? "Adashboard" : _layout.SiteTitle;
 
     private IJSObjectReference? _module;
     private DotNetObjectReference<Home>? _dotNetRef;
