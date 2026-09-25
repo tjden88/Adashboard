@@ -59,6 +59,13 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-await DebugDbInitializer.InitializeAsync(app.Services);
+if (app.Environment.IsDevelopment())
+{
+    await DebugDbInitializer.InitializeAsync(app.Services);
+}
+else
+{
+    await ProductionDbInitializer.InitializeAsync(app.Services);
+}
 
 app.Run();

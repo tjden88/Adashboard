@@ -117,6 +117,15 @@
     </div>
 
     <div class="card-dialog__field">
+        <label class="card-dialog__radio">
+            <input type="checkbox"
+                   checked="@_isWide"
+                   @onchange="args => _isWide = args.Value is true" />
+            <span>Широкая карточка (2 колонки)</span>
+        </label>
+    </div>
+
+    <div class="card-dialog__field">
         <label class="card-dialog__label">Проверка статуса</label>
         <div class="card-dialog__status-options" role="radiogroup" aria-label="Режим проверки статуса">
             @foreach (var option in StatusModeOptions)
@@ -174,6 +183,7 @@
     private string _color = DefaultColor;
     private string _icon = string.Empty;
     private CardStatusMode _statusMode = CardStatusMode.None;
+    private bool _isWide;
     private int _categoryId;
     private string? _error;
 
@@ -228,6 +238,7 @@
         _color = Card.BackgroundColor;
         _icon = Card.IconClass;
         _statusMode = Card.StatusMode;
+        _isWide = Card.IsWide;
         _existingImagePath = string.IsNullOrWhiteSpace(Card.ImagePath) ? null : Card.ImagePath;
         _useCustomImage = _existingImagePath is not null;
 
@@ -470,11 +481,13 @@
                 IconClass = icon,
                 ImagePath = imagePath,
                 BackgroundColor = color,
-                StatusMode = _statusMode
+                StatusMode = _statusMode,
+                IsWide = _isWide
             });
             return;
         }
 
+        Card.IsWide = _isWide;
         Card.Title = title;
         Card.Url = url;
         Card.UrlScheme = scheme;
