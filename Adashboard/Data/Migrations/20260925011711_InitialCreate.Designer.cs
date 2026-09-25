@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Adashboard.Data.Migrations
 {
     [DbContext(typeof(DashboardDbContext))]
-    [Migration("20260924225913_InitialCreate")]
+    [Migration("20260925011711_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -42,16 +42,11 @@ namespace Adashboard.Data.Migrations
                         .HasMaxLength(260)
                         .HasColumnType("TEXT");
 
-                    b.Property<bool>("IsOnline")
-                        .HasColumnType("INTEGER");
-
                     b.Property<bool>("IsWide")
                         .HasColumnType("INTEGER");
 
-                    b.Property<bool>("ShowStatus")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
-                        .HasDefaultValue(true);
+                    b.Property<int>("StatusMode")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -99,6 +94,11 @@ namespace Adashboard.Data.Migrations
                 {
                     b.Property<int>("Id")
                         .HasColumnType("INTEGER");
+
+                    b.Property<int>("HealthCheckIntervalSeconds")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(30);
 
                     b.Property<bool>("ShowLogo")
                         .ValueGeneratedOnAdd()

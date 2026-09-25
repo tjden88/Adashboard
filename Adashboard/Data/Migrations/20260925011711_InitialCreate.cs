@@ -18,7 +18,8 @@ namespace Adashboard.Data.Migrations
                     ThemeMode = table.Column<string>(type: "TEXT", maxLength: 16, nullable: false),
                     SiteTitle = table.Column<string>(type: "TEXT", maxLength: 120, nullable: false),
                     SiteDescription = table.Column<string>(type: "TEXT", maxLength: 300, nullable: false),
-                    ShowLogo = table.Column<bool>(type: "INTEGER", nullable: false, defaultValue: true)
+                    ShowLogo = table.Column<bool>(type: "INTEGER", nullable: false, defaultValue: true),
+                    HealthCheckIntervalSeconds = table.Column<int>(type: "INTEGER", nullable: false, defaultValue: 30)
                 },
                 constraints: table =>
                 {
@@ -59,8 +60,7 @@ namespace Adashboard.Data.Migrations
                     ImagePath = table.Column<string>(type: "TEXT", maxLength: 260, nullable: false),
                     BackgroundColor = table.Column<string>(type: "TEXT", maxLength: 32, nullable: false),
                     IsWide = table.Column<bool>(type: "INTEGER", nullable: false),
-                    IsOnline = table.Column<bool>(type: "INTEGER", nullable: false),
-                    ShowStatus = table.Column<bool>(type: "INTEGER", nullable: false, defaultValue: true),
+                    StatusMode = table.Column<int>(type: "INTEGER", nullable: false),
                     DisplayOrder = table.Column<int>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
