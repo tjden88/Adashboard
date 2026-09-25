@@ -1,3 +1,4 @@
+using Adashboard.Data;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -6,7 +7,7 @@ namespace Adashboard.Services;
 
 /// <summary>
 /// Сервис хранения пользовательских изображений-иконок карточек.
-/// Файлы сохраняются локально в <c>wwwroot/uploads/card-icons</c>.
+/// Файлы сохраняются локально в каталоге загрузок приложения (<c>uploads/card-icons</c>).
 /// </summary>
 public interface IImageIconService
 {
@@ -45,7 +46,7 @@ public interface IImageIconService
 /// </summary>
 public sealed class ImageIconService(
     IHttpClientFactory httpClientFactory,
-    IWebHostEnvironment environment,
+    DashboardStorage storage,
     ILogger<ImageIconService> logger) : IImageIconService
 {
     private const string HttpClientName = "IconDownloader";
@@ -54,10 +55,7 @@ public sealed class ImageIconService(
 
     private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
     private readonly ILogger<ImageIconService> _logger = logger;
-    private readonly string _folder = Path.Combine(
-        environment.WebRootPath ?? Path.Combine(environment.ContentRootPath, "wwwroot"),
-        "uploads",
-        "card-icons");
+    private readonly string _folder = Path.Combine(storage.UploadsPath, "card-icons");
 
     /// <inheritdoc />
     public async Task<string> SaveFromUrlAsync(int cardId, string url, CancellationToken cancellationToken = default)

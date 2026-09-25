@@ -1,0 +1,25 @@
+# Пример запуска Adashboard в Docker.
+# База данных и пользовательские загрузки хранятся в одном именованном volume /data.
+services:
+  adashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: adashboard:latest
+    container_name: adashboard
+    restart: unless-stopped
+    ports:
+      # Наружу отдаём только через reverse proxy; при необходимости замените на "80:8080".
+      - "8080:8080"
+    environment:
+      # Единый каталог данных внутри volume. Должен совпадать с точкой монтирования ниже.
+      DASHBOARD_DATA_PATH: /data
+      # Уровень логов сервисов приложения: Trace, Debug, Information, Warning, Error, Critical, None.
+      LOG_LEVEL: Warning
+      # Часовой пояс контейнера (для корректных отметок времени).
+      TZ: Europe/Moscow
+    volumes:
+      - adashboard-data:/data
+
+volumes:
+  adashboard-data:

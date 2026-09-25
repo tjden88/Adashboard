@@ -12,14 +12,24 @@ builder.Logging.AddSimpleConsole(options =>
     options.SingleLine = true;
 });
 
+// Уровень логов сервисов приложения задаётся переменной окружения LOG_LEVEL (по умолчанию Warning).
+// Уровни Microsoft и EF Core остаются под управлением appsettings.json.
+builder.Logging.AddFilter("Adashboard",
+    Enum.TryParse<LogLevel>(builder.Configuration["LOG_LEVEL"], ignoreCase: true, out var configuredLogLevel)
+        ? configuredLogLevel
+        : LogLevel.Warning);
+
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-var databasePath = Path.Combine(builder.Environment.ContentRootPath, "adashboard.db");
+// База данных и пользовательские загрузки хранятся в едином каталоге данных,
+// который в Docker совпадает с точкой монтирования volume.
+var storage = DashboardStorage.Resolve(builder.Configuration, builder.Environment);
+builder.Services.AddSingleton(storage);
 
 builder.Services.AddDbContextFactory<DashboardDbContext>(options =>
-    options.UseSqlite($"Data Source={databasePath}"));
+    options.UseSqlite($"Data Source={storage.DatabasePath}"));
 builder.Services.AddScoped<IDashboardLayoutService, DashboardLayoutService>();
 builder.Services.AddScoped<IImageIconService, ImageIconService>();
 builder.Services.AddScoped<IHealthCheckService, HealthCheckService>();
@@ -51,12 +61,14 @@ app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages:
 app.UseAntiforgery();
 
 // MapStaticAssets отдаёт только известные на момент сборки файлы, поэтому отдельно
-// раздаём каталог с пользовательскими иконками, созданными во время работы.
-var uploadsPath = Path.Combine(app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot"), "uploads");
-Directory.CreateDirectory(uploadsPath);
+// раздаём каталог пользовательских загрузок, который может быть вынесен в volume.
+DashboardUploadsInitializer.Initialize(
+    storage.UploadsPath,
+    app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot"),
+    app.Logger);
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new PhysicalFileProvider(uploadsPath),
+    FileProvider = new PhysicalFileProvider(storage.UploadsPath),
     RequestPath = "/uploads"
 });
 app.MapStaticAssets();

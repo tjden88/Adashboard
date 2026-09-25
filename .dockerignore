@@ -1,0 +1,23 @@
+# Git и служебные каталоги
+.git
+.gitignore
+.gitattributes
+.vs
+.opencode
+opencode.json
+AGENTS.md
+
+# Результаты сборки
+**/bin/
+**/obj/
+**/publish/
+**/out/
+
+# Локальная база данных и её журналы
+Adashboard/adashboard.db
+Adashboard/adashboard.db-shm
+Adashboard/adashboard.db-wal
+
+# Пользовательские иконки не попадают в образ: они живут в volume.
+# Поставляемые фоны и логотип остаются в контексте для первичного наполнения volume.
+Adashboard/wwwroot/uploads/card-icons
