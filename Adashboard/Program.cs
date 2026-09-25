@@ -23,6 +23,7 @@ builder.Services.AddDbContextFactory<DashboardDbContext>(options =>
 builder.Services.AddScoped<IDashboardLayoutService, DashboardLayoutService>();
 builder.Services.AddScoped<IImageIconService, ImageIconService>();
 builder.Services.AddScoped<IHealthCheckService, HealthCheckService>();
+builder.Services.AddScoped<IPageTitleService, PageTitleService>();
 builder.Services.AddScoped<DialogService>();
 builder.Services.AddScoped<EditModeService>();
 
@@ -35,6 +36,9 @@ builder.Services.AddHttpClient("IconDownloader")
 
 // Клиент проверки статуса обращается к домашним сервисам, поэтому редиректы (например, на форму входа) отслеживаются.
 builder.Services.AddHttpClient("HealthCheck");
+
+// Клиент получения заголовка страницы так же обращается к домашним сервисам и отслеживает редиректы.
+builder.Services.AddHttpClient("PageTitle");
 
 var app = builder.Build();
 

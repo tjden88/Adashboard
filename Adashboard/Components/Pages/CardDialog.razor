@@ -2,19 +2,34 @@
 @using Adashboard.Services
 @implements IAsyncDisposable
 @inject IImageIconService ImageIconService
+@inject IPageTitleService PageTitleService
 @inject IJSRuntime JS
 
 <form class="card-dialog" @onsubmit="Save" @onsubmit:preventDefault>
     <div class="card-dialog__field">
         <label for="cardTitle" class="card-dialog__label">Заголовок</label>
-        <input id="cardTitle"
-               class="form-control"
-               type="text"
-               maxlength="120"
-               autocomplete="off"
-               placeholder="Например: Docker"
-               value="@_title"
-               @oninput="args => _title = args.Value?.ToString() ?? string.Empty" />
+        <div class="card-dialog__title-row">
+            <input id="cardTitle"
+                   class="form-control"
+                   type="text"
+                   maxlength="120"
+                   autocomplete="off"
+                   placeholder="Например: Docker"
+                   value="@_title"
+                   @oninput="args => _title = args.Value?.ToString() ?? string.Empty" />
+            <button type="button"
+                    class="btn btn-outline-secondary card-dialog__fetch-title"
+                    @onclick="FetchTitle"
+                    disabled="@_isFetchingTitle"
+                    title="Получить заголовок со страницы"
+                    aria-label="Получить заголовок со страницы">
+                <i class="fa-solid @(_isFetchingTitle ? "fa-spinner fa-spin" : "fa-wand-magic-sparkles")" aria-hidden="true"></i>
+            </button>
+        </div>
+        @if (_titleLookupError is not null)
+        {
+            <p class="card-dialog__error" role="alert">@_titleLookupError</p>
+        }
     </div>
 
     <div class="card-dialog__field">
@@ -195,6 +210,10 @@
     private string? _imageError;
     private bool _isSaving;
 
+    private bool _isFetchingTitle;
+    private string? _titleLookupError;
+    private readonly CancellationTokenSource _titleLookupCts = new();
+
     private IJSObjectReference? _module;
     private DotNetObjectReference<CardDialog>? _selfRef;
     private bool _clipboardInitialized;
@@ -281,6 +300,56 @@
             "https://" => string.Empty,
             _ => "http://"
         };
+    }
+
+    /// <summary>Пытается заполнить название, взяв заголовок страницы по адресу карточки.</summary>
+    private async Task FetchTitle()
+    {
+        _titleLookupError = null;
+
+        var (scheme, url) = NormalizeUrl(_scheme, _url);
+        if (url.Length == 0)
+        {
+            _titleLookupError = "Введите ссылку.";
+            return;
+        }
+
+        if (!IsSafeUrl(scheme, url))
+        {
+            _titleLookupError = "Недопустимая схема ссылки.";
+            return;
+        }
+
+        _isFetchingTitle = true;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            var title = await PageTitleService.TryGetTitleAsync(scheme + url, _titleLookupCts.Token);
+            if (string.IsNullOrWhiteSpace(title))
+            {
+                _titleLookupError = "Не удалось найти заголовок на странице.";
+            }
+            else
+            {
+                _title = title;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (InvalidOperationException ex)
+        {
+            _titleLookupError = ex.Message;
+        }
+        catch (Exception)
+        {
+            _titleLookupError = "Не удалось получить заголовок страницы.";
+        }
+        finally
+        {
+            _isFetchingTitle = false;
+        }
     }
 
     private void OnImageUrlInput(ChangeEventArgs args)
@@ -574,6 +643,8 @@
 
     public async ValueTask DisposeAsync()
     {
+        _titleLookupCts.Cancel();
+
         if (_module is not null)
         {
             try

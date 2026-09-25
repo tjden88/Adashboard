@@ -12,6 +12,20 @@
     font-weight: 600;
 }
 
+.card-dialog__title-row {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.card-dialog__title-row .form-control {
+    flex: 1;
+    min-width: 0;
+}
+
+.card-dialog__fetch-title {
+    flex-shrink: 0;
+}
+
 .card-dialog__url {
     display: flex;
 }
