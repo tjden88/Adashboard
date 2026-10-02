@@ -1,7 +1,7 @@
-# Adashboard
+# Adashboard (Another Dashboard) - Ещё один Дашборд
 
-Персональная стартовая страница (dashboard) с настраиваемыми категориями, ссылками и
-индикаторами доступности сервисов. По концепции похожа на Dashy и Homarr.
+Персональная стартовая страница с настраиваемыми категориями, ссылками и
+индикаторами доступности сервисов.
 
 ## Возможности
 
@@ -14,11 +14,6 @@
 - Оформление: темы `auto`/`light`/`dark`, заголовок и описание сайта, логотип, фоны.
 - Периодическое обновление статусов с настраиваемым интервалом.
 
-## Технологии
-
-- .NET 10, Blazor Web App (Interactive Server).
-- Entity Framework Core + SQLite.
-- Bootstrap, Font Awesome, Coloris.
 
 ## Запуск локально
 
@@ -63,8 +58,6 @@ docker run -d -p 8080:8080 -v adashboard-data:/data -e LOG_LEVEL=Information --n
 ```
 /data
 ├── adashboard.db        # база данных SQLite (миграции применяются при старте)
-├── adashboard.db-wal
-├── adashboard.db-shm
 └── uploads
     ├── backgrounds      # поставляемые фоны и логотип
     └── card-icons       # пользовательские иконки карточек
