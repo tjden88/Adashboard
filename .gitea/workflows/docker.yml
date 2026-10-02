@@ -172,9 +172,9 @@ jobs:
 
           # Передаём вычисленный тег следующим шагам.
           #
-          # GITHUB_OUTPUT поддерживается Gitea Runner,
+          # GITHUB_ENV поддерживается Gitea Runner,
           # несмотря на имя переменной.
-          echo "version_tag=$VERSION_TAG" >> "$GITHUB_OUTPUT"
+          echo "VERSION_TAG=$VERSION_TAG" >> "$GITHUB_ENV"
           
 
       # ============================================================
