@@ -1,4 +1,4 @@
-name: Собрать образ Docker
+name: Build Docker image
 
 on:
   pull_request:
@@ -27,12 +27,53 @@ jobs:
             --username "$REGISTRY_USER" \
             --password-stdin
 
-      - name: Build image
+      - name: Calculate image tag
+        env:
+          REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
         run: |
-          docker build \
-            -t git.tjpro.ru/r/adashboard:latest \
-            .
+          set -euo pipefail
 
-      - name: Push image
+          DATE=$(date +'%d.%m.%y')
+
+          TAGS=$(curl \
+            --fail \
+            --silent \
+            --show-error \
+            --user "$REGISTRY_USER:$REGISTRY_TOKEN" \
+            "https://git.tjpro.ru/v2/r/adashboard/tags/list?n=10000" \
+            | jq -r '.tags[]?')
+
+          LAST=$(
+            printf '%s\n' "$TAGS" |
+            awk -F. -v prefix="$DATE" '
+              $1 "." $2 "." $3 == prefix && $4 ~ /^[0-9]+$/ {
+                if ($4 > max) max = $4
+              }
+              END {
+                print max + 0
+              }
+            '
+          )
+
+          VERSION_TAG="${DATE}.$((LAST + 1))"
+
+          echo "Today:      $DATE"
+          echo "Previous:   $LAST"
+          echo "New tag:    $VERSION_TAG"
+
+          printf '%s' "$VERSION_TAG" > /tmp/image-tag
+
+      - name: Build and push Docker image
         run: |
-          docker push git.tjpro.ru/r/adashboard:latest
+          set -euo pipefail
+
+          VERSION_TAG=$(cat /tmp/image-tag)
+
+          docker buildx build \
+            --push \
+            --tag "git.tjpro.ru/r/adashboard:latest" \
+            --tag "git.tjpro.ru/r/adashboard:${VERSION_TAG}" \
+            --cache-from "type=registry,ref=git.tjpro.ru/r/adashboard:latest" \
+            --cache-to "type=inline" \
+            .
