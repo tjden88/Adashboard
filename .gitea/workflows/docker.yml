@@ -1,79 +1,230 @@
-name: Build Docker image
+name: Сборка и публикация Docker-образа
 
+# Workflow запускается каждый раз, когда Pull Request закрывается.
+#
+# Само по себе "closed" нам НЕ подходит:
+# PR мог просто закрыть без слияния.
+#
+# Поэтому ниже в job будет дополнительная проверка:
+# действительно ли PR был смёржен в ветку master.
 on:
   pull_request:
     types: [closed]
+    
+  workflow_dispatch:
 
 jobs:
   build:
-    if: >
-      gitea.event.pull_request.merged == true &&
-      gitea.event.pull_request.base.ref == 'master'
 
+    # Запускаем job только при реальном merge PR
+    # именно в ветку master.
+    #
+    # gitea.event.pull_request.merged:
+    #   true  = PR был смёржен
+    #   false = PR просто закрыли
+    #
+    # gitea.event.pull_request.base.ref:
+    #   целевая ветка PR.
+    if: >
+      gitea.event_name == 'workflow_dispatch' ||
+      (
+        gitea.event.pull_request.merged == true &&
+        gitea.event.pull_request.base.ref == 'master'
+      )
+
+    env:
+      REGISTRY_HOST: ${{ vars.REGISTRY_HOST }}
+      IMAGE_NAME: ${{ vars.IMAGE_NAME }}
+      REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
+      REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+
+    # Наш runner зарегистрирован с label ubuntu-latest.
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout master
+
+      # ============================================================
+      # 1. Получаем исходный код из репозитория
+      # ============================================================
+      #
+      # actions/checkout загружает код в рабочую директорию job.
+      #
+      # Мы явно указываем master, потому что именно состояние master
+      # после merge должно попасть в Docker-образ.
+      #
+      - name: Получение исходного кода
         uses: actions/checkout@v4
         with:
           ref: master
 
-      - name: Login to Gitea Registry
-        env:
-          REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
-          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+
+      # ============================================================
+      # 2. Авторизуемся в Container Registry Gitea
+      # ============================================================
+      #
+      # Docker будет отправлять образ в:
+      #
+      #   git.tjpro.ru/r/adashboard
+      #
+      # REGISTRY_USER и REGISTRY_TOKEN находятся в Secrets Gitea.
+      #
+      # Важный момент:
+      # токен не передаём прямо в командной строке.
+      #
+      # Вместо этого:
+      #
+      #   echo "$REGISTRY_TOKEN"
+      #
+      # передаёт его через stdin программе docker login.
+      #
+      - name: Вход в Container Registry
+
         run: |
-          echo "$REGISTRY_TOKEN" | docker login git.tjpro.ru \
+          echo "$REGISTRY_TOKEN" | docker login "$REGISTRY_HOST" \
             --username "$REGISTRY_USER" \
             --password-stdin
 
-      - name: Calculate image tag
-        env:
-          REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
-          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+
+      # ============================================================
+      # 3. Определяем номер версии
+      # ============================================================
+      #
+      # Формат:
+      #
+      #   ДД.ММ.ГГ.Н
+      #
+      # Например:
+      #
+      #   02.10.26.1
+      #   02.10.26.2
+      #   02.10.26.3
+      #
+      # Сначала получаем список тегов из Registry.
+      #
+      # Затем ищем среди них теги текущего дня:
+      #
+      #   02.10.26.1
+      #   02.10.26.2
+      #
+      # и берём максимальный номер.
+      #
+      # Если сегодня тегов ещё нет:
+      #
+      #   max = 0
+      #
+      # значит новая версия:
+      #
+      #   02.10.26.1
+      #
+      - name: Определение номера версии
+        id: version
+
         run: |
           set -euo pipefail
 
+          # Получаем сегодняшнюю дату.
           DATE=$(date +'%d.%m.%y')
 
+          # Получаем список существующих тегов образа.
+          #
+          # Registry использует стандартный Docker Registry API.
           TAGS=$(curl \
             --fail \
             --silent \
             --show-error \
             --user "$REGISTRY_USER:$REGISTRY_TOKEN" \
-            "https://git.tjpro.ru/v2/r/adashboard/tags/list?n=10000" \
+            "https://$REGISTRY_HOST/v2/$IMAGE_NAME/tags/list?n=10000" \
             | jq -r '.tags[]?')
 
+          # Ищем все теги вида:
+          #
+          #   ДД.ММ.ГГ.Н
+          #
+          # относящиеся именно к сегодняшней дате.
+          #
+          # Например:
+          #
+          #   02.10.26.1
+          #   02.10.26.2
+          #   02.10.26.7
+          #
+          # Максимальный номер здесь будет 7.
           LAST=$(
             printf '%s\n' "$TAGS" |
             awk -F. -v prefix="$DATE" '
               $1 "." $2 "." $3 == prefix && $4 ~ /^[0-9]+$/ {
-                if ($4 > max) max = $4
+                if ($4 > max)
+                  max = $4
               }
+
               END {
                 print max + 0
               }
             '
           )
 
+          # Увеличиваем номер на единицу.
           VERSION_TAG="${DATE}.$((LAST + 1))"
 
-          echo "Today:      $DATE"
-          echo "Previous:   $LAST"
-          echo "New tag:    $VERSION_TAG"
+          echo "Сегодня:       $DATE"
+          echo "Предыдущий №:  $LAST"
+          echo "Новый тег:     $VERSION_TAG"
 
-          printf '%s' "$VERSION_TAG" > /tmp/image-tag
+          # Передаём вычисленный тег следующим шагам.
+          #
+          # GITHUB_OUTPUT поддерживается Gitea Runner,
+          # несмотря на имя переменной.
+          echo "version_tag=$VERSION_TAG" >> "$GITHUB_OUTPUT"
+          
 
-      - name: Build and push Docker image
+      # ============================================================
+      # 4. Собираем Docker-образ и сразу отправляем его в Registry
+      # ============================================================
+      #
+      # Используем docker buildx build.
+      #
+      # Одновременно создаём два тега:
+      #
+      #   latest
+      #
+      # и:
+      #
+      #   ДД.ММ.ГГ.Н
+      #
+      # Например:
+      #
+      #   git.tjpro.ru/r/adashboard:latest
+      #   git.tjpro.ru/r/adashboard:02.10.26.3
+      #
+      # --push означает:
+      # Docker не просто собирает образ локально,
+      # а сразу отправляет его в Registry.
+      #
+      - name: Сборка и публикация Docker-образа
+
         run: |
           set -euo pipefail
 
-          VERSION_TAG=$(cat /tmp/image-tag)
-
+          # Собираем один Docker-образ.
+          #
+          # Но сразу назначаем ему два тега:
+          #
+          #   latest
+          #
+          # и конкретную версию:
+          #
+          #   02.10.26.3
+          #
+          # --push отправляет оба тега в Registry.
+          #
+          # --cache-from использует предыдущий latest
+          # как источник BuildKit cache.
+          #
+          # --cache-to сохраняет cache metadata внутри образа.
           docker buildx build \
             --push \
-            --tag "git.tjpro.ru/r/adashboard:latest" \
-            --tag "git.tjpro.ru/r/adashboard:${VERSION_TAG}" \
-            --cache-from "type=registry,ref=git.tjpro.ru/r/adashboard:latest" \
+            --tag "$REGISTRY_HOST/$IMAGE_NAME:latest" \
+            --tag "$REGISTRY_HOST/$IMAGE_NAME:$VERSION_TAG" \
+            --cache-from "type=registry,ref=$REGISTRY_HOST/$IMAGE_NAME:latest" \
             --cache-to "type=inline" \
             .
