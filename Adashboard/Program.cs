@@ -57,14 +57,16 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
 }
-app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+
+// TODO: Сделать страницу "не найдено"
+app.UseStatusCodePagesWithReExecute("/", createScopeForStatusCodePages: true);
 app.UseAntiforgery();
 
 // MapStaticAssets отдаёт только известные на момент сборки файлы, поэтому отдельно
 // раздаём каталог пользовательских загрузок, который может быть вынесен в volume.
 DashboardUploadsInitializer.Initialize(
     storage.UploadsPath,
-    app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot"),
+    app.Environment.WebRootPath,
     app.Logger);
 app.UseStaticFiles(new StaticFileOptions
 {
