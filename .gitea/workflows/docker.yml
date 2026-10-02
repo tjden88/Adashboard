@@ -1,0 +1,38 @@
+name: Собрать образ Docker
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  build:
+    if: >
+      gitea.event.pull_request.merged == true &&
+      gitea.event.pull_request.base.ref == 'master'
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+
+      - name: Login to Gitea Registry
+        env:
+          REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: |
+          echo "$REGISTRY_TOKEN" | docker login git.tjpro.ru \
+            --username "$REGISTRY_USER" \
+            --password-stdin
+
+      - name: Build image
+        run: |
+          docker build \
+            -t git.tjpro.ru/r/adashboard:latest \
+            .
+
+      - name: Push image
+        run: |
+          docker push git.tjpro.ru/r/adashboard:latest
