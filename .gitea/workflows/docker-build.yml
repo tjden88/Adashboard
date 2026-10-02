@@ -28,6 +28,7 @@ jobs:
       REGISTRY_HOST: ${{ vars.REGISTRY_HOST }}
       IMAGE_NAME: ${{ vars.IMAGE_NAME }}
       IMAGE_TAG: ${{ inputs.image_tag }}
+      PUSH_LATEST: ${{ inputs.push_latest }}
 
     steps:
       - name: Получение исходного кода
