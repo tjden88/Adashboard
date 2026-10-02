@@ -1,0 +1,66 @@
+name: Сборка Docker-образа
+
+on:
+  workflow_call:
+    inputs:
+      image_tag:
+        required: true
+        type: string
+
+      push_latest:
+        required: false
+        type: boolean
+        default: false
+
+    secrets:
+      REGISTRY_USER:
+        required: true
+
+      REGISTRY_TOKEN:
+        required: true
+
+jobs:
+  build:
+    name: Сборка и публикация
+    runs-on: ubuntu-latest
+
+    env:
+      REGISTRY_HOST: ${{ vars.REGISTRY_HOST }}
+      IMAGE_NAME: ${{ vars.IMAGE_NAME }}
+      IMAGE_TAG: ${{ inputs.image_tag }}
+
+    steps:
+      - name: Получение исходного кода
+        uses: actions/checkout@v4
+
+      - name: Вход в Container Registry
+        env:
+          REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          echo "$REGISTRY_TOKEN" | docker login "$REGISTRY_HOST" \
+            --username "$REGISTRY_USER" \
+            --password-stdin
+
+      - name: Сборка и публикация
+        run: |
+          set -euo pipefail
+
+          if [[ "$push_latest" == "true" ]]; then
+            docker buildx build \
+              --push \
+              --tag "$REGISTRY_HOST/$IMAGE_NAME:$IMAGE_TAG" \
+              --tag "$REGISTRY_HOST/$IMAGE_NAME:latest" \
+              --cache-from "type=registry,ref=$REGISTRY_HOST/$IMAGE_NAME:latest" \
+              --cache-to "type=inline" \
+              .
+          else
+            docker buildx build \
+              --push \
+              --tag "$REGISTRY_HOST/$IMAGE_NAME:$IMAGE_TAG" \
+              --cache-from "type=registry,ref=$REGISTRY_HOST/$IMAGE_NAME:dev" \
+              --cache-to "type=inline" \
+              .
+          fi
