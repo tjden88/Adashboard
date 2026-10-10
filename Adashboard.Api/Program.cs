@@ -1,5 +1,6 @@
 using Adashboard.Api.Data;
 using Microsoft.EntityFrameworkCore;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,10 +36,14 @@ builder.Services.AddScoped<IDashboardLayoutService, DashboardLayoutService>();
 
 var app = builder.Build();
 
-// OpenAPI-документ отдаём только в среде разработки.
+// OpenAPI-документ и интерактивную документацию отдаём только в среде разработки.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+
+    // Scalar — современная замена Swagger UI: интерактивная веб-морда для проверки
+    // и описания API, построенная на сгенерированном OpenAPI-документе.
+    app.MapScalarApiReference();
 }
 
 app.UseAuthorization();
