@@ -6,6 +6,37 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <!--
+    Настройки Release-публикации: цель — минимальный размер загружаемого приложения.
+    Условие по конфигурации оставляет локальную разработку (Debug) с полной
+    поддержкой отладки и культур, меняя только продакшен-сборку.
+  -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <!--
+      AOT ускоряет работу, но во много раз увеличивает dotnet.wasm, поэтому ради
+      минимума размера публикуем интерпретируемый (Mono) вариант.
+    -->
+    <RunAOTCompilation>false</RunAOTCompilation>
+
+    <!-- Обрезаем неиспользуемый IL: ключевое условие для остальных оптимизаций ниже. -->
+    <PublishTrimmed>true</PublishTrimmed>
+
+    <!-- Инвариантная глобализация убирает данные ICU (~2.5 МБ): приложение не работает с культурами. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+
+    <!-- Заменяем тексты ресурсов исключений короткими ключами, уменьшая размер сборок. -->
+    <UseSystemResourceKeys>true</UseSystemResourceKeys>
+
+    <!-- Отключаем отладочные и диагностические компоненты, не нужные в продакшене. -->
+    <DebuggerSupport>false</DebuggerSupport>
+    <EventSourceSupport>false</EventSourceSupport>
+    <HttpActivityPropagationSupport>false</HttpActivityPropagationSupport>
+    <MetadataUpdaterSupport>false</MetadataUpdaterSupport>
+
+    <!-- Отдаём рядом с файлами их предварительно сжатые Brotli/Gzip-копии. -->
+    <BlazorEnableCompression>true</BlazorEnableCompression>
+  </PropertyGroup>
+
   <ItemGroup>
     <!-- Библиотеки Blazor WebAssembly: клиентский рантайм и dev-сервер для локального запуска. -->
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.3" />
@@ -14,6 +45,16 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Adashboard.Domain\Adashboard.Domain.csproj" />
+  </ItemGroup>
+
+  <!--
+    В публикацию не попадают ресурсы, нужные только разработчику: source maps и
+    TrueType-версии шрифтов Font Awesome (браузеры используют woff2 из того же набора).
+    Из репозитория файлы не удаляются, поэтому локальная отладка не страдает.
+  -->
+  <ItemGroup Condition="'$(Configuration)' == 'Release'">
+    <Content Update="wwwroot/lib/**/*.map" CopyToPublishDirectory="Never" />
+    <Content Update="wwwroot/lib/fa/webfonts/*.ttf" CopyToPublishDirectory="Never" />
   </ItemGroup>
 
 </Project>

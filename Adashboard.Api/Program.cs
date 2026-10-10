@@ -45,26 +45,15 @@ builder.Services.AddHttpClient("IconDownloader")
         AllowAutoRedirect = false
     });
 
-// Разрешаем запросы standalone WASM-клиента. Список origin задаётся конфигурацией,
-// а в Development по умолчанию разрешаем локальный origin фронтенда.
-const string CorsPolicyName = "WasmClient";
-var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
-if (builder.Environment.IsDevelopment() && allowedOrigins.Length == 0)
-{
-    allowedOrigins = ["http://localhost:5173"];
-}
-
+// Разрешаем кросс-доменные запросы с любого origin: это личный дашборд,
+// фронтенд и backend могут быть запущены на разных портах или хостах.
+const string CorsPolicyName = "AllowAll";
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(CorsPolicyName, policy =>
-    {
-        if (allowedOrigins.Length > 0)
-        {
-            policy.WithOrigins(allowedOrigins)
-                .AllowAnyHeader()
-                .AllowAnyMethod();
-        }
-    });
+        policy.AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod());
 });
 
 var app = builder.Build();
