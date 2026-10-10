@@ -15,15 +15,5 @@ export default defineConfig({
 			},
 			adapter: adapter()
 		})
-	],
-	// Дев-прокси: запросы к /api уходят на backend Adashboard.Api.
-	// Благодаря этому браузер обращается к тому же origin, что и фронт, и CORS настраивать не нужно.
-	server: {
-		proxy: {
-			'/api': {
-				target: 'http://localhost:5024',
-				changeOrigin: true
-			}
-		}
-	}
+	]
 });

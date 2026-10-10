@@ -12,8 +12,9 @@
 //   - категория в API хранит dashboardLayoutId, карточка — categoryId (при сохранении
 //     заполняем их из контекста: из раскладки и из категории соответственно).
 //
-// Все запросы идут по относительному пути /api: в разработке его проксирует Vite,
-// а в продакшене фронт и API должны быть доступны на одном origin.
+// Запросы идут напрямую на адрес backend Adashboard.Api (см. API_BASE_URL).
+// Так как origin фронта и API различаются, браузер выполняет кросс-доменные
+// запросы — на стороне API должен быть разрешён CORS для origin фронтенда.
 
 import {
 	DEFAULT_CATEGORY_WIDTH,
@@ -24,8 +25,11 @@ import {
 	type ThemeMode
 } from './types';
 
-/** Относительный адрес эндпоинта раскладки (GET и PUT). */
-const LAYOUT_ENDPOINT = '/api/layout';
+/** Базовый адрес backend Adashboard.Api (без завершающего слэша). */
+const API_BASE_URL = 'http://localhost:5024';
+
+/** Адрес эндпоинта раскладки (GET и PUT). */
+const LAYOUT_ENDPOINT = `${API_BASE_URL}/api/layout`;
 
 /** Позиция карточки в формате API. */
 export interface ApiCardPosition {
