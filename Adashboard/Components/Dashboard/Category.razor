@@ -42,7 +42,7 @@
                   DesktopColumns="@DesktopWidth"
                   MediumColumns="@MediumWidth"
                   MobileColumns="@MobileWidth"
-                  HealthState="@(HealthLookup?.Invoke(card) ?? ServiceHealthState.Unknown)"
+                  Health="@(HealthLookup?.Invoke(card) ?? ServiceHealthResult.Unknown)"
                   EditRequested="CardEditRequested" />
         }
     </div>
@@ -65,10 +65,10 @@
     public EventCallback<DashboardCard> CardEditRequested { get; set; }
 
     /// <summary>
-    /// Поставщик состояния доступности карточки. Если не задан, статус считается неизвестным.
+    /// Поставщик результата проверки доступности карточки. Если не задан, состояние считается неизвестным.
     /// </summary>
     [Parameter]
-    public Func<DashboardCard, ServiceHealthState>? HealthLookup { get; set; }
+    public Func<DashboardCard, ServiceHealthResult>? HealthLookup { get; set; }
 
     private Task OnEdit() => EditRequested.InvokeAsync(Model);
 

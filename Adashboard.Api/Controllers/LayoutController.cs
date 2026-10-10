@@ -10,7 +10,7 @@ namespace Adashboard.Api.Controllers;
 [ApiController]
 [Route("api/layout")]
 public class LayoutController(
-    IDashboardLayoutService layoutService,
+    DashboardLayoutService layoutService,
     ILogger<LayoutController> logger) : ControllerBase
 {
     /// <summary>

@@ -1,14 +1,14 @@
 @page "/"
 @implements IAsyncDisposable
 @inject IJSRuntime JS
-@inject IDashboardLayoutService DashboardLayoutService
-@inject IImageIconService ImageIconService
+@inject IDashboardApi DashboardApi
 @inject DialogService DialogService
 @inject EditModeService EditModeService
-@inject IHealthCheckService HealthCheckService
+@inject HealthCheckService HealthCheckService
 @inject ILogger<Home> Logger
 @using Adashboard.Services
 @using Microsoft.JSInterop
+@using Refit
 @using System.Collections.Concurrent
 
 <PageTitle>@PageTitleText</PageTitle>
@@ -66,7 +66,7 @@ else
                           AddCardRequested="category => OpenAddCardDialog(category)"
                           DeleteRequested="category => OpenDeleteCategoryConfirm(category)"
                           CardEditRequested="card => OpenEditCardDialog(card)"
-                          HealthLookup="GetHealthState" />
+                          HealthLookup="GetHealthResult" />
             }
         </div>
     </section>
@@ -86,7 +86,7 @@ else
     private IJSObjectReference? _module;
     private DotNetObjectReference<Home>? _dotNetRef;
     private readonly SemaphoreSlim _reorderLock = new(1, 1);
-    private readonly ConcurrentDictionary<int, ServiceHealthState> _health = new();
+    private readonly ConcurrentDictionary<int, ServiceHealthResult> _health = new();
     private readonly CancellationTokenSource _pageCts = new();
     private CancellationTokenSource? _healthCts;
     private Task? _healthLoop;
@@ -108,8 +108,8 @@ else
 
     private void ToggleEditMode() => EditModeService.Toggle();
 
-    private ServiceHealthState GetHealthState(DashboardCard card)
-        => _health.TryGetValue(card.Id, out var state) ? state : ServiceHealthState.Unknown;
+    private ServiceHealthResult GetHealthResult(DashboardCard card)
+        => _health.TryGetValue(card.Id, out var result) ? result : ServiceHealthResult.Unknown;
 
     // Запускает периодическую проверку статуса в рамках текущего circuit: запросы идут,
     // только пока dashboard открыт у пользователя.
@@ -179,17 +179,17 @@ else
         var checks = cards.Select(async card =>
         {
             await throttler.WaitAsync(cancellationToken);
-            ServiceHealthState state;
+            ServiceHealthResult result;
             try
             {
-                state = await HealthCheckService.CheckAsync(card, cancellationToken);
+                result = await HealthCheckService.CheckAsync(card.Id, cancellationToken);
             }
             finally
             {
                 throttler.Release();
             }
 
-            _health[card.Id] = state;
+            _health[card.Id] = result;
 
             // Обновляем интерфейс сразу по каждой карточке, не дожидаясь остальных проверок.
             await NotifyHealthChangedAsync(cancellationToken);
@@ -226,7 +226,7 @@ else
             }
             else
             {
-                _health[card.Id] = await HealthCheckService.CheckAsync(card, _pageCts.Token);
+                _health[card.Id] = await HealthCheckService.CheckAsync(card.Id, _pageCts.Token);
             }
 
             await InvokeAsync(StateHasChanged);
@@ -378,7 +378,7 @@ else
         // Вместе с категорией удаляем файлы пользовательских иконок всех её карточек.
         foreach (var card in category.Cards)
         {
-            ImageIconService.Delete(card.Id);
+            await TryDeleteCardImageAsync(card.Id);
         }
 
         _layout.Categories.Remove(category);
@@ -480,7 +480,7 @@ else
 
     private async Task DeleteCard(DashboardCard card)
     {
-        ImageIconService.Delete(card.Id);
+        await TryDeleteCardImageAsync(card.Id);
         _health.TryRemove(card.Id, out _);
 
         var category = _layout.Categories.FirstOrDefault(x => x.Id == card.CategoryId);
@@ -698,13 +698,37 @@ else
 
     private async Task LoadLayoutAsync()
     {
-        _layout = await DashboardLayoutService.GetMainLayoutAsync();
+        // Refit сам десериализует JSON-ответ в DashboardLayout. null означает,
+        // что API вернуло пустое тело — тогда используем раскладку по умолчанию.
+        _layout = await DashboardApi.GetLayoutAsync() ?? new DashboardLayout { Id = 1, ThemeMode = "auto" };
     }
 
     private async Task SaveLayoutAsync()
     {
         NormalizeLayout();
-        await DashboardLayoutService.SaveMainLayoutAsync(_layout);
+        try
+        {
+            await DashboardApi.SaveLayoutAsync(_layout);
+        }
+        catch (ApiException ex)
+        {
+            // Refit выбрасывает ApiException при неуспешном ответе. Оставляем понятное
+            // сообщение с кодом ошибки, как делал прежний HTTP-сервис.
+            throw new InvalidOperationException($"Не удалось сохранить раскладку (код {(int)ex.StatusCode}).", ex);
+        }
+    }
+
+    // Удаление файла иконки не должно срывать сохранение раскладки: ошибку только логируем.
+    private async Task TryDeleteCardImageAsync(int cardId)
+    {
+        try
+        {
+            await DashboardApi.DeleteImageAsync(cardId);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Не удалось удалить изображение карточки {CardId} через API.", cardId);
+        }
     }
 
     public async ValueTask DisposeAsync()

@@ -28,7 +28,7 @@
     </div>
     @if (Model.StatusMode != CardStatusMode.None)
     {
-        <span class="status-dot @StatusClass" role="img" aria-label="@StatusLabel" title="@StatusLabel"></span>
+        <span class="status-dot @StatusClass" role="img" aria-label="@StatusLabel" title="@StatusTitle"></span>
     }
 </a>
 
@@ -49,24 +49,27 @@
     public EventCallback<DashboardCard> EditRequested { get; set; }
 
     /// <summary>
-    /// Текущее состояние доступности сервиса, определённое последней проверкой.
+    /// Результат последней проверки доступности: состояние и пояснение от API.
     /// </summary>
     [Parameter]
-    public ServiceHealthState HealthState { get; set; }
+    public ServiceHealthResult Health { get; set; } = ServiceHealthResult.Unknown;
 
-    private string StatusClass => HealthState switch
+    private string StatusClass => Health.State switch
     {
         ServiceHealthState.Online => "online",
         ServiceHealthState.Offline => "offline",
         _ => "unknown"
     };
 
-    private string StatusLabel => HealthState switch
+    private string StatusLabel => Health.State switch
     {
         ServiceHealthState.Online => "Сервис доступен",
         ServiceHealthState.Offline => "Сервис недоступен",
         _ => "Статус проверяется"
     };
+
+    // В подсказке показываем пояснение API, а при его отсутствии — обычную подпись состояния.
+    private string StatusTitle => string.IsNullOrWhiteSpace(Health.Message) ? StatusLabel : Health.Message;
 
     private int CardSpanDesktop => GetCardSpan(Model.IsWide, DesktopColumns);
 

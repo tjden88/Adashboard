@@ -33,8 +33,8 @@ Directory.CreateDirectory(Path.GetDirectoryName(storage.DatabasePath)!);
 
 builder.Services.AddDbContextFactory<DashboardDbContext>(options =>
     options.UseSqlite($"Data Source={storage.DatabasePath}"));
-builder.Services.AddScoped<IDashboardLayoutService, DashboardLayoutService>();
-builder.Services.AddScoped<IImageIconService, ImageIconService>();
+builder.Services.AddScoped<DashboardLayoutService>();
+builder.Services.AddScoped<ImageIconService>();
 
 // Клиент загрузки иконок по ссылке отключён от редиректов: это снижает риск SSRF
 // через перенаправление.
@@ -43,6 +43,16 @@ builder.Services.AddHttpClient("IconDownloader")
     {
         AllowAutoRedirect = false
     });
+
+// Клиент серверной проверки карточек и получения заголовка страницы. Редиректы не следуем,
+// чтобы вернуть настоящий код ответа целевого сервиса.
+builder.Services.AddHttpClient("Probe")
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    {
+        AllowAutoRedirect = false
+    });
+
+builder.Services.AddScoped<ProbeService>();
 
 // Разрешаем кросс-доменные запросы с любого origin: это личный дашборд,
 // фронтенд и backend могут быть запущены на разных портах или хостах.

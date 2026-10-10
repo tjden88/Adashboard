@@ -9,7 +9,7 @@ namespace Adashboard.Api.Controllers;
 [ApiController]
 [Route("api/cards")]
 public class CardsController(
-    IImageIconService imageIconService,
+    ImageIconService imageIconService,
     ILogger<CardsController> logger) : ControllerBase
 {
     /// <summary>
@@ -38,7 +38,7 @@ public class CardsController(
             return BadRequest(new { error = "Файл изображения не передан." });
         }
 
-        if (file.Length > IImageIconService.MaxImageBytes)
+        if (file.Length > ImageIconService.MaxImageBytes)
         {
             logger.LogWarning("Загрузка изображения карточки {CardId} отклонена: размер {Size} байт превышает лимит.", cardId, file.Length);
             return BadRequest(new { error = "Изображение превышает максимальный размер 2 МБ." });

@@ -1,9 +1,12 @@
 @using Adashboard.Services
+@using Refit
+@using System.Text.Json
 @implements IAsyncDisposable
-@inject IImageIconService ImageIconService
-@inject IPageTitleService PageTitleService
+@inject IDashboardApi DashboardApi
+@inject PageTitleService PageTitleService
 @inject DashboardApiOptions ApiOptions
 @inject IJSRuntime JS
+@inject ILogger<CardDialog> Logger
 
 <form class="card-dialog" @onsubmit="Save" @onsubmit:preventDefault>
     <div class="card-dialog__field">
@@ -370,7 +373,7 @@
         _imageError = null;
         var file = args.File;
 
-        if (file.Size > IImageIconService.MaxImageBytes)
+        if (file.Size > IDashboardApi.MaxImageBytes)
         {
             _imageError = "Файл превышает максимальный размер 2 МБ.";
             return;
@@ -378,7 +381,7 @@
 
         try
         {
-            await using var stream = file.OpenReadStream(IImageIconService.MaxImageBytes);
+            await using var stream = file.OpenReadStream(IDashboardApi.MaxImageBytes);
             using var buffer = new MemoryStream();
             await stream.CopyToAsync(buffer);
 
@@ -410,7 +413,7 @@
         try
         {
             var bytes = Convert.FromBase64String(dataUrl[(commaIndex + 1)..]);
-            if (bytes.Length == 0 || bytes.LongLength > IImageIconService.MaxImageBytes)
+            if (bytes.Length == 0 || bytes.LongLength > IDashboardApi.MaxImageBytes)
             {
                 _imageError = "Изображение превышает максимальный размер 2 МБ.";
             }
@@ -498,11 +501,17 @@
             {
                 if (_uploadedBytes is not null)
                 {
-                    imagePath = await ImageIconService.SaveFromBytesAsync(cardId, _uploadedBytes);
+                    // Refit отправляет файл как multipart-форму. StreamPart оборачивает поток,
+                    // который должен жить до конца запроса, поэтому создаём его здесь и дожидаемся ответа.
+                    using var stream = new MemoryStream(_uploadedBytes);
+                    var file = new StreamPart(stream, $"card-{cardId}", "application/octet-stream");
+                    var response = await DashboardApi.UploadImageAsync(cardId, file);
+                    imagePath = await ReadImagePathAsync(response);
                 }
                 else if (!string.IsNullOrWhiteSpace(_imageUrl))
                 {
-                    imagePath = await ImageIconService.SaveFromUrlAsync(cardId, _imageUrl.Trim());
+                    var response = await DashboardApi.UploadImageFromUrlAsync(cardId, new { url = _imageUrl.Trim() });
+                    imagePath = await ReadImagePathAsync(response);
                 }
                 else if (string.IsNullOrWhiteSpace(imagePath))
                 {
@@ -530,7 +539,7 @@
             // Возврат к встроенной иконке: сохранённый файл больше не нужен.
             if (cardId > 0)
             {
-                ImageIconService.Delete(cardId);
+                await TryDeleteCardImageAsync(cardId);
             }
 
             imagePath = string.Empty;
@@ -571,6 +580,75 @@
         if (Card is not null)
         {
             await OnDelete.InvokeAsync(Card);
+        }
+    }
+
+    /// <summary>
+    /// Читает путь к сохранённому изображению из ответа API.
+    /// </summary>
+    /// <remarks>
+    /// Разбор сделан вручную, без отдельной модели: успешный ответ — <c>{ "imagePath": "..." }</c>,
+    /// неуспешный — <c>{ "error": "..." }</c>. При ошибке выбрасываем понятное исключение,
+    /// которое перехватывает <see cref="Save"/>.
+    /// </remarks>
+    private static async Task<string> ReadImagePathAsync(HttpResponseMessage response)
+    {
+        var body = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(ExtractString(body, "error") ?? "Не удалось сохранить изображение.");
+        }
+
+        var imagePath = ExtractString(body, "imagePath");
+        if (string.IsNullOrWhiteSpace(imagePath))
+        {
+            throw new InvalidOperationException("API не вернуло путь к изображению.");
+        }
+
+        return imagePath;
+    }
+
+    /// <summary>
+    /// Извлекает строковое свойство из JSON-ответа API, не полагаясь на строгую модель.
+    /// </summary>
+    private static string? ExtractString(string body, string property)
+    {
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(body);
+            if (document.RootElement.ValueKind == JsonValueKind.Object
+                && document.RootElement.TryGetProperty(property, out var value)
+                && value.ValueKind == JsonValueKind.String)
+            {
+                return value.GetString();
+            }
+        }
+        catch (JsonException)
+        {
+            // Формат ответа неожиданный: считаем свойство отсутствующим.
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Удаляет изображение карточки, не прерывая сохранение раскладки при ошибке удаления.
+    /// </summary>
+    private async Task TryDeleteCardImageAsync(int cardId)
+    {
+        try
+        {
+            await DashboardApi.DeleteImageAsync(cardId);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Не удалось удалить изображение карточки {CardId} через API.", cardId);
         }
     }
 

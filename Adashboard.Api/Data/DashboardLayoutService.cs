@@ -4,11 +4,11 @@ using Microsoft.EntityFrameworkCore;
 namespace Adashboard.Api.Data;
 
 /// <summary>
-/// Реализует операции чтения и сохранения раскладки dashboard в SQLite.
+/// Сервис работы с раскладкой dashboard: чтение и сохранение в SQLite.
 /// </summary>
 public sealed class DashboardLayoutService(
     IDbContextFactory<DashboardDbContext> dbContextFactory,
-    ILogger<DashboardLayoutService> logger) : IDashboardLayoutService
+    ILogger<DashboardLayoutService> logger)
 {
     /// <summary>
     /// Загружает основную раскладку dashboard вместе с категориями и карточками.

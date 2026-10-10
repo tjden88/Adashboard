@@ -1,5 +1,5 @@
-using Adashboard.Domain;
 using Microsoft.Extensions.Logging;
+using Refit;
 
 namespace Adashboard.Services;
 
@@ -19,135 +19,80 @@ public enum ServiceHealthState
 }
 
 /// <summary>
-/// Проверяет доступность сервисов, на которые ведут карточки dashboard.
+/// Результат одной проверки доступности: состояние и пояснение для подсказки на карточке.
 /// </summary>
-public interface IHealthCheckService
+/// <param name="State">Состояние доступности сервиса.</param>
+/// <param name="Message">Пояснение исхода от API или <c>null</c>, если пояснения нет.</param>
+public sealed record ServiceHealthResult(ServiceHealthState State, string? Message)
 {
     /// <summary>
-    /// Выполняет одну проверку доступности карточки согласно её режиму <see cref="DashboardCard.StatusMode"/>.
+    /// Нейтральный результат по умолчанию: состояние неизвестно, пояснения нет.
     /// </summary>
-    /// <param name="card">Карточка, статус которой нужно проверить.</param>
-    /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns>Состояние доступности сервиса.</returns>
-    Task<ServiceHealthState> CheckAsync(DashboardCard card, CancellationToken cancellationToken = default);
+    public static ServiceHealthResult Unknown { get; } = new(ServiceHealthState.Unknown, null);
 }
 
 /// <summary>
-/// Реализация <see cref="IHealthCheckService"/> через HTTP-запрос из браузера.
+/// Сервис проверки доступности сервисов, на которые ведут карточки dashboard.
 /// </summary>
 /// <remarks>
-/// Проверки домашних сервисов подразумевают обращение к локальным и частным адресам,
-/// поэтому ограничение SSRF здесь намеренно не применяется. Из-за политики CORS браузера
-/// такие проверки могут не работать — на этом этапе это допустимо.
+/// Проверку выполняет Adashboard.Api: браузер не может обращаться к целевым сервисам напрямую
+/// из-за политики CORS (см. <c>ProbeService</c> в API). Клиент только запрашивает результат.
+/// Вся сетевая работа (поиск карточки, запрос к её сервису, оценка режима <c>StatusMode</c>)
+/// живёт в Adashboard.Api; клиент лишь переводит строковый статус ответа в <see cref="ServiceHealthState"/>.
 /// </remarks>
 public sealed class HealthCheckService(
-    HttpClient httpClient,
-    ILogger<HealthCheckService> logger) : IHealthCheckService
+    IDashboardApi dashboardApi,
+    ILogger<HealthCheckService> logger)
 {
-    private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(5);
+    private const string ErrorMessage = "Не удалось проверить статус сервиса.";
 
-    /// <inheritdoc />
-    public async Task<ServiceHealthState> CheckAsync(DashboardCard card, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Выполняет одну проверку доступности карточки по её идентификатору.
+    /// </summary>
+    /// <param name="cardId">Идентификатор карточки.</param>
+    /// <param name="cancellationToken">Токен отмены операции.</param>
+    /// <returns>Результат проверки: состояние и пояснение от API.</returns>
+    public async Task<ServiceHealthResult> CheckAsync(int cardId, CancellationToken cancellationToken = default)
     {
-        if (card.StatusMode == CardStatusMode.None)
-        {
-            return ServiceHealthState.Unknown;
-        }
-
-        if (!TryBuildAbsoluteUri(card, out var uri))
-        {
-            logger.LogWarning(
-                "Проверка статуса карточки {CardId} пропущена: адрес не является абсолютным HTTP(S)-адресом.",
-                card.Id);
-            return ServiceHealthState.Unknown;
-        }
-
-        logger.LogDebug("Начата проверка статуса карточки {CardId} на хосте {Host}.", card.Id, uri.Host);
-
         try
         {
-            // Абсолютный адрес имеет приоритет над базовым адресом API в HttpClient.
-            // Таймаут задаём через отдельный токен, чтобы отличить его от отмены цикла проверок.
-            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeoutCts.CancelAfter(RequestTimeout);
+            var response = await dashboardApi.CheckHealthAsync(cardId, cancellationToken);
 
-            using var response = await httpClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token);
-            var state = Evaluate(card.StatusMode, response.StatusCode);
-
-            if (state == ServiceHealthState.Offline)
+            if (response is null)
             {
-                logger.LogWarning(
-                    "Сервис карточки {CardId} недоступен. Код ответа: {StatusCode}.",
-                    card.Id,
-                    (int)response.StatusCode);
-            }
-            else
-            {
-                logger.LogDebug("Проверка статуса карточки {CardId} завершена: {State}.", card.Id, state);
+                logger.LogWarning("API не вернуло результат проверки карточки {CardId}.", cardId);
+                return ServiceHealthResult.Unknown;
             }
 
-            return state;
+            return new ServiceHealthResult(ParseState(response.Status), response.Message);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             // Отмена всего цикла проверок: пробрасываем, чтобы корректно завершить работу.
             throw;
         }
-        catch (OperationCanceledException)
+        catch (ApiException ex)
         {
-            logger.LogWarning("Проверка статуса карточки {CardId} не завершилась за отведённое время.", card.Id);
-            return ServiceHealthState.Offline;
+            logger.LogWarning(
+                "Проверка карточки {CardId} завершилась ошибкой API. Код: {StatusCode}.",
+                cardId,
+                ex.StatusCode);
+            return new ServiceHealthResult(ServiceHealthState.Unknown, ErrorMessage);
         }
         catch (HttpRequestException ex)
         {
-            logger.LogWarning(
-                "Проверка статуса карточки {CardId} завершилась сетевой ошибкой: {Message}",
-                card.Id,
-                ex.Message);
-            return ServiceHealthState.Offline;
+            logger.LogWarning("Проверка карточки {CardId} завершилась сетевой ошибкой: {Message}", cardId, ex.Message);
+            return new ServiceHealthResult(ServiceHealthState.Unknown, ErrorMessage);
         }
     }
 
     /// <summary>
-    /// Определяет состояние сервиса по режиму проверки и полученному коду ответа.
+    /// Переводит строковый статус ответа API в состояние индикатора.
     /// </summary>
-    private static ServiceHealthState Evaluate(CardStatusMode mode, System.Net.HttpStatusCode statusCode)
+    private static ServiceHealthState ParseState(string? status) => status switch
     {
-        var code = (int)statusCode;
-
-        return mode switch
-        {
-            CardStatusMode.Success => code is >= 200 and < 300 ? ServiceHealthState.Online : ServiceHealthState.Offline,
-            CardStatusMode.NoServerError => code < 500 ? ServiceHealthState.Online : ServiceHealthState.Offline,
-            CardStatusMode.Reachable => ServiceHealthState.Online,
-            _ => ServiceHealthState.Unknown
-        };
-    }
-
-    /// <summary>
-    /// Пытается собрать абсолютный HTTP(S)-адрес карточки из схемы и адреса.
-    /// </summary>
-    private static bool TryBuildAbsoluteUri(DashboardCard card, out Uri uri)
-    {
-        uri = null!;
-
-        var value = card.UrlScheme + card.Url;
-        if (!Uri.TryCreate(value, UriKind.Absolute, out var parsed))
-        {
-            return false;
-        }
-
-        if (parsed.Scheme != Uri.UriSchemeHttp && parsed.Scheme != Uri.UriSchemeHttps)
-        {
-            return false;
-        }
-
-        if (parsed.Host.Length == 0)
-        {
-            return false;
-        }
-
-        uri = parsed;
-        return true;
-    }
+        "online" => ServiceHealthState.Online,
+        "offline" => ServiceHealthState.Offline,
+        _ => ServiceHealthState.Unknown
+    };
 }

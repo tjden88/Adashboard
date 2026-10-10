@@ -9,46 +9,16 @@ namespace Adashboard.Api.Services;
 /// Сервис хранения пользовательских изображений-иконок карточек.
 /// Файлы сохраняются локально в каталоге загрузок приложения (<c>uploads/card-icons</c>).
 /// </summary>
-public interface IImageIconService
+public sealed class ImageIconService(
+    IHttpClientFactory httpClientFactory,
+    DashboardStorage storage,
+    ILogger<ImageIconService> logger)
 {
     /// <summary>
     /// Максимальный размер принимаемого изображения в байтах.
     /// </summary>
-    const long MaxImageBytes = 2 * 1024 * 1024;
+    public const long MaxImageBytes = 2 * 1024 * 1024;
 
-    /// <summary>
-    /// Скачивает изображение по указанному URL и сохраняет его для карточки.
-    /// </summary>
-    /// <param name="cardId">Идентификатор карточки.</param>
-    /// <param name="url">Абсолютная HTTP(S)-ссылка на изображение.</param>
-    /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns>Относительный путь к сохранённому изображению.</returns>
-    Task<string> SaveFromUrlAsync(int cardId, string url, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Сохраняет переданные байты изображения для карточки (загрузка с устройства или из буфера).
-    /// </summary>
-    /// <param name="cardId">Идентификатор карточки.</param>
-    /// <param name="content">Содержимое изображения.</param>
-    /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns>Относительный путь к сохранённому изображению.</returns>
-    Task<string> SaveFromBytesAsync(int cardId, byte[] content, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Удаляет все сохранённые изображения карточки.
-    /// </summary>
-    /// <param name="cardId">Идентификатор карточки.</param>
-    void Delete(int cardId);
-}
-
-/// <summary>
-/// Реализация <see cref="IImageIconService"/> с локальным файловым хранилищем.
-/// </summary>
-public sealed class ImageIconService(
-    IHttpClientFactory httpClientFactory,
-    DashboardStorage storage,
-    ILogger<ImageIconService> logger) : IImageIconService
-{
     private const string HttpClientName = "IconDownloader";
     private const string FolderRelativePath = "uploads/card-icons";
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(12);
@@ -57,7 +27,13 @@ public sealed class ImageIconService(
     private readonly ILogger<ImageIconService> _logger = logger;
     private readonly string _folder = Path.Combine(storage.UploadsPath, "card-icons");
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Скачивает изображение по указанному URL и сохраняет его для карточки.
+    /// </summary>
+    /// <param name="cardId">Идентификатор карточки.</param>
+    /// <param name="url">Абсолютная HTTP(S)-ссылка на изображение.</param>
+    /// <param name="cancellationToken">Токен отмены операции.</param>
+    /// <returns>Относительный путь к сохранённому изображению.</returns>
     public async Task<string> SaveFromUrlAsync(int cardId, string url, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Начата загрузка изображения карточки {CardId} по ссылке.", cardId);
@@ -115,7 +91,13 @@ public sealed class ImageIconService(
         return path;
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Сохраняет переданные байты изображения для карточки (загрузка с устройства или из буфера).
+    /// </summary>
+    /// <param name="cardId">Идентификатор карточки.</param>
+    /// <param name="content">Содержимое изображения.</param>
+    /// <param name="cancellationToken">Токен отмены операции.</param>
+    /// <returns>Относительный путь к сохранённому изображению.</returns>
     public async Task<string> SaveFromBytesAsync(int cardId, byte[] content, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Начато сохранение изображения карточки {CardId} из загруженных данных.", cardId);
@@ -125,7 +107,7 @@ public sealed class ImageIconService(
             throw new InvalidOperationException("Некорректный идентификатор карточки.");
         }
 
-        if (content.Length == 0 || content.LongLength > IImageIconService.MaxImageBytes)
+        if (content.Length == 0 || content.LongLength > MaxImageBytes)
         {
             _logger.LogWarning("Изображение карточки {CardId} отклонено: недопустимый размер.", cardId);
             throw new InvalidOperationException("Изображение превышает максимальный размер 2 МБ.");
@@ -145,7 +127,10 @@ public sealed class ImageIconService(
         return path;
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Удаляет все сохранённые изображения карточки.
+    /// </summary>
+    /// <param name="cardId">Идентификатор карточки.</param>
     public void Delete(int cardId)
     {
         if (cardId <= 0)
@@ -232,7 +217,7 @@ public sealed class ImageIconService(
         int read;
         while ((read = await stream.ReadAsync(chunk, cancellationToken)) > 0)
         {
-            if (buffer.Length + read > IImageIconService.MaxImageBytes)
+            if (buffer.Length + read > MaxImageBytes)
             {
                 _logger.LogWarning("Изображение карточки {CardId} отклонено: превышен максимальный размер.", cardId);
                 throw new InvalidOperationException("Изображение превышает максимальный размер 2 МБ.");

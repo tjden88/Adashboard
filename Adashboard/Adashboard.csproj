@@ -47,6 +47,13 @@
     <!-- Библиотеки Blazor WebAssembly: клиентский рантайм и dev-сервер для локального запуска. -->
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.3" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.3" PrivateAssets="all" />
+    <!--
+      Refit описывает REST-клиент декларативно, атрибутами на интерфейсе (см. Services/IDashboardApi.cs).
+      Refit.HttpClientFactory добавляет AddRefitClient, чтобы клиент создавался через IHttpClientFactory
+      с настроенным базовым адресом API.
+    -->
+    <PackageReference Include="Refit" Version="16.3.0" />
+    <PackageReference Include="Refit.HttpClientFactory" Version="16.3.0" />
   </ItemGroup>
 
   <ItemGroup>
