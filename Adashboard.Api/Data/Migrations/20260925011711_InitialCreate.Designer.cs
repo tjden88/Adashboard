@@ -19,7 +19,7 @@ namespace Adashboard.Api.Data.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
 
-            modelBuilder.Entity("Adashboard.Api.Models.Dashboard.DashboardCard", b =>
+            modelBuilder.Entity("Adashboard.Domain.DashboardCard", b =>
                 {
                     b.Property<int>("Id")
                         .HasColumnType("INTEGER");
@@ -70,7 +70,7 @@ namespace Adashboard.Api.Data.Migrations
                     b.ToTable("DashboardCards", (string)null);
                 });
 
-            modelBuilder.Entity("Adashboard.Api.Models.Dashboard.DashboardCategory", b =>
+            modelBuilder.Entity("Adashboard.Domain.DashboardCategory", b =>
                 {
                     b.Property<int>("Id")
                         .HasColumnType("INTEGER");
@@ -90,7 +90,7 @@ namespace Adashboard.Api.Data.Migrations
                     b.ToTable("DashboardCategories", (string)null);
                 });
 
-            modelBuilder.Entity("Adashboard.Api.Models.Dashboard.DashboardLayout", b =>
+            modelBuilder.Entity("Adashboard.Domain.DashboardLayout", b =>
                 {
                     b.Property<int>("Id")
                         .HasColumnType("INTEGER");
@@ -127,15 +127,15 @@ namespace Adashboard.Api.Data.Migrations
                     b.ToTable("DashboardLayouts", (string)null);
                 });
 
-            modelBuilder.Entity("Adashboard.Api.Models.Dashboard.DashboardCard", b =>
+            modelBuilder.Entity("Adashboard.Domain.DashboardCard", b =>
                 {
-                    b.HasOne("Adashboard.Api.Models.Dashboard.DashboardCategory", null)
+                    b.HasOne("Adashboard.Domain.DashboardCategory", null)
                         .WithMany("Cards")
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.OwnsOne("Adashboard.Api.Models.Dashboard.CardPosition", "Position", b1 =>
+                    b.OwnsOne("Adashboard.Domain.CardPosition", "Position", b1 =>
                         {
                             b1.Property<int>("DashboardCardId")
                                 .HasColumnType("INTEGER");
@@ -156,15 +156,15 @@ namespace Adashboard.Api.Data.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Adashboard.Api.Models.Dashboard.DashboardCategory", b =>
+            modelBuilder.Entity("Adashboard.Domain.DashboardCategory", b =>
                 {
-                    b.HasOne("Adashboard.Api.Models.Dashboard.DashboardLayout", null)
+                    b.HasOne("Adashboard.Domain.DashboardLayout", null)
                         .WithMany("Categories")
                         .HasForeignKey("DashboardLayoutId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.OwnsOne("Adashboard.Api.Models.Dashboard.CategoryPosition", "Position", b1 =>
+                    b.OwnsOne("Adashboard.Domain.CategoryPosition", "Position", b1 =>
                         {
                             b1.Property<int>("DashboardCategoryId")
                                 .HasColumnType("INTEGER");
@@ -189,12 +189,12 @@ namespace Adashboard.Api.Data.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Adashboard.Api.Models.Dashboard.DashboardCategory", b =>
+            modelBuilder.Entity("Adashboard.Domain.DashboardCategory", b =>
                 {
                     b.Navigation("Cards");
                 });
 
-            modelBuilder.Entity("Adashboard.Api.Models.Dashboard.DashboardLayout", b =>
+            modelBuilder.Entity("Adashboard.Domain.DashboardLayout", b =>
                 {
                     b.Navigation("Categories");
                 });

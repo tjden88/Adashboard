@@ -1,4 +1,4 @@
-using Adashboard.Api.Models.Dashboard;
+using Adashboard.Domain;
 
 namespace Adashboard.Api.Data;
 

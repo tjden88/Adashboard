@@ -1,4 +1,4 @@
-using Adashboard.Api.Models.Dashboard;
+using Adashboard.Domain;
 using Microsoft.EntityFrameworkCore;
 
 namespace Adashboard.Api.Data;

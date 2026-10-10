@@ -18,4 +18,8 @@
     <PackageReference Include="Scalar.AspNetCore" Version="2.17.14" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Adashboard.Domain\Adashboard.Domain.csproj" />
+  </ItemGroup>
+
 </Project>

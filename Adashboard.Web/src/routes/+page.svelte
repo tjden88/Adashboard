@@ -23,8 +23,8 @@
 	} | null>(null);
 
 	onMount(() => {
-		// Приводим раскладку к корректному виду на случай правок в сессии.
-		dashboard.normalize();
+		// Загружаем раскладку из API уже на клиенте (SSR не используется).
+		dashboard.load();
 	});
 
 	// Тема: при режиме auto следим за системной настройкой и переключаем оформление.
@@ -160,20 +160,52 @@
 </svelte:head>
 
 <section class="mx-auto flex w-full max-w-[1600px] flex-col gap-5 p-4 sm:p-6">
-	<DashboardHeader
-		layout={dashboard.layout}
-		editMode={dashboard.editMode}
-		onToggleEdit={() => dashboard.toggleEditMode()}
-		onAddCategory={openAddCategory}
-		onOpenSettings={() => (settingsOpen = true)}
-	/>
+	{#if dashboard.errorMessage}
+		<!-- Сообщение об ошибке загрузки/сохранения. Интерфейс не падает и продолжает работать. -->
+		<div
+			class="flex items-start gap-3 rounded-2xl border border-red-400/60 bg-red-50/80 px-4 py-3 text-sm text-red-800 shadow-lg backdrop-blur-sm dark:border-red-500/40 dark:bg-red-950/50 dark:text-red-200"
+			role="alert"
+		>
+			<i class="fa-solid fa-triangle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+			<span class="min-w-0 flex-1">{dashboard.errorMessage}</span>
+			<button
+				type="button"
+				class="btn btn-icon shrink-0"
+				onclick={() => dashboard.clearError()}
+				title="Закрыть сообщение"
+				aria-label="Закрыть сообщение"
+			>
+				<i class="fa-solid fa-xmark" aria-hidden="true"></i>
+			</button>
+		</div>
+	{/if}
 
-	<DashboardGrid
-		onAddCard={openAddCard}
-		onEditCategory={openEditCategory}
-		onDeleteCategory={requestDeleteCategory}
-		onEditCard={openEditCard}
-	/>
+	{#if dashboard.loading}
+		<!-- Пока раскладка грузится из API, показываем состояние загрузки. -->
+		<div
+			class="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-slate-600 dark:text-slate-300"
+			role="status"
+			aria-live="polite"
+		>
+			<i class="fa-solid fa-spinner fa-spin text-3xl" aria-hidden="true"></i>
+			<p>Загрузка раскладки…</p>
+		</div>
+	{:else}
+		<DashboardHeader
+			layout={dashboard.layout}
+			editMode={dashboard.editMode}
+			onToggleEdit={() => dashboard.toggleEditMode()}
+			onAddCategory={openAddCategory}
+			onOpenSettings={() => (settingsOpen = true)}
+		/>
+
+		<DashboardGrid
+			onAddCard={openAddCard}
+			onEditCategory={openEditCategory}
+			onDeleteCategory={requestDeleteCategory}
+			onEditCard={openEditCard}
+		/>
+	{/if}
 </section>
 
 {#if settingsOpen}

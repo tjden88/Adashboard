@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="Adashboard.Domain/Adashboard.Domain.csproj" />
   <Project Path="Adashboard.Api/Adashboard.Api.csproj" />
   <Project Path="Adashboard/Adashboard.csproj" />
 </Solution>

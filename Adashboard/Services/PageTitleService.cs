@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -19,17 +20,17 @@ public interface IPageTitleService
 }
 
 /// <summary>
-/// Реализация <see cref="IPageTitleService"/> через HTTP-запрос и разбор HTML.
+/// Реализация <see cref="IPageTitleService"/> через HTTP-запрос из браузера и разбор HTML.
 /// </summary>
 /// <remarks>
 /// Как и <see cref="HealthCheckService"/>, сервис обращается к домашним сервисам карточек,
-/// поэтому ограничение SSRF намеренно не применяется.
+/// поэтому ограничение SSRF намеренно не применяется. Из-за политики CORS браузера такие
+/// запросы могут не работать — на этом этапе это допустимо.
 /// </remarks>
 public sealed class PageTitleService(
-    IHttpClientFactory httpClientFactory,
+    HttpClient httpClient,
     ILogger<PageTitleService> logger) : IPageTitleService
 {
-    private const string HttpClientName = "PageTitle";
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(8);
     private const int MaxHtmlBytes = 256 * 1024;
     private const int MaxTitleLength = 120;
@@ -41,31 +42,26 @@ public sealed class PageTitleService(
 
     private static readonly Regex WhitespaceRegex = new(@"\s+", RegexOptions.Compiled);
 
-    private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
-    private readonly ILogger<PageTitleService> _logger = logger;
-
     /// <inheritdoc />
     public async Task<string?> TryGetTitleAsync(string url, CancellationToken cancellationToken = default)
     {
         if (!TryBuildAbsoluteUri(url, out var uri))
         {
-            _logger.LogWarning("Получение заголовка отклонено: адрес не является абсолютным HTTP(S)-адресом.");
+            logger.LogWarning("Получение заголовка отклонено: адрес не является абсолютным HTTP(S)-адресом.");
             throw new InvalidOperationException("Укажите корректную HTTP(S)-ссылку.");
         }
 
-        _logger.LogInformation("Начато получение заголовка страницы на хосте {Host}.", uri.Host);
+        logger.LogInformation("Начато получение заголовка страницы на хосте {Host}.", uri.Host);
 
         try
         {
-            using var client = _httpClientFactory.CreateClient(HttpClientName);
-
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts.CancelAfter(RequestTimeout);
 
-            using var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token);
+            using var response = await httpClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token);
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogWarning("Получение заголовка завершилось неудачно. Код ответа: {StatusCode}.", (int)response.StatusCode);
+                logger.LogWarning("Получение заголовка завершилось неудачно. Код ответа: {StatusCode}.", (int)response.StatusCode);
                 throw new InvalidOperationException($"Страница вернула ошибку (код {(int)response.StatusCode}).");
             }
 
@@ -75,11 +71,11 @@ public sealed class PageTitleService(
 
             if (title is null)
             {
-                _logger.LogWarning("На странице хоста {Host} не найден тег title.", uri.Host);
+                logger.LogWarning("На странице хоста {Host} не найден тег title.", uri.Host);
                 return null;
             }
 
-            _logger.LogInformation("Заголовок страницы на хосте {Host} успешно получен.", uri.Host);
+            logger.LogInformation("Заголовок страницы на хосте {Host} успешно получен.", uri.Host);
             return title;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -88,12 +84,12 @@ public sealed class PageTitleService(
         }
         catch (OperationCanceledException)
         {
-            _logger.LogWarning("Получение заголовка не завершилось за отведённое время.");
+            logger.LogWarning("Получение заголовка не завершилось за отведённое время.");
             throw new InvalidOperationException("Страница не ответила за отведённое время.");
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogWarning("Получение заголовка завершилось сетевой ошибкой: {Message}", ex.Message);
+            logger.LogWarning("Получение заголовка завершилось сетевой ошибкой: {Message}", ex.Message);
             throw new InvalidOperationException("Не удалось подключиться к сервису.");
         }
     }

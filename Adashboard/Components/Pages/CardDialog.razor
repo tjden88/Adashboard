@@ -1,8 +1,8 @@
-@using Adashboard.Models.Dashboard
 @using Adashboard.Services
 @implements IAsyncDisposable
 @inject IImageIconService ImageIconService
 @inject IPageTitleService PageTitleService
+@inject DashboardApiOptions ApiOptions
 @inject IJSRuntime JS
 
 <form class="card-dialog" @onsubmit="Save" @onsubmit:preventDefault>
@@ -223,7 +223,7 @@
     private string? _previewSource =>
         _uploadedPreview
         ?? (!string.IsNullOrWhiteSpace(_imageUrl) ? _imageUrl.Trim() : null)
-        ?? _existingImagePath;
+        ?? ApiOptions.ResolveUploadPath(_existingImagePath);
 
     /// <summary>Карточка для редактирования или <c>null</c> при создании.</summary>
     [Parameter]

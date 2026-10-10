@@ -1,8 +1,9 @@
 import { checkCardHealth } from './health';
 import { resolveDefaultBackgroundColor } from './colors';
-import { createSeedLayout } from './seed';
+import { loadLayout, saveLayout } from './api';
 import {
 	DEFAULT_CATEGORY_WIDTH,
+	DEFAULT_HEALTH_INTERVAL_SECONDS,
 	MAX_CATEGORY_WIDTH,
 	MAX_CONCURRENT_HEALTH_CHECKS,
 	MAX_HEALTH_INTERVAL_SECONDS,
@@ -16,12 +17,35 @@ import {
 } from './types';
 
 /**
+ * Создаёт пустую раскладку.
+ * Используется как стартовое состояние до загрузки и как запасной вариант при ошибке API.
+ */
+function createEmptyLayout(): DashboardLayout {
+	return {
+		id: 1,
+		themeMode: 'auto',
+		siteTitle: 'Adashboard',
+		siteDescription: 'Личная стартовая страница со ссылками и сервисами',
+		showLogo: true,
+		healthCheckIntervalSeconds: DEFAULT_HEALTH_INTERVAL_SECONDS,
+		categories: []
+	};
+}
+
+/**
  * Состояние dashboard в памяти.
- * Данные не сохраняются: при перезагрузке страницы раскладка снова берётся из сида.
+ * Раскладка приходит из API Adashboard.Api (GET /api/layout) и сохраняется туда
+ * при выходе из режима редактирования (PUT /api/layout).
  */
 class DashboardStore {
-	/** Корневая раскладка. */
-	layout = $state<DashboardLayout>(createSeedLayout());
+	/** Корневая раскладка. До загрузки — пустая. */
+	layout = $state<DashboardLayout>(createEmptyLayout());
+
+	/** Идёт ли загрузка раскладки из API. Пока true, страница показывает состояние загрузки. */
+	loading = $state(true);
+
+	/** Сообщение об ошибке для пользователя. Пустая строка — ошибок нет. */
+	errorMessage = $state('');
 
 	/** Включён ли режим редактирования. */
 	editMode = $state(false);
@@ -42,12 +66,57 @@ class DashboardStore {
 	 */
 	private cardRegistry = new Map<number, DashboardCard>();
 
-	constructor() {
+	/** Пересобирает реестр карточек из текущей раскладки. */
+	private rebuildRegistry(): void {
+		this.cardRegistry.clear();
+
 		for (const category of this.layout.categories) {
 			for (const card of category.cards) {
 				this.cardRegistry.set(card.id, card);
 			}
 		}
+	}
+
+	/**
+	 * Загружает раскладку из API и подменяет ею текущее состояние.
+	 * При ошибке показывает сообщение и оставляет пустую раскладку — приложение продолжает работать.
+	 */
+	async load(): Promise<void> {
+		this.loading = true;
+		this.errorMessage = '';
+
+		try {
+			const loaded = await loadLayout();
+			this.layout = loaded;
+			this.rebuildRegistry();
+			this.normalize();
+		} catch {
+			this.layout = createEmptyLayout();
+			this.rebuildRegistry();
+			this.errorMessage =
+				'Не удалось загрузить раскладку с сервера. Проверьте, что backend запущен, — показана пустая раскладка.';
+		} finally {
+			this.loading = false;
+		}
+	}
+
+	/**
+	 * Сохраняет всю раскладку в API одним запросом.
+	 * При ошибке показывает сообщение, но не теряет правки в памяти.
+	 */
+	async save(): Promise<void> {
+		this.errorMessage = '';
+
+		try {
+			await saveLayout(this.layout);
+		} catch {
+			this.errorMessage = 'Не удалось сохранить раскладку. Правки остались только в браузере.';
+		}
+	}
+
+	/** Скрывает текущее сообщение об ошибке. */
+	clearError(): void {
+		this.errorMessage = '';
 	}
 
 	/** Категории, отсортированные по порядку. */
@@ -70,9 +139,21 @@ class DashboardStore {
 		return this.health[cardId] ?? 'unknown';
 	}
 
-	/** Переключает режим редактирования. */
-	toggleEditMode(): void {
-		this.editMode = !this.editMode;
+	/**
+	 * Переключает режим редактирования.
+	 * При выключении режима (кнопка завершения редактирования) вся раскладка
+	 * сохраняется в API одним запросом.
+	 */
+	async toggleEditMode(): Promise<void> {
+		if (this.editMode) {
+			this.editMode = false;
+			this.bumpLayout();
+			this.normalize();
+			await this.save();
+			return;
+		}
+
+		this.editMode = true;
 		this.bumpLayout();
 	}
 

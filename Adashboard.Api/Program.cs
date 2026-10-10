@@ -1,5 +1,7 @@
 using Adashboard.Api.Data;
+using Adashboard.Api.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -33,6 +35,37 @@ Directory.CreateDirectory(Path.GetDirectoryName(storage.DatabasePath)!);
 builder.Services.AddDbContextFactory<DashboardDbContext>(options =>
     options.UseSqlite($"Data Source={storage.DatabasePath}"));
 builder.Services.AddScoped<IDashboardLayoutService, DashboardLayoutService>();
+builder.Services.AddScoped<IImageIconService, ImageIconService>();
+
+// Клиент загрузки иконок по ссылке отключён от редиректов: это снижает риск SSRF
+// через перенаправление.
+builder.Services.AddHttpClient("IconDownloader")
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    {
+        AllowAutoRedirect = false
+    });
+
+// Разрешаем запросы standalone WASM-клиента. Список origin задаётся конфигурацией,
+// а в Development по умолчанию разрешаем локальный origin фронтенда.
+const string CorsPolicyName = "WasmClient";
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+if (builder.Environment.IsDevelopment() && allowedOrigins.Length == 0)
+{
+    allowedOrigins = ["http://localhost:5173"];
+}
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(CorsPolicyName, policy =>
+    {
+        if (allowedOrigins.Length > 0)
+        {
+            policy.WithOrigins(allowedOrigins)
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        }
+    });
+});
 
 var app = builder.Build();
 
@@ -46,6 +79,19 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference();
 }
 
+// При выносе загрузок в volume каталог может быть пустым, поэтому поставляемые
+// фон и логотип копируются из wwwroot, если их ещё нет.
+DashboardUploadsInitializer.Initialize(storage.UploadsPath, app.Environment.WebRootPath, app.Logger);
+
+// Раздаём каталог пользовательских загрузок (фоны, логотип, иконки карточек).
+Directory.CreateDirectory(storage.UploadsPath);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(storage.UploadsPath),
+    RequestPath = "/uploads"
+});
+
+app.UseCors(CorsPolicyName);
 app.UseAuthorization();
 
 app.MapControllers();

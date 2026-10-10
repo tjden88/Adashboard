@@ -1,6 +1,5 @@
-@using Adashboard.Models.Dashboard
-@using Adashboard.Services
 @inject EditModeService EditModeService
+@inject DashboardApiOptions ApiOptions
 
 <a class="dashboard-card"
    data-card-id="@Model.Id"
@@ -21,7 +20,7 @@
             @* За встроенной иконкой остаётся роль запасного варианта, если файл изображения пропал. *@
             <i class="@Model.IconClass"></i>
             <img class="card-icon__image"
-                 src="@Model.ImagePath"
+                 src="@ApiOptions.ResolveUploadPath(Model.ImagePath)"
                  alt=""
                  loading="lazy"
                  onerror="this.hidden = true" />
