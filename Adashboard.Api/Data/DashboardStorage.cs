@@ -7,8 +7,8 @@ namespace Adashboard.Api.Data;
 /// Пути хранения изменяемых данных dashboard: файла базы данных и каталога пользовательских загрузок.
 /// </summary>
 /// <remarks>
-/// Переменная окружения <c>DASHBOARD_DATA_PATH</c> задаёт единый корневой каталог данных
-/// (в Docker он совпадает с точкой монтирования volume). Без неё используется раскладка разработки.
+/// Переменная окружения <c>DASHBOARD_DATA_PATH</c> задаёт единый корневой каталог данных.
+/// Без неё используется раскладка разработки.
 /// </remarks>
 public sealed record DashboardStorage(string DatabasePath, string UploadsPath)
 {

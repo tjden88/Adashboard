@@ -23,13 +23,12 @@ builder.Logging.AddFilter("Adashboard",
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
-// База данных хранится в едином каталоге данных, который в Docker совпадает
-// с точкой монтирования volume.
+// База данных хранится в едином каталоге данных, который задаётся DASHBOARD_DATA_PATH.
 var storage = DashboardStorage.Resolve(builder.Configuration, builder.Environment);
 builder.Services.AddSingleton(storage);
 
 // Каталог, заданный через DASHBOARD_DATA_PATH, может быть ещё не создан
-// (например, пустой volume): SQLite не создаёт его сам.
+// (например, пустой внешний каталог): SQLite не создаёт его сам.
 Directory.CreateDirectory(Path.GetDirectoryName(storage.DatabasePath)!);
 
 builder.Services.AddDbContextFactory<DashboardDbContext>(options =>
@@ -68,7 +67,7 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference();
 }
 
-// При выносе загрузок в volume каталог может быть пустым, поэтому поставляемые
+// При выносе загрузок во внешний каталог он может быть пустым, поэтому поставляемые
 // фон и логотип копируются из wwwroot, если их ещё нет.
 DashboardUploadsInitializer.Initialize(storage.UploadsPath, app.Environment.WebRootPath, app.Logger);
 
