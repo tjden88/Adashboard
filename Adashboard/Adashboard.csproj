@@ -4,6 +4,12 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!--
+      Включает service worker (PWA): при сборке создаётся service-worker-assets.js
+      со списком и хешами статики, а service-worker.js при публикации заменяется
+      на service-worker.published.js с офлайн-кэшированием.
+    -->
+    <ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
   </PropertyGroup>
 
   <!--
@@ -45,6 +51,15 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Adashboard.Domain\Adashboard.Domain.csproj" />
+  </ItemGroup>
+
+  <!--
+    service-worker.published.js — рабочая версия с офлайн-кэшем. Сборка подменяет
+    на неё содержимое service-worker.js только в публикации, поэтому в разработке
+    остаётся «пустой» service-worker.js и кэш не мешает правкам.
+  -->
+  <ItemGroup>
+    <ServiceWorker Include="wwwroot/service-worker.js" PublishedContent="wwwroot/service-worker.published.js" />
   </ItemGroup>
 
   <!--
