@@ -17,13 +17,16 @@
         }
         else
         {
-            @* За встроенной иконкой остаётся роль запасного варианта, если файл изображения пропал. *@
-            <i class="@Model.IconClass"></i>
+            @* Изображение имеет приоритет над встроенной иконкой. Иконка остаётся в разметке,
+               но становится запасным вариантом: CSS прячет её, пока изображение показано,
+               а при ошибке загрузки картинки onerror скрывает само изображение и открывает иконку. *@
             <img class="card-icon__image"
                  src="@ApiOptions.ResolveUploadPath(Model.ImagePath)"
                  alt=""
                  loading="lazy"
+                 onload="this.hidden = false"
                  onerror="this.hidden = true" />
+            <i class="@Model.IconClass"></i>
         }
     </div>
     @if (Model.StatusMode != CardStatusMode.None)

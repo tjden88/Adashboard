@@ -69,6 +69,12 @@
     border-radius: 6px;
 }
 
+/* Пока изображение показано, встроенная иконка скрыта и появляется только как запасной вариант,
+   если картинка не загрузилась (тогда onerror ставит изображению атрибут hidden). */
+.card-icon__image:not([hidden]) ~ i {
+    display: none;
+}
+
 .status-dot {
     position: absolute;
     right: 0.5rem;
