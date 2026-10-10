@@ -1,0 +1,120 @@
+@import 'tailwindcss';
+
+/*
+	Тёмная тема управляется атрибутом data-theme на <html>, а не системной настройкой.
+	Поэтому вариант dark: срабатывает только внутри html[data-theme='dark'].
+*/
+@custom-variant dark (&:where(html[data-theme='dark'], html[data-theme='dark'] *));
+
+:root {
+	color-scheme: light;
+}
+
+html[data-theme='dark'] {
+	color-scheme: dark;
+}
+
+html,
+body {
+	min-height: 100%;
+}
+
+body {
+	margin: 0;
+	background-color: #f3f4f8;
+	background-image: url('/uploads/backgrounds/light-bg.jpg');
+	background-size: cover;
+	background-position: center;
+	background-repeat: no-repeat;
+	background-attachment: fixed;
+}
+
+html[data-theme='dark'] body {
+	background-color: #1a1425;
+	background-image: url('/uploads/backgrounds/dark-bg.jpg');
+}
+
+/*
+	Сетка карточек внутри категории.
+	Число колонок и охват карточки зависят от контрольной точки и задаются
+	CSS-переменными из разметки (--cards-cols*, --card-span*).
+*/
+.category-cards {
+	display: grid;
+	gap: 0.55rem;
+	grid-template-columns: repeat(var(--cards-cols, 1), minmax(0, 1fr));
+}
+
+.card-link {
+	grid-column: span var(--card-span, 1);
+	aspect-ratio: var(--card-span, 1);
+}
+
+@media (max-width: 1200px) {
+	.category-cards {
+		grid-template-columns: repeat(var(--cards-cols-medium, var(--cards-cols, 1)), minmax(0, 1fr));
+	}
+
+	.card-link {
+		grid-column: span var(--card-span-medium, var(--card-span, 1));
+		aspect-ratio: var(--card-span-medium, var(--card-span, 1));
+	}
+}
+
+@media (max-width: 900px) {
+	.category-cards {
+		grid-template-columns: repeat(var(--cards-cols-mobile, var(--cards-cols, 1)), minmax(0, 1fr));
+	}
+
+	.card-link {
+		grid-column: span var(--card-span-mobile, var(--card-span, 1));
+		aspect-ratio: var(--card-span-mobile, var(--card-span, 1));
+	}
+}
+
+/*
+	gridstack позиционирует элементы абсолютно. Высоту содержимого не фиксируем —
+	её измеряет resizeToContent, иначе получится замкнутый круг «высота от высоты».
+*/
+.grid-stack-item-content {
+	overflow: hidden;
+}
+
+/* Плейсхолдеры перетаскивания не нужны: используется нативный HTML5 Drag and Drop. */
+
+/*
+	Общие классы кнопок и полей формы.
+	Собраны через @apply, чтобы не дублировать длинные наборы утилит в разметке.
+*/
+.btn {
+	@apply inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-semibold transition select-none;
+	@apply border-slate-300/70 bg-white/70 text-slate-800 hover:bg-white;
+	@apply disabled:cursor-not-allowed disabled:opacity-50;
+	@apply dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-100 dark:hover:bg-slate-800/80;
+}
+
+.btn-icon {
+	@apply h-9 w-9 p-0;
+}
+
+.btn-primary {
+	@apply border-orange-500 bg-orange-500 text-white hover:bg-orange-400;
+	@apply dark:border-orange-500 dark:bg-orange-500 dark:text-white dark:hover:bg-orange-400;
+}
+
+.btn-success {
+	@apply border-green-600 bg-green-600 text-white hover:bg-green-500;
+	@apply dark:border-green-600 dark:bg-green-600 dark:text-white dark:hover:bg-green-500;
+}
+
+.btn-danger {
+	@apply border-red-600 bg-red-600 text-white hover:bg-red-500;
+	@apply dark:border-red-600 dark:bg-red-600 dark:text-white dark:hover:bg-red-500;
+}
+
+.form-input {
+	@apply w-full rounded-xl border border-slate-300/70 bg-white/70 px-3 py-2 text-slate-800 outline-none;
+	@apply placeholder:text-slate-400 focus:border-orange-400 focus:ring-2 focus:ring-orange-300/40;
+	@apply dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-100 dark:placeholder:text-slate-500;
+}
+

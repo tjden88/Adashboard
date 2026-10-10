@@ -1,4 +1,5 @@
-using Adashboard.Models.Dashboard;
+using Adashboard.Domain;
+using Microsoft.Extensions.Logging;
 
 namespace Adashboard.Services;
 
@@ -32,17 +33,17 @@ public interface IHealthCheckService
 }
 
 /// <summary>
-/// Реализация <see cref="IHealthCheckService"/> через HTTP-запрос к адресу карточки.
+/// Реализация <see cref="IHealthCheckService"/> через HTTP-запрос из браузера.
 /// </summary>
 /// <remarks>
 /// Проверки домашних сервисов подразумевают обращение к локальным и частным адресам,
-/// поэтому, в отличие от <see cref="ImageIconService"/>, здесь ограничение SSRF намеренно не применяется.
+/// поэтому ограничение SSRF здесь намеренно не применяется. Из-за политики CORS браузера
+/// такие проверки могут не работать — на этом этапе это допустимо.
 /// </remarks>
 public sealed class HealthCheckService(
-    IHttpClientFactory httpClientFactory,
+    HttpClient httpClient,
     ILogger<HealthCheckService> logger) : IHealthCheckService
 {
-    private const string HttpClientName = "HealthCheck";
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(5);
 
     /// <inheritdoc />
@@ -65,13 +66,12 @@ public sealed class HealthCheckService(
 
         try
         {
-            using var client = httpClientFactory.CreateClient(HttpClientName);
-
+            // Абсолютный адрес имеет приоритет над базовым адресом API в HttpClient.
             // Таймаут задаём через отдельный токен, чтобы отличить его от отмены цикла проверок.
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts.CancelAfter(RequestTimeout);
 
-            using var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token);
+            using var response = await httpClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token);
             var state = Evaluate(card.StatusMode, response.StatusCode);
 
             if (state == ServiceHealthState.Offline)

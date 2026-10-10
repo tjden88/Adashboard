@@ -1,18 +1,75 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+    <!--
+      Включает service worker (PWA): при сборке создаётся service-worker-assets.js
+      со списком и хешами статики, а service-worker.js при публикации заменяется
+      на service-worker.published.js с офлайн-кэшированием.
+    -->
+    <ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
+  </PropertyGroup>
+
+  <!--
+    Настройки Release-публикации: цель — минимальный размер загружаемого приложения.
+    Условие по конфигурации оставляет локальную разработку (Debug) с полной
+    поддержкой отладки и культур, меняя только продакшен-сборку.
+  -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <!--
+      AOT ускоряет работу, но во много раз увеличивает dotnet.wasm, поэтому ради
+      минимума размера публикуем интерпретируемый (Mono) вариант.
+    -->
+    <RunAOTCompilation>false</RunAOTCompilation>
+
+    <!-- Обрезаем неиспользуемый IL: ключевое условие для остальных оптимизаций ниже. -->
+    <PublishTrimmed>true</PublishTrimmed>
+
+    <!-- Инвариантная глобализация убирает данные ICU (~2.5 МБ): приложение не работает с культурами. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+
+    <!-- Заменяем тексты ресурсов исключений короткими ключами, уменьшая размер сборок. -->
+    <UseSystemResourceKeys>true</UseSystemResourceKeys>
+
+    <!-- Отключаем отладочные и диагностические компоненты, не нужные в продакшене. -->
+    <DebuggerSupport>false</DebuggerSupport>
+    <EventSourceSupport>false</EventSourceSupport>
+    <HttpActivityPropagationSupport>false</HttpActivityPropagationSupport>
+    <MetadataUpdaterSupport>false</MetadataUpdaterSupport>
+
+    <!-- Отдаём рядом с файлами их предварительно сжатые Brotli/Gzip-копии. -->
+    <BlazorEnableCompression>true</BlazorEnableCompression>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
+    <!-- Библиотеки Blazor WebAssembly: клиентский рантайм и dev-сервер для локального запуска. -->
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Adashboard.Domain\Adashboard.Domain.csproj" />
+  </ItemGroup>
+
+  <!--
+    service-worker.published.js — рабочая версия с офлайн-кэшем. Сборка подменяет
+    на неё содержимое service-worker.js только в публикации, поэтому в разработке
+    остаётся «пустой» service-worker.js и кэш не мешает правкам.
+  -->
+  <ItemGroup>
+    <ServiceWorker Include="wwwroot/service-worker.js" PublishedContent="wwwroot/service-worker.published.js" />
+  </ItemGroup>
+
+  <!--
+    В публикацию не попадают ресурсы, нужные только разработчику: source maps и
+    TrueType-версии шрифтов Font Awesome (браузеры используют woff2 из того же набора).
+    Из репозитория файлы не удаляются, поэтому локальная отладка не страдает.
+  -->
+  <ItemGroup Condition="'$(Configuration)' == 'Release'">
+    <Content Update="wwwroot/lib/**/*.map" CopyToPublishDirectory="Never" />
+    <Content Update="wwwroot/lib/fa/webfonts/*.ttf" CopyToPublishDirectory="Never" />
   </ItemGroup>
 
 </Project>
