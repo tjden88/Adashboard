@@ -4,6 +4,12 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!--
+      Каталога wwwroot в проекте нет и MapStaticAssets не используется, но механизм
+      static web assets создаёт в Development FileProvider на wwwroot и падает с
+      DirectoryNotFoundException, если каталог отсутствует. Отключаем его.
+    -->
+    <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
   </PropertyGroup>
 
   <ItemGroup>
@@ -26,10 +32,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Adashboard.Domain\Adashboard.Domain.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="wwwroot\" />
   </ItemGroup>
 
 </Project>

@@ -1,30 +1,45 @@
 namespace Adashboard.Api.Data;
 
 /// <summary>
-/// Перемещает стандартные файлы в wwwroot, если они отсутствуют.
+/// Наполняет каталог статики приложения стандартными файлами (фон, логотип и т.п.),
+/// если их там ещё нет.
 /// </summary>
-internal sealed class AssetsInitializer(IWebHostEnvironment environment, ILogger<AssetsInitializer> logger)
+/// <remarks>
+/// Оригиналы хранятся вне публичных папок (в каталоге <c>Assets</c>) и служат резервом:
+/// пользователь может заменять файлы в каталоге статики, но оригиналы этим не затрагиваются.
+/// </remarks>
+internal sealed class AssetsInitializer(
+    DashboardPaths paths,
+    IWebHostEnvironment environment,
+    ILogger<AssetsInitializer> logger)
 {
-    // Публичная папка ассетов
-    private readonly string assetsPath = Path.Combine(environment.ContentRootPath, "assets");
+    // Оригиналы стандартных файлов, поставляемые вместе с приложением.
+    private readonly string _sourceDirectory = Path.Combine(environment.ContentRootPath, "Assets");
 
-    // Публичная папка ассетов, доступная через веб-сервер
-    private readonly string publicStaticPath = Path.Combine(environment.ContentRootPath, "data", "uploads", "assets");
+    // Каталог статики, доступный по адресу /uploads/assets.
+    private readonly string _targetDirectory = Path.Combine(paths.UploadsPath, "assets");
 
     /// <summary>
-    /// Создаёт каталог ассетов и наполняет его отсутствующими стандартными файлами.
+    /// Создаёт каталог статики и копирует в него отсутствующие стандартные файлы.
     /// </summary>
     public void Initialize()
     {
-        if(!Directory.Exists(assetsPath))
-            throw new InvalidOperationException("Каталог ассетов не найден.");
+        logger.LogInformation("Запущено наполнение каталога статики стандартными файлами.");
 
-        Directory.CreateDirectory(publicStaticPath);
+        if (!Directory.Exists(_sourceDirectory))
+        {
+            logger.LogWarning(
+                "Каталог оригинальных ассетов {SourceDirectory} не найден. Наполнение пропущено.",
+                _sourceDirectory);
+            return;
+        }
+
+        Directory.CreateDirectory(_targetDirectory);
 
         var copiedCount = 0;
-        foreach (var sourcePath in Directory.EnumerateFiles(assetsPath))
+        foreach (var sourcePath in Directory.EnumerateFiles(_sourceDirectory))
         {
-            var targetPath = Path.Combine(publicStaticPath, Path.GetFileName(sourcePath));
+            var targetPath = Path.Combine(_targetDirectory, Path.GetFileName(sourcePath));
             if (File.Exists(targetPath))
             {
                 continue;
@@ -34,10 +49,8 @@ internal sealed class AssetsInitializer(IWebHostEnvironment environment, ILogger
             copiedCount++;
         }
 
-        if (copiedCount > 0)
-        {
-            logger.LogInformation(
-                "В каталог ассетов добавлено стандартных файлов: {FileCount}.", copiedCount);
-        }
+        logger.LogInformation(
+            "Наполнение каталога статики завершено. Скопировано стандартных файлов: {FileCount}.",
+            copiedCount);
     }
 }

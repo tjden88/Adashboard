@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Adashboard.Api.Data;
 
 namespace Adashboard.Api.Services;
 
@@ -23,7 +24,7 @@ namespace Adashboard.Api.Services;
 /// </remarks>
 public sealed class ImageIconService(
     IHttpClientFactory httpClientFactory,
-    IWebHostEnvironment environment,
+    DashboardPaths paths,
     ILogger<ImageIconService> logger)
 {
     /// <summary>
@@ -35,7 +36,7 @@ public sealed class ImageIconService(
     private const string FolderRelativePath = "uploads/card-icons";
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(12);
 
-    private readonly string _folder = Path.Combine(environment.WebRootPath, "uploads", "card-icons");
+    private readonly string _folder = Path.Combine(paths.UploadsPath, "card-icons");
 
     /// <summary>
     /// Скачивает изображение по указанному URL и сохраняет его для карточки.

@@ -5,30 +5,32 @@ using Microsoft.Extensions.FileProviders;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
-var dataPath = Path.Combine(Environment.CurrentDirectory, "data");
-Directory.CreateDirectory(dataPath);
 
-// Настройка логирования повторяет легаси-проект: единый формат консоли и уровень
-// логов приложения по переменной окружения LOG_LEVEL (по умолчанию Warning).
 builder.Logging.AddSimpleConsole(options =>
 {
     options.TimestampFormat = "HH:mm:ss ";
     options.SingleLine = true;
 });
 
-builder.Logging.AddFilter("Adashboard",
-    Enum.TryParse<LogLevel>(builder.Configuration["LOG_LEVEL"], ignoreCase: true, out var configuredLogLevel)
-        ? configuredLogLevel
-        : LogLevel.Warning);
-
-
 var services = builder.Services;
+
+// Единый каталог изменяемых данных: файл БД и пользовательские загрузки. Лежит вне wwwroot,
+// поэтому сама БД не отдаётся как статика. В контейнере каталог монтируется как volume.
+var dataPath = Path.Combine(builder.Environment.ContentRootPath, "appdata");
+var paths = new DashboardPaths(
+    DataPath: dataPath,
+    DatabasePath: Path.Combine(dataPath, "data.db"),
+    UploadsPath: Path.Combine(dataPath, "uploads"));
+
+Directory.CreateDirectory(paths.UploadsPath);
+services.AddSingleton(paths);
+
 // Подключаем контроллеры и генерацию OpenAPI-документа.
 
 services.AddControllers();
 services.AddOpenApi();
 
-services.AddDbContext<DashboardDb>(options => options.UseSqlite($"Data Source={Path.Combine(dataPath, "data.db")}"));
+services.AddDbContext<DashboardDb>(options => options.UseSqlite($"Data Source={paths.DatabasePath}"));
 services.AddScoped<DbInitializer>();
 services.AddScoped<AssetsInitializer>();
 
@@ -77,6 +79,14 @@ if (app.Environment.IsDevelopment())
 }
 
 
+// Раздаём каталог пользовательских загрузок. Провайдер наведён только на uploads,
+// поэтому файл БД из каталога данных наружу не отдаётся.
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(paths.UploadsPath),
+    RequestPath = "/uploads"
+});
+
 app.UseCors(corsPolicyName);
 app.UseAuthorization();
 
@@ -87,11 +97,5 @@ await using var scope = app.Services.CreateAsyncScope();
 var sp = scope.ServiceProvider;
 await sp.GetRequiredService<DbInitializer>().InitializeAsync();
 sp.GetRequiredService<AssetsInitializer>().Initialize();
-
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(Path.Combine(dataPath, "uploads")),
-    RequestPath = "/uploads"
-});
 
 app.Run();
