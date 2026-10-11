@@ -79,6 +79,11 @@ if (app.Environment.IsDevelopment())
 }
 
 
+// Отдаём WASM-клиент: UseBlazorFrameworkFiles обслуживает _framework (blazor.webassembly.js,
+// dotnet.js и т.п.), UseStaticFiles — статику клиента из static web assets (index.html, app.css, lib...).
+app.UseBlazorFrameworkFiles();
+app.UseStaticFiles();
+
 // Раздаём каталог пользовательских загрузок. Провайдер наведён только на uploads,
 // поэтому файл БД из каталога данных наружу не отдаётся.
 app.UseStaticFiles(new StaticFileOptions
@@ -91,6 +96,9 @@ app.UseCors(corsPolicyName);
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Клиент — SPA: неизвестные пути отдаём как index.html, чтобы работал клиентский роутинг.
+app.MapFallbackToFile("index.html");
 
 // Применяем миграции и стартовое наполнение при запуске.
 await using var scope = app.Services.CreateAsyncScope();

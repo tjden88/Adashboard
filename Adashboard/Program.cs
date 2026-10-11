@@ -17,8 +17,13 @@ builder.RootComponents.Add<Routes>("#app");
 // HeadOutlet позволяет компонентам управлять <head> (например, <PageTitle>).
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-// Базовый адрес API берём из конфигурации клиента (wwwroot/appsettings.json).
-var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? "http://localhost:5024";
+// Базовый адрес API берём из конфигурации клиента (wwwroot/appsettings.json). Если там пусто,
+// используем адрес текущего хоста: когда клиент раздаёт API, это тот же origin, и запросы
+// автоматически идут на него (не нужно зашивать хост и порт).
+var configuredApiBaseUrl = builder.Configuration["ApiBaseUrl"];
+var apiBaseUrl = string.IsNullOrWhiteSpace(configuredApiBaseUrl)
+    ? builder.HostEnvironment.BaseAddress
+    : configuredApiBaseUrl;
 builder.Services.AddSingleton(new DashboardApiOptions(apiBaseUrl));
 
 // Refit-клиент к API dashboard: контракт описан атрибутами в IDashboardApi,
