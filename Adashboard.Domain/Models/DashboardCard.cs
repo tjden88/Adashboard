@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Adashboard.Domain;
+namespace Adashboard.Domain.Models;
 
 /// <summary>
 /// Карточка ссылки внутри категории.
@@ -33,15 +33,9 @@ public sealed class DashboardCard
     public string UrlScheme { get; set; } = string.Empty;
 
     /// <summary>
-    /// CSS-класс иконки Font Awesome.
+    /// Модель изображения-иконки карточки.
     /// </summary>
-    public string IconClass { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Относительный путь к загруженному изображению-иконке или пустая строка.
-    /// Если задан, изображение имеет приоритет над <see cref="IconClass"/>.
-    /// </summary>
-    public string ImagePath { get; set; } = string.Empty;
+    public CardImage CardImage { get; set; } = new();
 
     /// <summary>
     /// Цвет фона карточки в формате CSS (например, #1e293b).
@@ -61,22 +55,22 @@ public sealed class DashboardCard
     /// <summary>
     /// Положение карточки внутри категории.
     /// </summary>
-    public CardPosition Position { get; set; } = new();
+    public int Position { get; set; }
 
     /// <summary>
     /// Определяет, нужно ли для данного цвета фона использовать светлые (белые) текст и иконку.
     /// Возвращает true для достаточно тёмных фонов.
     /// </summary>
-    public static bool ShouldUseLightText(string hexColor)
+    private static bool ShouldUseLightText(string hexColor)
     {
         var rgb = ParseHexColor(hexColor);
         if (rgb is null) return true;
 
-        double r = Linearize(rgb.Value.R / 255.0);
-        double g = Linearize(rgb.Value.G / 255.0);
-        double b = Linearize(rgb.Value.B / 255.0);
+        var r = Linearize(rgb.Value.R / 255.0);
+        var g = Linearize(rgb.Value.G / 255.0);
+        var b = Linearize(rgb.Value.B / 255.0);
 
-        double luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        var luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
 
         return luminance < 0.45;
     }

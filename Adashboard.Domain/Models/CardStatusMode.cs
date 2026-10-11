@@ -1,4 +1,4 @@
-namespace Adashboard.Domain;
+namespace Adashboard.Domain.Models;
 
 /// <summary>
 /// Режим проверки доступности сервиса, на который ведёт карточка.

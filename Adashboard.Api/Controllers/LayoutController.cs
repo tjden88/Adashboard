@@ -1,5 +1,6 @@
 using Adashboard.Api.Data;
 using Adashboard.Domain;
+using Adashboard.Domain.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Adashboard.Api.Controllers;

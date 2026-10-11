@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
+using Adashboard.Domain.Models;
 
 namespace Adashboard.Api.Services;
 

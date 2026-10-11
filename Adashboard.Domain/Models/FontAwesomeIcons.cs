@@ -1,4 +1,4 @@
-namespace Adashboard.Domain;
+namespace Adashboard.Domain.Models;
 
 /// <summary>
 /// Справочник CSS-классов иконок Font Awesome.

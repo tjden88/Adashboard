@@ -1,4 +1,4 @@
-namespace Adashboard.Domain;
+namespace Adashboard.Domain.Models;
 
 /// <summary>
 /// Категория ссылок на dashboard.
@@ -21,12 +21,17 @@ public sealed class DashboardCategory
     public string Title { get; set; } = string.Empty;
 
     /// <summary>
-    /// Положение и ширина категории в сетке.
+    /// Порядок категории среди остальных.
     /// </summary>
-    public CategoryPosition Position { get; set; } = new();
+    public int Order { get; set; }
+
+    /// <summary>
+    /// Ширина категории в колонках сетки.
+    /// </summary>
+    public int Width { get; set; } = 6;
 
     /// <summary>
     /// Карточки, входящие в категорию.
     /// </summary>
-    public List<DashboardCard> Cards { get; set; } = [];
+    public ICollection<DashboardCard> Cards { get; set; } = [];
 }

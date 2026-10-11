@@ -1,4 +1,5 @@
 using Adashboard.Domain;
+using Adashboard.Domain.Models;
 using Refit;
 
 namespace Adashboard.Services;
