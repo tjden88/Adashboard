@@ -22,6 +22,7 @@ public sealed class DashboardLayoutService(
             .AsNoTracking()
             .Include(x => x.Categories)
             .ThenInclude(x => x.Cards)
+            .ThenInclude(c => c.CardImage)
             .FirstOrDefaultAsync(x => x.Id == 1, cancellationToken);
 
         if (layout is null)
