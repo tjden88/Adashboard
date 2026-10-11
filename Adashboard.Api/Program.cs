@@ -19,26 +19,24 @@ builder.Logging.AddFilter("Adashboard",
         ? configuredLogLevel
         : LogLevel.Warning);
 
+
+var services = builder.Services;
 // Подключаем контроллеры и генерацию OpenAPI-документа.
-builder.Services.AddControllers();
-builder.Services.AddOpenApi();
 
-// База данных хранится в едином каталоге данных, который задаётся DASHBOARD_DATA_PATH.
-var storage = DashboardStorage.Resolve(builder.Configuration, builder.Environment);
-builder.Services.AddSingleton(storage);
+services.AddControllers();
+services.AddOpenApi();
 
-// Каталог, заданный через DASHBOARD_DATA_PATH, может быть ещё не создан
-// (например, пустой внешний каталог): SQLite не создаёт его сам.
-Directory.CreateDirectory(Path.GetDirectoryName(storage.DatabasePath)!);
+services.AddDbContext<DashboardDb>(options => options.UseSqlite($"Data Source={Path.Combine("data", "data.db")}"));
+services.AddScoped<DbInitializer>();
+services.AddScoped<AssetsInitializer>();
 
-builder.Services.AddDbContextFactory<DashboardDb>(options =>
-    options.UseSqlite($"Data Source={storage.DatabasePath}"));
-builder.Services.AddScoped<DashboardLayoutService>();
-builder.Services.AddScoped<ImageIconService>();
+services.AddScoped<DashboardLayoutService>();
+services.AddScoped<ImageIconService>();
+services.AddScoped<ProbeService>();
 
 // Клиент загрузки иконок по ссылке отключён от редиректов: это снижает риск SSRF
 // через перенаправление.
-builder.Services.AddHttpClient("IconDownloader")
+services.AddHttpClient("IconDownloader")
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
     {
         AllowAutoRedirect = false
@@ -46,20 +44,19 @@ builder.Services.AddHttpClient("IconDownloader")
 
 // Клиент серверной проверки карточек и получения заголовка страницы. Редиректы не следуем,
 // чтобы вернуть настоящий код ответа целевого сервиса.
-builder.Services.AddHttpClient("Probe")
+services.AddHttpClient("Probe")
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
     {
         AllowAutoRedirect = false
     });
 
-builder.Services.AddScoped<ProbeService>();
 
 // Разрешаем кросс-доменные запросы с любого origin: это личный дашборд,
 // фронтенд и backend могут быть запущены на разных портах или хостах.
-const string CorsPolicyName = "AllowAll";
-builder.Services.AddCors(options =>
+const string corsPolicyName = "AllowAll";
+services.AddCors(options =>
 {
-    options.AddPolicy(CorsPolicyName, policy =>
+    options.AddPolicy(corsPolicyName, policy =>
         policy.AllowAnyOrigin()
             .AllowAnyHeader()
             .AllowAnyMethod());
@@ -77,31 +74,22 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference();
 }
 
-// При выносе загрузок во внешний каталог он может быть пустым, поэтому поставляемые
-// фон и логотип копируются из wwwroot, если их ещё нет.
-DashboardUploadsInitializer.Initialize(storage.UploadsPath, app.Environment.WebRootPath, app.Logger);
 
-// Раздаём каталог пользовательских загрузок (фоны, логотип, иконки карточек).
-Directory.CreateDirectory(storage.UploadsPath);
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new PhysicalFileProvider(storage.UploadsPath),
+    FileProvider = new PhysicalFileProvider(Path.Combine(app.Environment.ContentRootPath, "data", "uploads")),
     RequestPath = "/uploads"
 });
 
-app.UseCors(CorsPolicyName);
+app.UseCors(corsPolicyName);
 app.UseAuthorization();
 
 app.MapControllers();
 
-// Применяем миграции и стартовое наполнение при запуске, как в легаси-проекте.
-if (app.Environment.IsDevelopment())
-{
-    await DebugDbInitializer.InitializeAsync(app.Services);
-}
-else
-{
-    await ProductionDbInitializer.InitializeAsync(app.Services);
-}
+// Применяем миграции и стартовое наполнение при запуске.
+await using var scope = app.Services.CreateAsyncScope();
+var sp = scope.ServiceProvider;
+await sp.GetRequiredService<DbInitializer>().InitializeAsync();
+sp.GetRequiredService<AssetsInitializer>().Initialize();
 
 app.Run();

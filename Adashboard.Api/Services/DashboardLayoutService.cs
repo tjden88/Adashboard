@@ -1,14 +1,14 @@
-using Adashboard.Domain;
+using Adashboard.Api.Data;
 using Adashboard.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace Adashboard.Api.Data;
+namespace Adashboard.Api.Services;
 
 /// <summary>
 /// Сервис работы с раскладкой dashboard: чтение и сохранение в SQLite.
 /// </summary>
 public sealed class DashboardLayoutService(
-    IDbContextFactory<DashboardDb> dbContextFactory,
+    DashboardDb dbContext,
     ILogger<DashboardLayoutService> logger)
 {
     /// <summary>
@@ -18,7 +18,6 @@ public sealed class DashboardLayoutService(
     {
         logger.LogInformation("Начата загрузка основной раскладки dashboard из базы данных.");
 
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         var layout = await dbContext.Layouts
             .AsNoTracking()
             .Include(x => x.Categories)
@@ -28,7 +27,7 @@ public sealed class DashboardLayoutService(
         if (layout is null)
         {
             logger.LogWarning("Основная раскладка dashboard не найдена в базе данных.");
-            return new DashboardLayout { Id = 1, ThemeMode = "auto" };
+            return new DashboardLayout { Id = 1 };
         }
 
         logger.LogInformation("Основная раскладка dashboard загружена: категорий {CategoryCount}.", layout.Categories.Count);
@@ -41,8 +40,6 @@ public sealed class DashboardLayoutService(
     public async Task SaveMainLayoutAsync(DashboardLayout layout, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Начато сохранение основной раскладки dashboard. Идентификатор: {LayoutId}.", layout.Id);
-
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         // Удаление и вставка выполняются в одной транзакции: иначе сбой на вставке
         // оставил бы базу без раскладки.
@@ -77,11 +74,8 @@ public sealed class DashboardLayoutService(
         var layout = new DashboardLayout
         {
             Id = source.Id,
-            ThemeMode = source.ThemeMode,
-            SiteTitle = source.SiteTitle,
-            SiteDescription = source.SiteDescription,
-            ShowLogo = source.ShowLogo,
-            HealthCheckIntervalSeconds = source.HealthCheckIntervalSeconds,
+            Title = source.Title,
+            Description = source.Description,
             Categories = []
         };
 
@@ -92,11 +86,8 @@ public sealed class DashboardLayoutService(
                 Id = category.Id,
                 DashboardLayoutId = source.Id,
                 Title = category.Title,
-                Position = new CategoryPosition
-                {
-                    Order = category.Position.Order,
-                    Width = category.Position.Width
-                },
+                Width = category.Width,
+                Order = category.Order,
                 Cards = []
             };
 
@@ -109,15 +100,11 @@ public sealed class DashboardLayoutService(
                     Title = card.Title,
                     Url = card.Url,
                     UrlScheme = card.UrlScheme,
-                    IconClass = card.IconClass,
-                    ImagePath = card.ImagePath,
                     BackgroundColor = card.BackgroundColor,
                     IsWide = card.IsWide,
                     StatusMode = card.StatusMode,
-                    Position = new CardPosition
-                    {
-                        Order = card.Position.Order
-                    }
+                    Position = card.Position,
+                    CardImage = card.CardImage
                 });
             }
 
