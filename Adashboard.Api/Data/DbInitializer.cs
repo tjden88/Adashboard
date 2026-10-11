@@ -110,14 +110,14 @@ internal sealed class DbInitializer(DashboardDb db, ILogger<DbInitializer> logge
     /// </summary>
     private static List<DashboardCard> CreateHomeServerCards() =>
     [
-        CreateCard("NAS", "nas.local/", "fa-solid fa-hard-drive", "#334155", true, 0, "http://", sm: CardStatusMode.Reachable),
-        CreateCard("Proxmox", "proxmox.local/", "fa-solid fa-server", "#e57000", true, 1, "http://"),
-        CreateCard("Home Assistant", "homeassistant.local/", "fa-solid fa-house", "#18bcf2", false, 2, "http://", sm: CardStatusMode.Reachable),
-        CreateCard("Jellyfin", "jellyfin.local/", "fa-solid fa-film", "#a78bfa", false, 3, "http://"),
-        CreateCard("Nextcloud", "nextcloud.local/", "fa-solid fa-cloud", "#0082c9", false, 4, "http://"),
-        CreateCard("Pi-hole", "pihole.local/", "fa-solid fa-shield-halved", "#b91c1c", false, 5, "http://"),
-        CreateCard("Portainer", "portainer.local/", "fa-brands fa-docker", "#0ea5e9", false, 6, "http://"),
-        CreateCard("Gitea", "gitea.local/", "fa-brands fa-git-alt", "#609926", true, 7, "http://")
+        CreateCard("NAS", "nas.local/", "fa-solid fa-hard-drive", "#334155", true, 0, UrlScheme.Http, sm: CardStatusMode.Reachable),
+        CreateCard("Proxmox", "proxmox.local/", "fa-solid fa-server", "#e57000", true, 1, UrlScheme.Http),
+        CreateCard("Home Assistant", "homeassistant.local/", "fa-solid fa-house", "#18bcf2", false, 2, UrlScheme.Http, sm: CardStatusMode.Reachable),
+        CreateCard("Jellyfin", "jellyfin.local/", "fa-solid fa-film", "#a78bfa", false, 3, UrlScheme.Http),
+        CreateCard("Nextcloud", "nextcloud.local/", "fa-solid fa-cloud", "#0082c9", false, 4, UrlScheme.Http),
+        CreateCard("Pi-hole", "pihole.local/", "fa-solid fa-shield-halved", "#b91c1c", false, 5, UrlScheme.Http),
+        CreateCard("Portainer", "portainer.local/", "fa-brands fa-docker", "#0ea5e9", false, 6, UrlScheme.Http),
+        CreateCard("Gitea", "gitea.local/", "fa-brands fa-git-alt", "#609926", true, 7, UrlScheme.Http)
     ];
 
     /// <summary>
@@ -130,7 +130,7 @@ internal sealed class DbInitializer(DashboardDb db, ILogger<DbInitializer> logge
         string backgroundColor,
         bool isWide,
         int order,
-        string urlScheme = "https://",
+        UrlScheme urlScheme = UrlScheme.Https,
         CardStatusMode sm = CardStatusMode.None) =>
         new()
         {

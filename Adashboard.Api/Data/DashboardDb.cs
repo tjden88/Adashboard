@@ -1,4 +1,3 @@
-using Adashboard.Domain;
 using Adashboard.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -24,64 +23,4 @@ public sealed class DashboardDb(DbContextOptions<DashboardDb> options) : DbConte
     /// </summary>
     public DbSet<DashboardCard> Cards => Set<DashboardCard>();
 
-    /// <summary>
-    /// Конфигурирует схему таблиц и связи между сущностями.
-    /// </summary>
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {
-        modelBuilder.Entity<DashboardLayout>(builder =>
-        {
-            builder.ToTable("DashboardLayouts");
-            builder.HasKey(x => x.Id);
-            builder.Property(x => x.Id).ValueGeneratedNever();
-            builder.Property(x => x.ThemeMode).HasMaxLength(16);
-            builder.Property(x => x.SiteTitle).HasMaxLength(120).HasColumnName("SiteTitle");
-            builder.Property(x => x.SiteDescription).HasMaxLength(300).HasColumnName("SiteDescription");
-            builder.Property(x => x.ShowLogo).HasDefaultValue(true);
-            builder.Property(x => x.HealthCheckIntervalSeconds).HasDefaultValue(30);
-
-            builder.HasMany(x => x.Categories)
-                .WithOne()
-                .HasForeignKey(x => x.DashboardLayoutId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        modelBuilder.Entity<DashboardCategory>(builder =>
-        {
-            builder.ToTable("DashboardCategories");
-            builder.HasKey(x => x.Id);
-            builder.Property(x => x.Id).ValueGeneratedNever();
-            builder.Property(x => x.Title).HasMaxLength(120);
-
-            builder.OwnsOne(x => x.Position, positionBuilder =>
-            {
-                positionBuilder.Property(x => x.Order).HasColumnName("DisplayOrder");
-                positionBuilder.Property(x => x.Width).HasColumnName("DisplayWidth");
-            });
-
-            builder.HasMany(x => x.Cards)
-                .WithOne()
-                .HasForeignKey(x => x.CategoryId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        modelBuilder.Entity<DashboardCard>(builder =>
-        {
-            builder.ToTable("DashboardCards");
-            builder.HasKey(x => x.Id);
-            builder.Property(x => x.Id).ValueGeneratedNever();
-            builder.Property(x => x.Title).HasMaxLength(120);
-            builder.Property(x => x.Url).HasMaxLength(500);
-            builder.Property(x => x.UrlScheme).HasMaxLength(8);
-            builder.Property(x => x.IconClass).HasMaxLength(120);
-            builder.Property(x => x.ImagePath).HasMaxLength(260);
-            builder.Property(x => x.BackgroundColor).HasMaxLength(32);
-            builder.Property(x => x.StatusMode);
-
-            builder.OwnsOne(x => x.Position, positionBuilder =>
-            {
-                positionBuilder.Property(x => x.Order).HasColumnName("DisplayOrder");
-            });
-        });
-    }
 }

@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 
 namespace Adashboard.Domain.Models;
@@ -20,17 +21,19 @@ public sealed class DashboardCard
     /// <summary>
     /// Отображаемое название карточки.
     /// </summary>
+    [MaxLength(30)]
     public string Title { get; set; } = string.Empty;
 
     /// <summary>
     /// Адрес перехода по карточке (без схемы).
     /// </summary>
+    [MaxLength(500)]
     public string Url { get; set; } = string.Empty;
 
     /// <summary>
     /// Схема, добавляемая к адресу при открытии: "http://", "https://" или пустая строка.
     /// </summary>
-    public string UrlScheme { get; set; } = string.Empty;
+    public UrlScheme UrlScheme { get; set; } = UrlScheme.Http;
 
     /// <summary>
     /// Модель изображения-иконки карточки.

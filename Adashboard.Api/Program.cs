@@ -5,6 +5,8 @@ using Microsoft.Extensions.FileProviders;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
+var dataPath = Path.Combine(Environment.CurrentDirectory, "data");
+Directory.CreateDirectory(dataPath);
 
 // Настройка логирования повторяет легаси-проект: единый формат консоли и уровень
 // логов приложения по переменной окружения LOG_LEVEL (по умолчанию Warning).
@@ -26,7 +28,7 @@ var services = builder.Services;
 services.AddControllers();
 services.AddOpenApi();
 
-services.AddDbContext<DashboardDb>(options => options.UseSqlite($"Data Source={Path.Combine("data", "data.db")}"));
+services.AddDbContext<DashboardDb>(options => options.UseSqlite($"Data Source={Path.Combine(dataPath, "data.db")}"));
 services.AddScoped<DbInitializer>();
 services.AddScoped<AssetsInitializer>();
 
@@ -75,12 +77,6 @@ if (app.Environment.IsDevelopment())
 }
 
 
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(Path.Combine(app.Environment.ContentRootPath, "data", "uploads")),
-    RequestPath = "/uploads"
-});
-
 app.UseCors(corsPolicyName);
 app.UseAuthorization();
 
@@ -91,5 +87,11 @@ await using var scope = app.Services.CreateAsyncScope();
 var sp = scope.ServiceProvider;
 await sp.GetRequiredService<DbInitializer>().InitializeAsync();
 sp.GetRequiredService<AssetsInitializer>().Initialize();
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(Path.Combine(dataPath, "uploads")),
+    RequestPath = "/uploads"
+});
 
 app.Run();

@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Adashboard.Domain.Models;
 
 /// <summary>
@@ -18,6 +20,7 @@ public sealed class DashboardCategory
     /// <summary>
     /// Отображаемое название категории.
     /// </summary>
+    [MaxLength(120)]
     public string Title { get; set; } = string.Empty;
 
     /// <summary>

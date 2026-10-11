@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Adashboard.Domain.Models;
 
 /// <summary>
@@ -13,11 +15,13 @@ public sealed class DashboardLayout
     /// <summary>
     /// Заголовок, отображаемый в шапке dashboard.
     /// </summary>
+    [MaxLength(120)]
     public string Title { get; set; } = string.Empty;
 
     /// <summary>
     /// Подзаголовок (описание), отображаемый в шапке dashboard.
     /// </summary>
+    [MaxLength(300)]
     public string Description { get; set; } = string.Empty;
 
     /// <summary>
