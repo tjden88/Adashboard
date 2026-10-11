@@ -66,7 +66,7 @@ namespace Adashboard.Api.Data.Migrations
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
-                    CategoryId = table.Column<int>(type: "INTEGER", nullable: false),
+                    DashboardCategoryId = table.Column<int>(type: "INTEGER", nullable: false),
                     Title = table.Column<string>(type: "TEXT", maxLength: 30, nullable: false),
                     Url = table.Column<string>(type: "TEXT", maxLength: 500, nullable: false),
                     UrlScheme = table.Column<int>(type: "INTEGER", nullable: false),
@@ -74,8 +74,7 @@ namespace Adashboard.Api.Data.Migrations
                     BackgroundColor = table.Column<string>(type: "TEXT", nullable: false),
                     IsWide = table.Column<bool>(type: "INTEGER", nullable: false),
                     StatusMode = table.Column<int>(type: "INTEGER", nullable: false),
-                    Position = table.Column<int>(type: "INTEGER", nullable: false),
-                    DashboardCategoryId = table.Column<int>(type: "INTEGER", nullable: true)
+                    Position = table.Column<int>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -90,7 +89,8 @@ namespace Adashboard.Api.Data.Migrations
                         name: "FK_Cards_Categories_DashboardCategoryId",
                         column: x => x.DashboardCategoryId,
                         principalTable: "Categories",
-                        principalColumn: "Id");
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateIndex(

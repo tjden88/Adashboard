@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Adashboard.Domain.Models;
 
@@ -36,5 +37,11 @@ public sealed class DashboardCategory
     /// <summary>
     /// Карточки, входящие в категорию.
     /// </summary>
+    /// <remarks>
+    /// Атрибут <see cref="ForeignKeyAttribute"/> явно указывает, что внешний ключ связи
+    /// хранится в свойстве <see cref="DashboardCard.DashboardCategoryId"/> зависимой
+    /// сущности.
+    /// </remarks>
+    [ForeignKey(nameof(DashboardCard.DashboardCategoryId))]
     public ICollection<DashboardCard> Cards { get; set; } = [];
 }

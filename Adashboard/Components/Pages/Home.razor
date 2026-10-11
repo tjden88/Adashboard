@@ -403,7 +403,7 @@ else
 
     private async Task AddCard(DashboardCard card)
     {
-        var category = _layout.Categories.FirstOrDefault(x => x.Id == card.CategoryId);
+        var category = _layout.Categories.FirstOrDefault(x => x.Id == card.DashboardCategoryId);
         if (category is null)
         {
             DialogService.Close();
@@ -460,7 +460,7 @@ else
         await TryDeleteCardImageAsync(card.Id);
         _health.TryRemove(card.Id, out _);
 
-        var category = _layout.Categories.FirstOrDefault(x => x.Id == card.CategoryId);
+        var category = _layout.Categories.FirstOrDefault(x => x.Id == card.DashboardCategoryId);
         if (category is not null)
         {
             category.Cards.Remove(card);
@@ -535,7 +535,7 @@ else
             source.Cards = ResolveCards(sourceCardIds, cardsById);
             foreach (var card in source.Cards)
             {
-                card.CategoryId = source.Id;
+                card.DashboardCategoryId = source.Id;
             }
 
             if (!ReferenceEquals(source, target))
@@ -543,7 +543,7 @@ else
                 target.Cards = ResolveCards(targetCardIds, cardsById);
                 foreach (var card in target.Cards)
                 {
-                    card.CategoryId = target.Id;
+                    card.DashboardCategoryId = target.Id;
                 }
             }
 
@@ -607,7 +607,7 @@ else
             for (var cardIndex = 0; cardIndex < cards.Count; cardIndex++)
             {
                 var card = cards[cardIndex];
-                card.CategoryId = category.Id;
+                card.DashboardCategoryId = category.Id;
 
                 if (string.IsNullOrWhiteSpace(card.BackgroundColor))
                 {

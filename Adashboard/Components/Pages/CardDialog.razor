@@ -260,7 +260,7 @@
             return;
         }
 
-        _categoryId = Card.CategoryId;
+        _categoryId = Card.DashboardCategoryId;
         _title = Card.Title;
         _color = Card.BackgroundColor;
         _statusMode = Card.StatusMode;
@@ -566,7 +566,7 @@
             await OnSave.InvokeAsync(new DashboardCard
             {
                 Id = cardId,
-                CategoryId = _categoryId,
+                DashboardCategoryId = _categoryId,
                 Title = title,
                 Url = url,
                 UrlScheme = scheme,

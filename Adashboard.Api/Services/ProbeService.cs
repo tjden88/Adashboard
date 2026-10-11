@@ -71,7 +71,7 @@ public sealed class ProbeService(
             return new HealthCheckStatus(HealthCheckStatus.HealthStatus.Unknown, "Проверка статуса отключена.");
         }
 
-        if (!TryBuildAbsoluteUri(card.UrlScheme + card.Url, out var uri))
+        if (!TryBuildAbsoluteUri(card.UrlSchemeText + card.Url, out var uri))
         {
             logger.LogWarning(
                 "Проверка доступности карточки {CardId} пропущена: адрес не является абсолютным HTTP(S)-адресом.",

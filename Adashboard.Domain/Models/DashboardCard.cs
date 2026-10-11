@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Globalization;
 
 namespace Adashboard.Domain.Models;
@@ -16,7 +17,7 @@ public sealed class DashboardCard
     /// <summary>
     /// Идентификатор категории, к которой принадлежит карточка.
     /// </summary>
-    public int CategoryId { get; set; }
+    public int DashboardCategoryId { get; set; }
 
     /// <summary>
     /// Отображаемое название карточки.
@@ -36,8 +37,23 @@ public sealed class DashboardCard
     public UrlScheme UrlScheme { get; set; } = UrlScheme.Http;
 
     /// <summary>
+    /// Возвращает текст схемы URL для отображения в интерфейсе: "http://", "https://" или пустая строка.
+    /// </summary>
+    public string UrlSchemeText => UrlScheme switch
+    {
+        UrlScheme.Http => "http://",
+        UrlScheme.Https => "https://",
+        _ => string.Empty
+    };
+
+    /// <summary>
     /// Модель изображения-иконки карточки.
     /// </summary>
+    /// <remarks>
+    /// Атрибут <see cref="ForeignKeyAttribute"/> явно задаёт имя внешнего ключа — теневое
+    /// свойство <c>CardImageId</c>, которое EF Core создаёт для этой связи.
+    /// </remarks>
+    [ForeignKey("CardImageId")]
     public CardImage CardImage { get; set; } = new();
 
     /// <summary>

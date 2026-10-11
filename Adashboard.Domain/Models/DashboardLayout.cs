@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Adashboard.Domain.Models;
 
@@ -27,5 +28,12 @@ public sealed class DashboardLayout
     /// <summary>
     /// Список категорий в раскладке.
     /// </summary>
+    /// <remarks>
+    /// Атрибут <see cref="ForeignKeyAttribute"/> явно указывает, что внешний ключ связи
+    /// хранится в свойстве <see cref="DashboardCategory.DashboardLayoutId"/> зависимой
+    /// сущности (иначе EF Core определил бы связь по соглашению, создав дублирующее
+    /// теневое свойство).
+    /// </remarks>
+    [ForeignKey(nameof(DashboardCategory.DashboardLayoutId))]
     public ICollection<DashboardCategory> Categories { get; set; } = [];
 }

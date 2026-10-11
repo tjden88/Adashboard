@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Adashboard.Api.Data.Migrations
 {
     [DbContext(typeof(DashboardDb))]
-    [Migration("20261011023138_Initial")]
+    [Migration("20261011032818_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -50,10 +50,7 @@ namespace Adashboard.Api.Data.Migrations
                     b.Property<int>("CardImageId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("CategoryId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int?>("DashboardCategoryId")
+                    b.Property<int>("DashboardCategoryId")
                         .HasColumnType("INTEGER");
 
                     b.Property<bool>("IsWide")
@@ -145,7 +142,9 @@ namespace Adashboard.Api.Data.Migrations
 
                     b.HasOne("Adashboard.Domain.Models.DashboardCategory", null)
                         .WithMany("Cards")
-                        .HasForeignKey("DashboardCategoryId");
+                        .HasForeignKey("DashboardCategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("CardImage");
                 });

@@ -96,7 +96,7 @@ public sealed class DashboardLayoutService(
                 categoryCopy.Cards.Add(new DashboardCard
                 {
                     Id = card.Id,
-                    CategoryId = category.Id,
+                    DashboardCategoryId = category.Id,
                     Title = card.Title,
                     Url = card.Url,
                     UrlScheme = card.UrlScheme,
