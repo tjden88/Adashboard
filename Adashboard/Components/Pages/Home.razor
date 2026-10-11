@@ -25,13 +25,13 @@ else
     <section class="dashboard-shell">
         <header class="dashboard-header">
             <div class="dashboard-header-brand">
-                @if (_layout.ShowLogo)
+                @if (ShowLogo)
                 {
-                    <img class="dashboard-logo" src="uploads/backgrounds/logo.png" alt="" />
+                    <img class="dashboard-logo" src="/uploads/assets/logo.png" alt="" />
                 }
                 <div>
-                    <h1>@_layout.SiteTitle</h1>
-                    <p>@_layout.SiteDescription</p>
+                    <h1>@_layout.Title</h1>
+                    <p>@_layout.Description</p>
                 </div>
             </div>
             <div class="dashboard-header-actions">
@@ -79,10 +79,10 @@ else
         Id = 1
     };
 
-    private IEnumerable<DashboardCategory> _categories => _layout.Categories.OrderBy(x => x.Position.Order);
+    private IEnumerable<DashboardCategory> _categories => _layout.Categories.OrderBy(x => x.Order);
 
     // Заголовок вкладки браузера повторяет заголовок в хедере, а при пустом значении — «Adashboard».
-    private string PageTitleText => string.IsNullOrWhiteSpace(_layout.SiteTitle) ? "Adashboard" : _layout.SiteTitle;
+    private string PageTitleText => string.IsNullOrWhiteSpace(_layout.Title) ? "Adashboard" : _layout.Title;
 
     private IJSObjectReference? _module;
     private DotNetObjectReference<Home>? _dotNetRef;
@@ -91,13 +91,15 @@ else
     private readonly CancellationTokenSource _pageCts = new();
     private CancellationTokenSource? _healthCts;
     private Task? _healthLoop;
-    private string _themeMode = "auto";
     private bool _isLoaded;
     private bool _dragAndDropInitialized;
 
-    // Ограничения интервала проверки статуса и число одновременных запросов.
-    private const int MinHealthIntervalSeconds = 10;
-    private const int MaxHealthIntervalSeconds = 600;
+    // Настройки сайта пока зашиты в клиенте: их вынесение в отдельное хранилище — отдельная задача.
+    private const bool ShowLogo = true;
+    private const string DefaultThemeMode = "auto";
+    private const int DefaultHealthCheckIntervalSeconds = 30;
+
+    // Число одновременных запросов проверки статуса.
     private const int MaxConcurrentHealthChecks = 6;
 
     protected override void OnInitialized()
@@ -146,11 +148,7 @@ else
             {
                 await CheckAllCardsAsync(cancellationToken);
 
-                var interval = Math.Clamp(
-                    _layout.HealthCheckIntervalSeconds,
-                    MinHealthIntervalSeconds,
-                    MaxHealthIntervalSeconds);
-                await Task.Delay(TimeSpan.FromSeconds(interval), cancellationToken);
+                await Task.Delay(TimeSpan.FromSeconds(DefaultHealthCheckIntervalSeconds), cancellationToken);
             }
         }
         catch (OperationCanceledException)
@@ -250,8 +248,7 @@ else
             _dotNetRef = DotNetObjectReference.Create(this);
 
             await LoadLayoutAsync();
-            _themeMode = _layout.ThemeMode;
-            await _module.InvokeVoidAsync("initializeTheme", _themeMode);
+            await _module.InvokeVoidAsync("initializeTheme", DefaultThemeMode);
 
             NormalizeLayout();
 
@@ -277,39 +274,18 @@ else
     {
         var parameters = new Dictionary<string, object?>
         {
-            [nameof(SettingsDialog.ThemeMode)] = _themeMode,
-            [nameof(SettingsDialog.SiteTitle)] = _layout.SiteTitle,
-            [nameof(SettingsDialog.SiteDescription)] = _layout.SiteDescription,
-            [nameof(SettingsDialog.ShowLogo)] = _layout.ShowLogo,
-            [nameof(SettingsDialog.HealthCheckIntervalSeconds)] = _layout.HealthCheckIntervalSeconds,
-            [nameof(SettingsDialog.OnSave)] = EventCallback.Factory.Create<SiteSettings>(this, OnSettingsSavedAsync)
+            [nameof(SettingsDialog.Layout)] = _layout,
+            [nameof(SettingsDialog.OnSave)] = EventCallback.Factory.Create(this, OnSettingsSavedAsync)
         };
 
         DialogService.Show<SettingsDialog>("Настройки", parameters, closeOnOverlayClick: false);
     }
 
-    private async Task OnSettingsSavedAsync(SiteSettings settings)
+    private async Task OnSettingsSavedAsync()
     {
-        // Пустые значения заголовка и описания сохраняются как есть: пользователь может
-        // намеренно очистить их, и дефолты подставлять не нужно.
-        _themeMode = string.IsNullOrWhiteSpace(settings.ThemeMode) ? "auto" : settings.ThemeMode;
-        _layout.ThemeMode = _themeMode;
-        _layout.SiteTitle = settings.SiteTitle;
-        _layout.SiteDescription = settings.SiteDescription;
-        _layout.ShowLogo = settings.ShowLogo;
-        _layout.HealthCheckIntervalSeconds = settings.HealthCheckIntervalSeconds;
-
+        // Диалог уже изменил заголовок и описание раскладки: остаётся сохранить их.
         await SaveLayoutAsync();
         await InvokeAsync(StateHasChanged);
-
-        // Интервал мог измениться: перезапускаем цикл с новым значением.
-        await StartHealthLoopAsync();
-
-        if (_module is not null)
-        {
-            await _module.InvokeVoidAsync("setThemeMode", _themeMode);
-        }
-
         DialogService.Close();
     }
 
@@ -340,7 +316,7 @@ else
         // идентификатор стабильно переживает перезапись.
         category.Id = _layout.Categories.Count > 0 ? _layout.Categories.Max(x => x.Id) + 1 : 1;
         category.DashboardLayoutId = _layout.Id;
-        category.Position.Order = _layout.Categories.Count > 0 ? _layout.Categories.Max(x => x.Position.Order) + 1 : 0;
+        category.Order = _layout.Categories.Count > 0 ? _layout.Categories.Max(x => x.Order) + 1 : 0;
         _layout.Categories.Add(category);
 
         await SaveLayoutAsync();
@@ -384,10 +360,10 @@ else
 
         _layout.Categories.Remove(category);
 
-        var ordered = _layout.Categories.OrderBy(x => x.Position.Order).ToList();
+        var ordered = _layout.Categories.OrderBy(x => x.Order).ToList();
         for (var i = 0; i < ordered.Count; i++)
         {
-            ordered[i].Position.Order = i;
+            ordered[i].Order = i;
         }
 
         await SaveLayoutAsync();
@@ -442,7 +418,7 @@ else
             card.Id = _layout.Categories.SelectMany(x => x.Cards).Select(x => x.Id).DefaultIfEmpty(0).Max() + 1;
         }
 
-        card.Position.Order = category.Cards.Count > 0 ? category.Cards.Max(x => x.Position.Order) + 1 : 0;
+        card.Position = category.Cards.Count > 0 ? category.Cards.Max(x => x.Position) + 1 : 0;
         category.Cards.Add(card);
         _health.TryRemove(card.Id, out _);
 
@@ -512,17 +488,17 @@ else
                 var category = _layout.Categories.FirstOrDefault(x => x.Id == id);
                 if (category is not null)
                 {
-                    category.Position.Order = order;
+                    category.Order = order;
                     order++;
                 }
             }
 
             // Категории, которых нет в присланном списке, уходят в конец, сохраняя относительный порядок.
-            foreach (var category in _layout.Categories.OrderBy(x => x.Position.Order))
+            foreach (var category in _layout.Categories.OrderBy(x => x.Order))
             {
                 if (Array.IndexOf(orderedCategoryIds, category.Id) < 0)
                 {
-                    category.Position.Order = order;
+                    category.Order = order;
                     order++;
                 }
             }
@@ -589,9 +565,10 @@ else
 
     private static void AssignCardOrder(DashboardCategory category)
     {
-        for (var i = 0; i < category.Cards.Count; i++)
+        var cards = category.Cards.ToList();
+        for (var i = 0; i < cards.Count; i++)
         {
-            category.Cards[i].Position.Order = i;
+            cards[i].Position = i;
         }
     }
 
@@ -612,84 +589,77 @@ else
 
     private void NormalizeLayout()
     {
-        if (string.IsNullOrWhiteSpace(_layout.ThemeMode))
-        {
-            _layout.ThemeMode = "auto";
-        }
+        var categories = _layout.Categories.ToList();
 
-        if (_layout.HealthCheckIntervalSeconds < MinHealthIntervalSeconds
-            || _layout.HealthCheckIntervalSeconds > MaxHealthIntervalSeconds)
+        for (var categoryIndex = 0; categoryIndex < categories.Count; categoryIndex++)
         {
-            _layout.HealthCheckIntervalSeconds = 30;
-        }
-
-        for (var categoryIndex = 0; categoryIndex < _layout.Categories.Count; categoryIndex++)
-        {
-            var category = _layout.Categories[categoryIndex];
+            var category = categories[categoryIndex];
 
             category.DashboardLayoutId = _layout.Id;
-            category.Position.Width = Math.Clamp(category.Position.Width, 1, 12);
+            category.Width = Math.Clamp(category.Width, 1, 12);
 
-            if (category.Position.Order < 0)
+            if (category.Order < 0)
             {
-                category.Position.Order = categoryIndex;
+                category.Order = categoryIndex;
             }
 
-            for (var cardIndex = 0; cardIndex < category.Cards.Count; cardIndex++)
+            var cards = category.Cards.ToList();
+            for (var cardIndex = 0; cardIndex < cards.Count; cardIndex++)
             {
-                var card = category.Cards[cardIndex];
+                var card = cards[cardIndex];
                 card.CategoryId = category.Id;
 
                 if (string.IsNullOrWhiteSpace(card.BackgroundColor))
                 {
-                    card.BackgroundColor = ResolveDefaultBackgroundColor(card.IconClass);
+                    card.BackgroundColor = ResolveDefaultBackgroundColor(card.CardImage.IconSource);
                 }
 
-                if (card.Position.Order < 0)
+                if (card.Position < 0)
                 {
-                    card.Position.Order = cardIndex;
+                    card.Position = cardIndex;
                 }
             }
         }
 
-        if (_layout.Categories.All(x => x.Position.Order == 0))
+        if (categories.All(x => x.Order == 0))
         {
-            for (var i = 0; i < _layout.Categories.Count; i++)
+            for (var i = 0; i < categories.Count; i++)
             {
-                _layout.Categories[i].Position.Order = i;
+                categories[i].Order = i;
             }
         }
 
-        foreach (var category in _layout.Categories)
+        foreach (var category in categories)
         {
-            if (category.Cards.Count > 0 && category.Cards.All(x => x.Position.Order == 0))
+            var cards = category.Cards.ToList();
+            if (cards.Count > 0 && cards.All(x => x.Position == 0))
             {
-                for (var i = 0; i < category.Cards.Count; i++)
+                for (var i = 0; i < cards.Count; i++)
                 {
-                    category.Cards[i].Position.Order = i;
+                    cards[i].Position = i;
                 }
             }
         }
     }
 
-    private static string ResolveDefaultBackgroundColor(string iconClass)
+    private static string ResolveDefaultBackgroundColor(string iconSource)
     {
-        if (iconClass.Contains("database", StringComparison.OrdinalIgnoreCase))
+        if (iconSource.Contains("database", StringComparison.OrdinalIgnoreCase))
         {
             return "#b91c1c";
         }
 
-        if (iconClass.Contains("chart", StringComparison.OrdinalIgnoreCase))
+        if (iconSource.Contains("chart", StringComparison.OrdinalIgnoreCase))
         {
             return "#ea580c";
         }
 
-        if (iconClass.Contains("docker", StringComparison.OrdinalIgnoreCase))
+        if (iconSource.Contains("docker", StringComparison.OrdinalIgnoreCase))
         {
             return "#0369a1";
         }
 
-        if (iconClass.Contains("heart", StringComparison.OrdinalIgnoreCase))
+        if (iconSource.Contains("heart", StringComparison.OrdinalIgnoreCase))
         {
             return "#15803d";
         }
@@ -701,7 +671,7 @@ else
     {
         // Refit сам десериализует JSON-ответ в DashboardLayout. null означает,
         // что API вернуло пустое тело — тогда используем раскладку по умолчанию.
-        _layout = await DashboardApi.GetLayoutAsync() ?? new DashboardLayout { Id = 1, ThemeMode = "auto" };
+        _layout = await DashboardApi.GetLayoutAsync() ?? new DashboardLayout { Id = 1 };
     }
 
     private async Task SaveLayoutAsync()

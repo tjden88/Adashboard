@@ -56,7 +56,7 @@
         if (Category is not null)
         {
             _title = Category.Title;
-            _width = Math.Clamp(Category.Position.Width, 1, 12);
+            _width = Math.Clamp(Category.Width, 1, 12);
         }
     }
 
@@ -83,13 +83,13 @@
             await OnSave.InvokeAsync(new DashboardCategory
             {
                 Title = trimmedTitle,
-                Position = new CategoryPosition { Width = _width }
+                Width = _width
             });
         }
         else
         {
             Category.Title = trimmedTitle;
-            Category.Position.Width = _width;
+            Category.Width = _width;
             await OnSave.InvokeAsync(Category);
         }
     }

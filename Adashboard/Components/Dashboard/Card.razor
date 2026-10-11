@@ -4,7 +4,7 @@
 
 <a class="dashboard-card"
    data-card-id="@Model.Id"
-   href="@(Model.UrlScheme + Model.Url)"
+   href="@Href"
    target="_blank"
    rel="noopener noreferrer"
    @onclick="OnCardClick"
@@ -12,22 +12,22 @@
    style="--card-bg:@Model.BackgroundColor; --card-icon-color:@Model.GetIconColor(); --card-text-color:@Model.GetTextColor(); --card-span-desktop:@CardSpanDesktop; --card-span-medium:@CardSpanMedium; --card-span-mobile:@CardSpanMobile;">
     <span class="card-title">@Model.Title</span>
     <div class="card-icon" aria-hidden="true">
-        @if (string.IsNullOrWhiteSpace(Model.ImagePath))
+        @if (Model.CardImage.IsCustom && !string.IsNullOrWhiteSpace(Model.CardImage.IconSource))
         {
-            <i class="@Model.IconClass"></i>
-        }
-        else
-        {
-            @* Изображение имеет приоритет над встроенной иконкой. Иконка остаётся в разметке,
-               но становится запасным вариантом: CSS прячет её, пока изображение показано,
-               а при ошибке загрузки картинки onerror скрывает само изображение и открывает иконку. *@
+            @* Своё изображение приоритетнее встроенной иконки. Иконка-заглушка остаётся
+               запасным вариантом: CSS прячет её, пока картинка показана, а при ошибке
+               загрузки onerror скрывает изображение и открывает иконку. *@
             <img class="card-icon__image"
-                 src="@ApiOptions.ResolveUploadPath(Model.ImagePath)"
+                 src="@ApiOptions.ResolveUploadPath(Model.CardImage.IconSource)"
                  alt=""
                  loading="lazy"
                  onload="this.hidden = false"
                  onerror="this.hidden = true" />
-            <i class="@Model.IconClass"></i>
+            <i class="fa-solid fa-link"></i>
+        }
+        else
+        {
+            <i class="@IconClass"></i>
         }
     </div>
     @if (Model.StatusMode != CardStatusMode.None)
@@ -57,6 +57,21 @@
     /// </summary>
     [Parameter]
     public ServiceHealthResult Health { get; set; } = ServiceHealthResult.Unknown;
+
+    // Куда ведёт карточка: схема из модели прибавляется к адресу.
+    private string Href => UrlSchemePrefix(Model.UrlScheme) + Model.Url;
+
+    // Если пользовательское изображение не задано, показываем встроенную иконку Font Awesome.
+    private string IconClass => string.IsNullOrWhiteSpace(Model.CardImage.IconSource)
+        ? "fa-solid fa-link"
+        : Model.CardImage.IconSource;
+
+    private static string UrlSchemePrefix(UrlScheme scheme) => scheme switch
+    {
+        UrlScheme.Http => "http://",
+        UrlScheme.Https => "https://",
+        _ => string.Empty
+    };
 
     private string StatusClass => Health.State switch
     {

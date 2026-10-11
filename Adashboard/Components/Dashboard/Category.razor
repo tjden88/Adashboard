@@ -37,7 +37,7 @@
     </header>
 
     <div class="category-cards" data-category-id="@Model.Id">
-        @foreach (var card in Model.Cards.OrderBy(x => x.Position.Order))
+        @foreach (var card in Model.Cards.OrderBy(x => x.Position))
         {
             <Card @key="card.Id" Model="@card"
                   DesktopColumns="@DesktopWidth"
@@ -77,7 +77,7 @@
 
     private Task OnDelete() => DeleteRequested.InvokeAsync(Model);
 
-    private int DesktopWidth => Model.Position.Width;
+    private int DesktopWidth => Model.Width;
 
     private int MediumWidth => GetMediumSpan(DesktopWidth);
 

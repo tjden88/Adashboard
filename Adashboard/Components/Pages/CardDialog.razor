@@ -197,7 +197,7 @@
 
     private string _title = string.Empty;
     private string _url = string.Empty;
-    private string _scheme = "https://";
+    private UrlScheme _scheme = UrlScheme.Https;
     private string _color = DefaultColor;
     private string _icon = string.Empty;
     private CardStatusMode _statusMode = CardStatusMode.None;
@@ -221,7 +221,12 @@
     private DotNetObjectReference<CardDialog>? _selfRef;
     private bool _clipboardInitialized;
 
-    private string SchemeLabel => _scheme.Length == 0 ? "○" : _scheme;
+    private string SchemeLabel => _scheme switch
+    {
+        UrlScheme.Http => "http://",
+        UrlScheme.Https => "https://",
+        _ => "○"
+    };
 
     /// <summary>Источник для предпросмотра: загруженный файл, ссылка или уже сохранённое изображение.</summary>
     private string? _previewSource =>
@@ -258,22 +263,24 @@
         _categoryId = Card.CategoryId;
         _title = Card.Title;
         _color = Card.BackgroundColor;
-        _icon = Card.IconClass;
         _statusMode = Card.StatusMode;
         _isWide = Card.IsWide;
-        _existingImagePath = string.IsNullOrWhiteSpace(Card.ImagePath) ? null : Card.ImagePath;
-        _useCustomImage = _existingImagePath is not null;
 
-        // У новых карточек схема хранится отдельно, у старых — внутри адреса.
-        if (Card.UrlScheme.Length > 0)
+        // Изображение-иконка: либо пользовательский файл, либо класс Font Awesome.
+        _useCustomImage = Card.CardImage.IsCustom;
+        if (_useCustomImage)
         {
-            _scheme = Card.UrlScheme;
-            _url = Card.Url;
+            _existingImagePath = string.IsNullOrWhiteSpace(Card.CardImage.IconSource) ? null : Card.CardImage.IconSource;
         }
         else
         {
-            (_scheme, _url) = SplitScheme(Card.Url);
+            _icon = Card.CardImage.IconSource;
         }
+
+        // Схема хранится отдельно от адреса; для старых данных допускаем схему внутри адреса.
+        var (embeddedScheme, url) = SplitScheme(Card.Url);
+        _scheme = embeddedScheme != UrlScheme.None ? embeddedScheme : Card.UrlScheme;
+        _url = url;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -299,9 +306,9 @@
     {
         _scheme = _scheme switch
         {
-            "http://" => "https://",
-            "https://" => string.Empty,
-            _ => "http://"
+            UrlScheme.Http => UrlScheme.Https,
+            UrlScheme.Https => UrlScheme.None,
+            _ => UrlScheme.Http
         };
     }
 
@@ -328,7 +335,7 @@
 
         try
         {
-            var title = await PageTitleService.TryGetTitleAsync(scheme + url, _titleLookupCts.Token);
+            var title = await PageTitleService.TryGetTitleAsync(UrlSchemePrefix(scheme) + url, _titleLookupCts.Token);
             if (string.IsNullOrWhiteSpace(title))
             {
                 _titleLookupError = "Не удалось найти заголовок на странице.";
@@ -546,6 +553,13 @@
             imagePath = string.Empty;
         }
 
+        // Собранная модель иконки: либо пользовательское изображение, либо класс Font Awesome.
+        var cardImage = new CardImage
+        {
+            IsCustom = _useCustomImage,
+            IconSource = _useCustomImage ? imagePath : icon
+        };
+
         if (Card is null)
         {
             // Создание: id зарезервирован родителем, он же назначит порядок.
@@ -556,8 +570,7 @@
                 Title = title,
                 Url = url,
                 UrlScheme = scheme,
-                IconClass = icon,
-                ImagePath = imagePath,
+                CardImage = cardImage,
                 BackgroundColor = color,
                 StatusMode = _statusMode,
                 IsWide = _isWide
@@ -569,8 +582,11 @@
         Card.Title = title;
         Card.Url = url;
         Card.UrlScheme = scheme;
-        Card.IconClass = icon;
-        Card.ImagePath = imagePath;
+
+        // Меняем существующую модель иконки, а не заменяем её: так сохраняется её идентификатор.
+        Card.CardImage.IsCustom = cardImage.IsCustom;
+        Card.CardImage.IconSource = cardImage.IconSource;
+
         Card.BackgroundColor = color;
         Card.StatusMode = _statusMode;
         await OnSave.InvokeAsync(Card);
@@ -656,38 +672,38 @@
     /// <summary>
     /// Выделяет схему из адреса, если она там уже указана.
     /// </summary>
-    private static (string Scheme, string Url) SplitScheme(string url)
+    private static (UrlScheme Scheme, string Url) SplitScheme(string url)
     {
         if (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
         {
-            return ("http://", url[7..]);
+            return (UrlScheme.Http, url[7..]);
         }
 
         if (url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
         {
-            return ("https://", url[8..]);
+            return (UrlScheme.Https, url[8..]);
         }
 
-        return (string.Empty, url);
+        return (UrlScheme.None, url);
     }
 
     /// <summary>
     /// Нормализует адрес: схема в самом адресе имеет приоритет над переключателем.
     /// </summary>
-    private static (string Scheme, string Url) NormalizeUrl(string scheme, string rawUrl)
+    private static (UrlScheme Scheme, string Url) NormalizeUrl(UrlScheme scheme, string rawUrl)
     {
         var trimmed = rawUrl.Trim();
         var split = SplitScheme(trimmed);
 
-        return split.Scheme.Length > 0 ? split : (scheme, trimmed);
+        return split.Scheme != UrlScheme.None ? split : (scheme, trimmed);
     }
 
     /// <summary>
     /// Запрещает опасные схемы, если адрес задаётся без префикса.
     /// </summary>
-    private static bool IsSafeUrl(string scheme, string url)
+    private static bool IsSafeUrl(UrlScheme scheme, string url)
     {
-        if (scheme.Length > 0)
+        if (scheme != UrlScheme.None)
         {
             return true;
         }
@@ -700,6 +716,16 @@
                && !normalized.StartsWith("file:", StringComparison.Ordinal)
                && !normalized.StartsWith("blob:", StringComparison.Ordinal);
     }
+
+    /// <summary>
+    /// Возвращает префикс адреса для выбранной схемы ссылки.
+    /// </summary>
+    private static string UrlSchemePrefix(UrlScheme scheme) => scheme switch
+    {
+        UrlScheme.Http => "http://",
+        UrlScheme.Https => "https://",
+        _ => string.Empty
+    };
 
     private static bool IsValidHexColor(string color)
     {
