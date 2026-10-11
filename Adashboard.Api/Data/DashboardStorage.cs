@@ -1,6 +1,3 @@
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
-
 namespace Adashboard.Api.Data;
 
 /// <summary>
@@ -10,6 +7,7 @@ namespace Adashboard.Api.Data;
 /// Переменная окружения <c>DASHBOARD_DATA_PATH</c> задаёт единый корневой каталог данных.
 /// Без неё используется раскладка разработки.
 /// </remarks>
+[Obsolete]
 public sealed record DashboardStorage(string DatabasePath, string UploadsPath)
 {
     /// <summary>

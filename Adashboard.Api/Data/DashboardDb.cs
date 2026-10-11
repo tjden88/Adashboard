@@ -7,7 +7,7 @@ namespace Adashboard.Api.Data;
 /// <summary>
 /// Контекст базы данных dashboard.
 /// </summary>
-public sealed class DashboardDbContext(DbContextOptions<DashboardDbContext> options) : DbContext(options)
+public sealed class DashboardDb(DbContextOptions<DashboardDb> options) : DbContext(options)
 {
     /// <summary>
     /// Раскладки dashboard.

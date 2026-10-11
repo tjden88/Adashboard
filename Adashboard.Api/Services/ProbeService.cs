@@ -1,19 +1,13 @@
 using Adashboard.Api.Data;
-using Adashboard.Domain;
 using Microsoft.EntityFrameworkCore;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
+using Adashboard.Domain.Dto;
 using Adashboard.Domain.Models;
 
 namespace Adashboard.Api.Services;
 
-/// <summary>
-/// Результат проверки доступности сервиса карточки: состояние и понятное пояснение.
-/// </summary>
-/// <param name="Status">Состояние сервиса: <c>online</c>, <c>offline</c> или <c>unknown</c>.</param>
-/// <param name="Message">Короткое пояснение исхода — без внутренних адресов и деталей ошибок.</param>
-public sealed record CardHealthResult(string Status, string Message);
 
 /// <summary>
 /// Сервис серверной проверки карточек: доступность сервисов и заголовки страниц.
@@ -32,18 +26,13 @@ public sealed record CardHealthResult(string Status, string Message);
 /// </para>
 /// </remarks>
 public sealed class ProbeService(
-    IDbContextFactory<DashboardDbContext> dbContextFactory,
+    DashboardDb db,
     IHttpClientFactory httpClientFactory,
     ILogger<ProbeService> logger)
 {
     private const string HttpClientName = "Probe";
     private const int MaxHtmlBytes = 256 * 1024;
     private const int MaxTitleLength = 120;
-
-    // Строковые состояния результата: их читает WASM-клиент.
-    private const string StatusOnline = "online";
-    private const string StatusOffline = "offline";
-    private const string StatusUnknown = "unknown";
 
     private static readonly TimeSpan HealthRequestTimeout = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan TitleRequestTimeout = TimeSpan.FromSeconds(8);
@@ -61,12 +50,11 @@ public sealed class ProbeService(
     /// <param name="cardId">Идентификатор карточки.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
     /// <returns>Результат проверки или <c>null</c>, если карточка не найдена.</returns>
-    public async Task<CardHealthResult?> CheckCardAsync(int cardId, CancellationToken cancellationToken = default)
+    public async Task<HealthCheckStatus?> CheckCardAsync(int cardId, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Начата проверка доступности карточки {CardId}.", cardId);
 
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-        var card = await dbContext.Cards
+        var card = await db.Cards
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == cardId, cancellationToken);
 
@@ -80,7 +68,7 @@ public sealed class ProbeService(
         if (card.StatusMode == CardStatusMode.None)
         {
             logger.LogDebug("Проверка доступности карточки {CardId} не требуется: режим проверки отключён.", cardId);
-            return new CardHealthResult(StatusUnknown, "Проверка статуса отключена.");
+            return new HealthCheckStatus(HealthCheckStatus.HealthStatus.Unknown, "Проверка статуса отключена.");
         }
 
         if (!TryBuildAbsoluteUri(card.UrlScheme + card.Url, out var uri))
@@ -88,7 +76,7 @@ public sealed class ProbeService(
             logger.LogWarning(
                 "Проверка доступности карточки {CardId} пропущена: адрес не является абсолютным HTTP(S)-адресом.",
                 cardId);
-            return new CardHealthResult(StatusUnknown, "Некорректный адрес карточки.");
+            return new HealthCheckStatus(HealthCheckStatus.HealthStatus.Unknown, "Некорректный адрес карточки.");
         }
 
         logger.LogDebug("Проверка доступности карточки {CardId} на хосте {Host}.", cardId, uri.Host);
@@ -104,7 +92,7 @@ public sealed class ProbeService(
             using var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token);
             var result = Evaluate(card.StatusMode, (int)response.StatusCode);
 
-            if (result.Status == StatusOffline)
+            if (result.Status == HealthCheckStatus.HealthStatus.Offline)
             {
                 logger.LogWarning(
                     "Сервис карточки {CardId} недоступен. Код ответа: {StatusCode}.",
@@ -126,8 +114,8 @@ public sealed class ProbeService(
         catch (OperationCanceledException)
         {
             logger.LogWarning("Проверка доступности карточки {CardId} не завершилась за отведённое время.", cardId);
-            return new CardHealthResult(
-                StatusOffline,
+            return new HealthCheckStatus(
+                HealthCheckStatus.HealthStatus.Offline,
                 $"Превышено время ожидания ({HealthRequestTimeout.TotalSeconds:0} с).");
         }
         catch (HttpRequestException ex)
@@ -141,7 +129,7 @@ public sealed class ProbeService(
                 ? "Не удалось разрешить адрес сервиса."
                 : "Не удалось подключиться к сервису.";
 
-            return new CardHealthResult(StatusOffline, message);
+            return new HealthCheckStatus(HealthCheckStatus.HealthStatus.Offline, message);
         }
     }
 
@@ -209,7 +197,7 @@ public sealed class ProbeService(
     /// <summary>
     /// Определяет состояние сервиса по режиму проверки и полученному коду ответа.
     /// </summary>
-    private static CardHealthResult Evaluate(CardStatusMode mode, int statusCode)
+    private static HealthCheckStatus Evaluate(CardStatusMode mode, int statusCode)
     {
         var online = mode switch
         {
@@ -220,8 +208,8 @@ public sealed class ProbeService(
         };
 
         return online
-            ? new CardHealthResult(StatusOnline, $"Доступен: ответ {statusCode}.")
-            : new CardHealthResult(StatusOffline, $"Сервер вернул ошибку: {statusCode}.");
+            ? new HealthCheckStatus(HealthCheckStatus.HealthStatus.Online, $"Доступен ({statusCode})")
+            : new HealthCheckStatus(HealthCheckStatus.HealthStatus.Offline, $"Сервер вернул ошибку: {statusCode}.");
     }
 
     /// <summary>

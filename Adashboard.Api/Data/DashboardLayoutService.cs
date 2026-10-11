@@ -8,7 +8,7 @@ namespace Adashboard.Api.Data;
 /// Сервис работы с раскладкой dashboard: чтение и сохранение в SQLite.
 /// </summary>
 public sealed class DashboardLayoutService(
-    IDbContextFactory<DashboardDbContext> dbContextFactory,
+    IDbContextFactory<DashboardDb> dbContextFactory,
     ILogger<DashboardLayoutService> logger)
 {
     /// <summary>

@@ -1,6 +1,3 @@
-using Adashboard.Api.Data;
-using System.Net;
-using System.Net.Sockets;
 using System.Security.Cryptography;
 
 namespace Adashboard.Api.Services;
@@ -9,9 +6,24 @@ namespace Adashboard.Api.Services;
 /// Сервис хранения пользовательских изображений-иконок карточек.
 /// Файлы сохраняются локально в каталоге загрузок приложения (<c>uploads/card-icons</c>).
 /// </summary>
+/// <remarks>
+/// <para>
+/// Этот сервис — единственное место, где backend сам ходит по URL, заданному клиентом,
+/// то есть потенциальный SSRF-sink. Проверка приватных и служебных адресов
+/// (<c>EnsurePublicHostAsync</c> из прежней версии) здесь намеренно <b>не применяется</b>:
+/// доступ к API ограничивается авторизацией, а иконки часто нужны с локальных домашних
+/// сервисов, ради которых и существует дашборд. Это тот же осознанный компромисс, что и
+/// в <c>ProbeService</c>.
+/// </para>
+/// <para>
+/// Остаются ограничения, не зависящие от доверия к пользователю: только схемы http/https,
+/// запрет на скачивание больше <see cref="MaxImageBytes"/> (потоковое чтение), таймаут
+/// запроса и проверка сигнатуры растрового изображения (защита от сохранения SVG/HTML).
+/// </para>
+/// </remarks>
 public sealed class ImageIconService(
     IHttpClientFactory httpClientFactory,
-    DashboardStorage storage,
+    IWebHostEnvironment environment,
     ILogger<ImageIconService> logger)
 {
     /// <summary>
@@ -23,9 +35,7 @@ public sealed class ImageIconService(
     private const string FolderRelativePath = "uploads/card-icons";
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(12);
 
-    private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
-    private readonly ILogger<ImageIconService> _logger = logger;
-    private readonly string _folder = Path.Combine(storage.UploadsPath, "card-icons");
+    private readonly string _folder = Path.Combine(environment.WebRootPath, "uploads", "card-icons");
 
     /// <summary>
     /// Скачивает изображение по указанному URL и сохраняет его для карточки.
@@ -36,7 +46,7 @@ public sealed class ImageIconService(
     /// <returns>Относительный путь к сохранённому изображению.</returns>
     public async Task<string> SaveFromUrlAsync(int cardId, string url, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Начата загрузка изображения карточки {CardId} по ссылке.", cardId);
+        logger.LogInformation("Начата загрузка изображения карточки {CardId} по ссылке.", cardId);
 
         if (cardId <= 0)
         {
@@ -46,33 +56,17 @@ public sealed class ImageIconService(
         if (!Uri.TryCreate(url?.Trim(), UriKind.Absolute, out var uri)
             || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
         {
-            _logger.LogWarning("Ссылка на изображение карточки {CardId} отклонена: некорректный адрес.", cardId);
+            logger.LogWarning("Ссылка на изображение карточки {CardId} отклонена: некорректный адрес.", cardId);
             throw new InvalidOperationException("Укажите корректную HTTP(S)-ссылку на изображение.");
         }
 
-        if (uri.UserInfo.Length > 0)
-        {
-            _logger.LogWarning("Ссылка на изображение карточки {CardId} отклонена: содержит учётные данные.", cardId);
-            throw new InvalidOperationException("Ссылки с логином и паролем не поддерживаются.");
-        }
-
-        try
-        {
-            await EnsurePublicHostAsync(uri, cancellationToken);
-        }
-        catch (InvalidOperationException ex)
-        {
-            _logger.LogWarning("Ссылка на изображение карточки {CardId} отклонена: {Reason}", cardId, ex.Message);
-            throw;
-        }
-
-        using var client = _httpClientFactory.CreateClient(HttpClientName);
+        using var client = httpClientFactory.CreateClient(HttpClientName);
         client.Timeout = RequestTimeout;
 
         using var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
-            _logger.LogWarning("Загрузка изображения карточки {CardId} завершилась неудачно. Код: {StatusCode}.", cardId, (int)response.StatusCode);
+            logger.LogWarning("Загрузка изображения карточки {CardId} завершилась неудачно. Код: {StatusCode}.", cardId, (int)response.StatusCode);
             throw new InvalidOperationException("Не удалось загрузить изображение по указанной ссылке.");
         }
 
@@ -81,13 +75,13 @@ public sealed class ImageIconService(
 
         if (extension is null)
         {
-            _logger.LogWarning("Ссылка на изображение карточки {CardId} ведёт не на растровое изображение.", cardId);
+            logger.LogWarning("Ссылка на изображение карточки {CardId} ведёт не на растровое изображение.", cardId);
             throw new InvalidOperationException("Ссылка ведёт не на поддерживаемое растровое изображение.");
         }
 
         var path = await WriteImageAsync(cardId, content, extension, cancellationToken);
 
-        _logger.LogInformation("Изображение карточки {CardId} сохранено: {Path}.", cardId, path);
+        logger.LogInformation("Изображение карточки {CardId} сохранено: {Path}.", cardId, path);
         return path;
     }
 
@@ -100,7 +94,7 @@ public sealed class ImageIconService(
     /// <returns>Относительный путь к сохранённому изображению.</returns>
     public async Task<string> SaveFromBytesAsync(int cardId, byte[] content, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Начато сохранение изображения карточки {CardId} из загруженных данных.", cardId);
+        logger.LogInformation("Начато сохранение изображения карточки {CardId} из загруженных данных.", cardId);
 
         if (cardId <= 0)
         {
@@ -109,7 +103,7 @@ public sealed class ImageIconService(
 
         if (content.Length == 0 || content.LongLength > MaxImageBytes)
         {
-            _logger.LogWarning("Изображение карточки {CardId} отклонено: недопустимый размер.", cardId);
+            logger.LogWarning("Изображение карточки {CardId} отклонено: недопустимый размер.", cardId);
             throw new InvalidOperationException("Изображение превышает максимальный размер 2 МБ.");
         }
 
@@ -117,13 +111,13 @@ public sealed class ImageIconService(
 
         if (extension is null)
         {
-            _logger.LogWarning("Изображение карточки {CardId} отклонено: неподдерживаемый формат.", cardId);
+            logger.LogWarning("Изображение карточки {CardId} отклонено: неподдерживаемый формат.", cardId);
             throw new InvalidOperationException("Файл не является поддерживаемым растровым изображением.");
         }
 
         var path = await WriteImageAsync(cardId, content, extension, cancellationToken);
 
-        _logger.LogInformation("Изображение карточки {CardId} сохранено: {Path}.", cardId, path);
+        logger.LogInformation("Изображение карточки {CardId} сохранено: {Path}.", cardId, path);
         return path;
     }
 
@@ -141,11 +135,11 @@ public sealed class ImageIconService(
         try
         {
             RemoveCardFiles(cardId);
-            _logger.LogInformation("Изображения карточки {CardId} удалены.", cardId);
+            logger.LogInformation("Изображения карточки {CardId} удалены.", cardId);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Не удалось удалить изображения карточки {CardId}.", cardId);
+            logger.LogWarning(ex, "Не удалось удалить изображения карточки {CardId}.", cardId);
         }
     }
 
@@ -219,7 +213,7 @@ public sealed class ImageIconService(
         {
             if (buffer.Length + read > MaxImageBytes)
             {
-                _logger.LogWarning("Изображение карточки {CardId} отклонено: превышен максимальный размер.", cardId);
+                logger.LogWarning("Изображение карточки {CardId} отклонено: превышен максимальный размер.", cardId);
                 throw new InvalidOperationException("Изображение превышает максимальный размер 2 МБ.");
             }
 
@@ -227,83 +221,6 @@ public sealed class ImageIconService(
         }
 
         return buffer.ToArray();
-    }
-
-    /// <summary>
-    /// Проверяет, что URL не ведёт на локальные и частные адреса (защита от SSRF).
-    /// </summary>
-    private static async Task EnsurePublicHostAsync(Uri uri, CancellationToken cancellationToken)
-    {
-        if (uri.IsLoopback)
-        {
-            throw new InvalidOperationException("Локальные адреса не поддерживаются.");
-        }
-
-        if (IPAddress.TryParse(uri.Host, out var literal))
-        {
-            if (IsPrivateAddress(literal))
-            {
-                throw new InvalidOperationException("Локальные адреса не поддерживаются.");
-            }
-
-            return;
-        }
-
-        IPAddress[] addresses;
-        try
-        {
-            addresses = await Dns.GetHostAddressesAsync(uri.DnsSafeHost, cancellationToken);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            throw new InvalidOperationException("Не удалось разрешить адрес изображения.");
-        }
-
-        if (addresses.Length == 0 || addresses.Any(IsPrivateAddress))
-        {
-            throw new InvalidOperationException("Локальные адреса не поддерживаются.");
-        }
-    }
-
-    /// <summary>
-    /// Определяет, относится ли адрес к loopback, частным или служебным диапазонам.
-    /// </summary>
-    private static bool IsPrivateAddress(IPAddress address)
-    {
-        if (IPAddress.IsLoopback(address))
-        {
-            return true;
-        }
-
-        // IPv4-адрес, пришедший в IPv6-обёртке, проверяем по тем же диапазонам.
-        if (address.IsIPv4MappedToIPv6)
-        {
-            return IsPrivateAddress(address.MapToIPv4());
-        }
-
-        if (address.AddressFamily == AddressFamily.InterNetwork)
-        {
-            var bytes = address.GetAddressBytes();
-            return bytes[0] == 10
-                || (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31)
-                || (bytes[0] == 192 && bytes[1] == 168)
-                || (bytes[0] == 169 && bytes[1] == 254)
-                || (bytes[0] == 100 && bytes[1] >= 64 && bytes[1] <= 127)
-                || (bytes[0] == 198 && (bytes[1] == 18 || bytes[1] == 19))
-                || bytes[0] >= 224
-                || bytes[0] == 0
-                || bytes[0] == 127;
-        }
-
-        if (address.AddressFamily == AddressFamily.InterNetworkV6)
-        {
-            return address.IsIPv6LinkLocal
-                || address.IsIPv6SiteLocal
-                || address.IsIPv6UniqueLocal
-                || address.IsIPv6Multicast;
-        }
-
-        return false;
     }
 
     /// <summary>

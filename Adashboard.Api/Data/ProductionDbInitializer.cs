@@ -15,7 +15,7 @@ public static class ProductionDbInitializer
     public static async Task InitializeAsync(IServiceProvider services, CancellationToken cancellationToken = default)
     {
         await using var scope = services.CreateAsyncScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<DashboardDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DashboardDb>();
         var logger = scope.ServiceProvider
             .GetRequiredService<ILoggerFactory>()
             .CreateLogger("Adashboard.Api.Data.ProductionDbInitializer");

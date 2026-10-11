@@ -12,16 +12,16 @@ internal static class DashboardDatabaseBootstrap
     /// Применяет миграции, предварительно обеспечивая совместимость с базой, созданной ранее через EnsureCreated.
     /// </summary>
     public static async Task ApplyMigrationsAsync(
-        DashboardDbContext dbContext,
+        DashboardDb db,
         ILogger logger,
         CancellationToken cancellationToken = default)
     {
-        await EnsureMigrationHistoryForLegacyDatabaseAsync(dbContext, logger, cancellationToken);
+        await EnsureMigrationHistoryForLegacyDatabaseAsync(db, logger, cancellationToken);
 
-        var pendingMigrations = (await dbContext.Database.GetPendingMigrationsAsync(cancellationToken)).ToList();
+        var pendingMigrations = (await db.Database.GetPendingMigrationsAsync(cancellationToken)).ToList();
         logger.LogInformation("Ожидающих миграций: {PendingCount}.", pendingMigrations.Count);
 
-        await dbContext.Database.MigrateAsync(cancellationToken);
+        await db.Database.MigrateAsync(cancellationToken);
         logger.LogInformation("Миграции базы данных успешно применены.");
     }
 
@@ -29,11 +29,11 @@ internal static class DashboardDatabaseBootstrap
     /// Добавляет запись о первой миграции для базы, созданной ранее через EnsureCreated.
     /// </summary>
     private static async Task EnsureMigrationHistoryForLegacyDatabaseAsync(
-        DashboardDbContext dbContext,
+        DashboardDb db,
         ILogger logger,
         CancellationToken cancellationToken)
     {
-        var connection = dbContext.Database.GetDbConnection();
+        var connection = db.Database.GetDbConnection();
         await connection.OpenAsync(cancellationToken);
 
         try
@@ -46,7 +46,7 @@ internal static class DashboardDatabaseBootstrap
                 return;
             }
 
-            var firstMigration = dbContext.Database.GetMigrations().OrderBy(x => x).FirstOrDefault();
+            var firstMigration = db.Database.GetMigrations().OrderBy(x => x).FirstOrDefault();
             if (string.IsNullOrWhiteSpace(firstMigration))
             {
                 logger.LogWarning("Не найдены миграции приложения при проверке совместимости базы данных.");

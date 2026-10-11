@@ -31,7 +31,7 @@ builder.Services.AddSingleton(storage);
 // (например, пустой внешний каталог): SQLite не создаёт его сам.
 Directory.CreateDirectory(Path.GetDirectoryName(storage.DatabasePath)!);
 
-builder.Services.AddDbContextFactory<DashboardDbContext>(options =>
+builder.Services.AddDbContextFactory<DashboardDb>(options =>
     options.UseSqlite($"Data Source={storage.DatabasePath}"));
 builder.Services.AddScoped<DashboardLayoutService>();
 builder.Services.AddScoped<ImageIconService>();
