@@ -5,6 +5,8 @@ namespace Adashboard.Domain.Models;
 /// </summary>
 public class CardImage
 {
+    public int Id { get; set; }
+
     /// <summary>
     /// Признак того, что изображение-иконка загружено пользователем и хранится в uploads.
     /// Иначе является стандартной иконкой Font Awesome.
