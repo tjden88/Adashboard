@@ -1,4 +1,4 @@
-namespace Adashboard.Api.Data;
+namespace Adashboard.Api.Services;
 
 /// <summary>
 /// Единый источник путей изменяемых данных dashboard.
