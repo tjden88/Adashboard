@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Adashboard.Domain.Models;
 
 namespace Adashboard.Data.Entities;
@@ -13,6 +14,7 @@ public sealed class SiteSettingsEntity
     /// <summary>
     /// Идентификатор записи настроек. Всегда равен 1 (одиночная строка).
     /// </summary>
+    [Key]
     public int Id { get; set; }
 
     /// <summary>Режим темы: auto, dark или light.</summary>

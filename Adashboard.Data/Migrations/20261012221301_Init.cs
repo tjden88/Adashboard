@@ -5,7 +5,7 @@
 namespace Adashboard.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class Init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -28,7 +28,8 @@ namespace Adashboard.Data.Migrations
                 name: "SiteSettings",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false),
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
                     ThemeMode = table.Column<int>(type: "INTEGER", nullable: false),
                     ShowLogo = table.Column<bool>(type: "INTEGER", nullable: false),
                     HealthCheckIntervalSeconds = table.Column<int>(type: "INTEGER", nullable: false)
@@ -87,6 +88,11 @@ namespace Adashboard.Data.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
+
+            migrationBuilder.InsertData(
+                table: "SiteSettings",
+                columns: new[] { "Id", "HealthCheckIntervalSeconds", "ShowLogo", "ThemeMode" },
+                values: new object[] { 1, 30, true, 0 });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Cards_DashboardCategoryId",

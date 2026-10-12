@@ -1,4 +1,5 @@
 using Adashboard.Data.Entities;
+using Adashboard.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace Adashboard.Data;
@@ -34,13 +35,12 @@ public sealed class DashboardDb(DbContextOptions<DashboardDb> options) : DbConte
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-
-        // Настройки сайта всегда хранятся одной строкой: идентификатор задаём вручную,
-        // а не отдаём автоинкременту.
         modelBuilder.Entity<SiteSettingsEntity>(entity =>
         {
-            entity.HasKey(x => x.Id);
-            entity.Property(x => x.Id).ValueGeneratedNever();
+            entity.HasData(new SiteSettingsEntity
+            {
+                Id = 1,
+            });
         });
     }
 }

@@ -10,8 +10,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Adashboard.Data.Migrations
 {
     [DbContext(typeof(DashboardDb))]
-    [Migration("20261012214703_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20261012221301_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -119,6 +119,7 @@ namespace Adashboard.Data.Migrations
             modelBuilder.Entity("Adashboard.Data.Entities.SiteSettingsEntity", b =>
                 {
                     b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("HealthCheckIntervalSeconds")
@@ -133,6 +134,15 @@ namespace Adashboard.Data.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("SiteSettings");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            HealthCheckIntervalSeconds = 30,
+                            ShowLogo = true,
+                            ThemeMode = 0
+                        });
                 });
 
             modelBuilder.Entity("Adashboard.Data.Entities.DashboardCardEntity", b =>
