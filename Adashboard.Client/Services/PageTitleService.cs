@@ -6,7 +6,7 @@ namespace Adashboard.Client.Services;
 /// Сервис получения заголовка HTML-страницы по адресу карточки.
 /// </summary>
 /// <remarks>
-/// Разбор HTML выполняет Adashboard.Api: браузер не может читать ответы целевых сервисов напрямую
+/// Разбор HTML выполняет Adashboard.Server: браузер не может читать ответы целевых сервисов напрямую
 /// из-за политики CORS. Клиент только передаёт адрес и получает готовый заголовок.
 /// </remarks>
 public sealed class PageTitleService(

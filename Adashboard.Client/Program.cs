@@ -6,7 +6,7 @@ using System.Text.Json;
 using Adashboard.Client.Services;
 
 // Точка входа Blazor WebAssembly: приложение стартует в браузере, а данные получает
-// по HTTP у отдельного Adashboard.Api. Хост-документ — wwwroot/index.html.
+// по HTTP у отдельного Adashboard.Server. Хост-документ — wwwroot/index.html.
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
 // Корневой компонент-маршрутизатор монтируется в элемент #app из index.html.

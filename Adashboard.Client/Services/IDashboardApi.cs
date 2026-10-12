@@ -4,7 +4,7 @@ using Refit;
 namespace Adashboard.Client.Services;
 
 /// <summary>
-/// Декларативный REST-клиент к Adashboard.Api, построенный библиотекой Refit.
+/// Декларативный REST-клиент к Adashboard.Server, построенный библиотекой Refit.
 /// </summary>
 /// <remarks>
 /// <para>

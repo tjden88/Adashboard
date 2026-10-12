@@ -34,10 +34,10 @@ public sealed record ServiceHealthResult(ServiceHealthState State, string? Messa
 /// Сервис проверки доступности сервисов, на которые ведут карточки dashboard.
 /// </summary>
 /// <remarks>
-/// Проверку выполняет Adashboard.Api: браузер не может обращаться к целевым сервисам напрямую
+/// Проверку выполняет Adashboard.Server: браузер не может обращаться к целевым сервисам напрямую
 /// из-за политики CORS (см. <c>ProbeService</c> в API). Клиент только запрашивает результат.
 /// Вся сетевая работа (поиск карточки, запрос к её сервису, оценка режима <c>StatusMode</c>)
-/// живёт в Adashboard.Api; клиент лишь переводит строковый статус ответа в <see cref="ServiceHealthState"/>.
+/// живёт в Adashboard.Server; клиент лишь переводит строковый статус ответа в <see cref="ServiceHealthState"/>.
 /// </remarks>
 public sealed class HealthCheckService(
     IDashboardApi dashboardApi,

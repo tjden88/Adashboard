@@ -272,7 +272,7 @@ ServiceFabricBackup/
 *.db-wal
 
 # Генерируемые данные API (SQLite и копии стандартных загрузок) — не хранятся в репозитории
-Adashboard.Api/appdata/
+Adashboard.Server/appdata/
 
 # Business Intelligence projects
 *.rdl.data
@@ -372,4 +372,4 @@ FodyWeavers.xsd
 /AGENTS.md
 /opencode.json
 /.opencode
-/Adashboard.Api/appdata
+/Adashboard.Server/appdata
