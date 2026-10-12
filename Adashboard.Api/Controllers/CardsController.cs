@@ -1,17 +1,92 @@
 using Adashboard.Api.Services;
+using Adashboard.Domain.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Adashboard.Api.Controllers;
 
 /// <summary>
-/// Эндпоинты работы с изображением-иконкой карточки: загрузка из файла, загрузка по ссылке и удаление.
+/// Эндпоинты управления карточками dashboard и их изображениями-иконками.
 /// </summary>
 [ApiController]
 [Route("api/cards")]
 public class CardsController(
+    LayoutService layoutService,
     ImageIconService imageIconService,
     ILogger<CardsController> logger) : ControllerBase
 {
+    /// <summary>
+    /// Создаёт новую карточку в указанной категории.
+    /// </summary>
+    /// <param name="card">Тело запроса с данными карточки (включая <c>DashboardCategoryId</c>).</param>
+    /// <param name="cancellationToken">Токен отмены операции.</param>
+    [HttpPost]
+    [ProducesResponseType<DashboardCard>(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<DashboardCard>> Create(
+        [FromBody] DashboardCard? card,
+        CancellationToken cancellationToken)
+    {
+        if (card is null)
+        {
+            logger.LogWarning("Создание карточки отклонено: тело запроса пустое.");
+            return BadRequest(new { error = "Тело запроса с карточкой обязательно." });
+        }
+
+        if (card.DashboardCategoryId <= 0)
+        {
+            logger.LogWarning("Создание карточки отклонено: не указана категория.");
+            return BadRequest(new { error = "Укажите категорию карточки." });
+        }
+
+        var created = await layoutService.CreateCardAsync(card, cancellationToken);
+        if (created is null)
+        {
+            return NotFound(new { error = "Категория не найдена." });
+        }
+
+        return Created($"/api/cards/{created.Id}", created);
+    }
+
+    /// <summary>
+    /// Изменяет существующую карточку.
+    /// </summary>
+    /// <param name="id">Идентификатор карточки.</param>
+    /// <param name="card">Тело запроса с новыми данными карточки.</param>
+    /// <param name="cancellationToken">Токен отмены операции.</param>
+    [HttpPut("{id:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Update(
+        int id,
+        [FromBody] DashboardCard? card,
+        CancellationToken cancellationToken)
+    {
+        if (card is null)
+        {
+            logger.LogWarning("Изменение карточки {CardId} отклонено: тело запроса пустое.", id);
+            return BadRequest(new { error = "Тело запроса с карточкой обязательно." });
+        }
+
+        var updated = await layoutService.UpdateCardAsync(id, card, cancellationToken);
+        return updated ? NoContent() : NotFound(new { error = "Карточка не найдена." });
+    }
+
+    /// <summary>
+    /// Удаляет карточку.
+    /// </summary>
+    /// <param name="id">Идентификатор карточки.</param>
+    /// <param name="cancellationToken">Токен отмены операции.</param>
+    [HttpDelete("{id:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    {
+        var deleted = await layoutService.DeleteCardAsync(id, cancellationToken);
+        return deleted ? NoContent() : NotFound(new { error = "Карточка не найдена." });
+    }
+
     /// <summary>
     /// Сохраняет изображение, загруженное с устройства, и возвращает путь к нему.
     /// </summary>
@@ -105,7 +180,7 @@ public class CardsController(
     [HttpDelete("{cardId}/image")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public IActionResult Delete(int cardId)
+    public IActionResult DeleteImage(int cardId)
     {
         if (cardId <= 0)
         {

@@ -1,4 +1,5 @@
 using Adashboard.Api.Data;
+using Adashboard.Api.Mapping;
 using Adashboard.Api.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
@@ -34,9 +35,13 @@ services.AddDbContext<DashboardDb>(options => options.UseSqlite($"Data Source={p
 services.AddScoped<DbInitializer>();
 services.AddScoped<AssetsInitializer>();
 
-services.AddScoped<DashboardLayoutService>();
+services.AddScoped<LayoutService>();
+services.AddScoped<SiteSettingsService>();
 services.AddScoped<ImageIconService>();
 services.AddScoped<ProbeService>();
+
+// Mapperly-маппер не хранит состояния, поэтому регистрируем его как singleton.
+services.AddSingleton<DashboardMapper>();
 
 // Клиент загрузки иконок по ссылке отключён от редиректов: это снижает риск SSRF
 // через перенаправление.

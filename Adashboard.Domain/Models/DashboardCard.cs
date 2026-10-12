@@ -1,12 +1,16 @@
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 using System.Globalization;
 
 namespace Adashboard.Domain.Models;
 
 /// <summary>
-/// Карточка ссылки внутри категории.
+/// Контрактная модель карточки ссылки внутри категории: то, что получает и отправляет фронтенд.
 /// </summary>
+/// <remarks>
+/// Это UI-модель, а не сущность БД. Она не содержит навигаций и атрибутов схемы базы:
+/// часть свойств вычисляется из собственных данных и служит для отображения на клиенте.
+/// Для валидации входных данных оставлены только атрибуты <see cref="MaxLengthAttribute"/>.
+/// </remarks>
 public sealed class DashboardCard
 {
     /// <summary>
@@ -90,12 +94,7 @@ public sealed class DashboardCard
     /// <summary>
     /// Возвращает текст схемы URL для отображения в интерфейсе: "http://", "https://" или пустая строка.
     /// </summary>
-    public string UrlSchemeText => UrlScheme switch
-    {
-        UrlScheme.Http => "http://",
-        UrlScheme.Https => "https://",
-        _ => string.Empty
-    };
+    public string UrlSchemeText => UrlScheme.ToSchemeText();
 
     /// <summary>
     /// Цвет иконки, автоматически подобранный на основе фона карточки.

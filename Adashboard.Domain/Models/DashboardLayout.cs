@@ -1,11 +1,13 @@
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Adashboard.Domain.Models;
 
 /// <summary>
-/// Модель раскладки dashboard.
+/// Контрактная модель раскладки dashboard: то, что получает фронтенд на <c>GET /api/layout</c>.
 /// </summary>
+/// <remarks>
+/// UI-модель: содержит категории с карточками, но не имеет навигаций и атрибутов схемы БД.
+/// </remarks>
 public sealed class DashboardLayout
 {
     /// <summary>
@@ -28,12 +30,5 @@ public sealed class DashboardLayout
     /// <summary>
     /// Список категорий в раскладке.
     /// </summary>
-    /// <remarks>
-    /// Атрибут <see cref="ForeignKeyAttribute"/> явно указывает, что внешний ключ связи
-    /// хранится в свойстве <see cref="DashboardCategory.DashboardLayoutId"/> зависимой
-    /// сущности (иначе EF Core определил бы связь по соглашению, создав дублирующее
-    /// теневое свойство).
-    /// </remarks>
-    [ForeignKey(nameof(DashboardCategory.DashboardLayoutId))]
     public ICollection<DashboardCategory> Categories { get; set; } = [];
 }

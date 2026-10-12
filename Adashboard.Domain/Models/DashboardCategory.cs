@@ -1,11 +1,14 @@
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Adashboard.Domain.Models;
 
 /// <summary>
-/// Категория ссылок на dashboard.
+/// Контрактная модель категории ссылок на dashboard: то, что получает и отправляет фронтенд.
 /// </summary>
+/// <remarks>
+/// UI-модель: навигации и атрибуты схемы БД живут в сущности <c>DashboardCategoryEntity</c>,
+/// а здесь остаются только поля, нужные интерфейсу, и атрибуты валидации.
+/// </remarks>
 public sealed class DashboardCategory
 {
     /// <summary>
@@ -37,11 +40,5 @@ public sealed class DashboardCategory
     /// <summary>
     /// Карточки, входящие в категорию.
     /// </summary>
-    /// <remarks>
-    /// Атрибут <see cref="ForeignKeyAttribute"/> явно указывает, что внешний ключ связи
-    /// хранится в свойстве <see cref="DashboardCard.DashboardCategoryId"/> зависимой
-    /// сущности.
-    /// </remarks>
-    [ForeignKey(nameof(DashboardCard.DashboardCategoryId))]
     public ICollection<DashboardCard> Cards { get; set; } = [];
 }

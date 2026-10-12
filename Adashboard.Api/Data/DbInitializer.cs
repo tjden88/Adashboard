@@ -1,3 +1,4 @@
+using Adashboard.Api.Data.Entities;
 using Adashboard.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,7 +10,7 @@ namespace Adashboard.Api.Data;
 internal sealed class DbInitializer(DashboardDb db, ILogger<DbInitializer> logger)
 {
     /// <summary>
-    /// Применяет миграции и добавляет стартовые категории со ссылками, если раскладка ещё не создавалась.
+    /// Применяет миграции и добавляет стартовые данные, если раскладка ещё не создавалась.
     /// </summary>
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
@@ -33,23 +34,44 @@ internal sealed class DbInitializer(DashboardDb db, ILogger<DbInitializer> logge
         if (hasLayout)
         {
             logger.LogInformation("Раскладка уже существует. Стартовое наполнение не требуется.");
-            logger.LogInformation("Инициализация базы данных завершена.");
-            return;
+        }
+        else
+        {
+            // Идентификаторы сущностям не задаём: их назначает EF Core при сохранении.
+            var layout = CreateDefaultLayout();
+            db.Layouts.Add(layout);
+            await db.SaveChangesAsync(cancellationToken);
+
+            logger.LogInformation("Добавлена стартовая раскладка.");
         }
 
-        // Идентификаторы сущностям не задаём: их назначает EF Core при сохранении.
-        var layout = CreateDefaultLayout();
-        db.Layouts.Add(layout);
-        await db.SaveChangesAsync(cancellationToken);
+        // Настройки сидируем отдельно: наличие раскладки не означает, что запись настроек есть.
+        var hasSettings = await db.SiteSettings.AnyAsync(cancellationToken);
+        if (hasSettings)
+        {
+            logger.LogInformation("Настройки сайта уже существуют. Стартовое наполнение не требуется.");
+        }
+        else
+        {
+            db.SiteSettings.Add(new SiteSettingsEntity
+            {
+                Id = 1,
+                ThemeMode = ThemeMode.Auto,
+                ShowLogo = true,
+                HealthCheckIntervalSeconds = 30
+            });
+            await db.SaveChangesAsync(cancellationToken);
 
-        logger.LogInformation("Добавлена стартовая раскладка.");
+            logger.LogInformation("Добавлены настройки сайта по умолчанию.");
+        }
+
         logger.LogInformation("Инициализация базы данных завершена.");
     }
 
     /// <summary>
     /// Формирует стартовую раскладку dashboard со стартовыми категориями и карточками.
     /// </summary>
-    private static DashboardLayout CreateDefaultLayout() => new()
+    private static DashboardLayoutEntity CreateDefaultLayout() => new()
     {
         Id = 1,
         Categories = CreateDefaultCategories(),
@@ -60,7 +82,7 @@ internal sealed class DbInitializer(DashboardDb db, ILogger<DbInitializer> logge
     /// <summary>
     /// Создаёт стартовые категории dashboard вместе с вложенными карточками.
     /// </summary>
-    private static List<DashboardCategory> CreateDefaultCategories() =>
+    private static List<DashboardCategoryEntity> CreateDefaultCategories() =>
     [
         new()
         {
@@ -88,7 +110,7 @@ internal sealed class DbInitializer(DashboardDb db, ILogger<DbInitializer> logge
     /// <summary>
     /// Создаёт стартовые карточки категории «Медиа».
     /// </summary>
-    private static List<DashboardCard> CreateMediaCards() =>
+    private static List<DashboardCardEntity> CreateMediaCards() =>
     [
         CreateCard("Google", "www.google.com/", "fa-brands fa-google", "#4285f4", true, 0),
         CreateCard("YouTube", "www.youtube.com/", "fa-brands fa-youtube", "#ff0000", true, 1),
@@ -99,7 +121,7 @@ internal sealed class DbInitializer(DashboardDb db, ILogger<DbInitializer> logge
     /// <summary>
     /// Создаёт стартовые карточки категории «Работа и код».
     /// </summary>
-    private static List<DashboardCard> CreateWorkCards() =>
+    private static List<DashboardCardEntity> CreateWorkCards() =>
     [
         CreateCard("Adashboard на GitHub", "github.com/tjden88/Adashboard", "fa-brands fa-github", "#24292f", true, 0, sm: CardStatusMode.Reachable),
         CreateCard("Stack Overflow", "stackoverflow.com/", "fa-brands fa-stack-overflow", "#f48024", false, 1)
@@ -108,7 +130,7 @@ internal sealed class DbInitializer(DashboardDb db, ILogger<DbInitializer> logge
     /// <summary>
     /// Создаёт стартовые карточки категории «Домашний сервер».
     /// </summary>
-    private static List<DashboardCard> CreateHomeServerCards() =>
+    private static List<DashboardCardEntity> CreateHomeServerCards() =>
     [
         CreateCard("NAS", "nas.local/", "fa-solid fa-hard-drive", "#334155", true, 0, UrlScheme.Http, sm: CardStatusMode.Reachable),
         CreateCard("Proxmox", "proxmox.local/", "fa-solid fa-server", "#e57000", true, 1, UrlScheme.Http),
@@ -121,9 +143,9 @@ internal sealed class DbInitializer(DashboardDb db, ILogger<DbInitializer> logge
     ];
 
     /// <summary>
-    /// Создаёт карточку с заданным схемой ссылки и позицией.
+    /// Создаёт карточку с заданными схемой ссылки и позицией.
     /// </summary>
-    private static DashboardCard CreateCard(
+    private static DashboardCardEntity CreateCard(
         string title,
         string url,
         string iconClass,

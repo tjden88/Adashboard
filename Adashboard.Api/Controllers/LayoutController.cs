@@ -5,12 +5,12 @@ using Microsoft.AspNetCore.Mvc;
 namespace Adashboard.Api.Controllers;
 
 /// <summary>
-/// Эндпоинты чтения и полного сохранения основной раскладки dashboard.
+/// Эндпоинты основной раскладки dashboard: чтение и изменение её информационной части.
 /// </summary>
 [ApiController]
 [Route("api/layout")]
 public class LayoutController(
-    DashboardLayoutService layoutService,
+    LayoutService layoutService,
     ILogger<LayoutController> logger) : ControllerBase
 {
     /// <summary>
@@ -25,20 +25,30 @@ public class LayoutController(
     }
 
     /// <summary>
-    /// Полностью заменяет основную раскладку dashboard.
+    /// Изменяет заголовок и описание основной раскладки dashboard.
     /// </summary>
-    [HttpPut]
+    /// <param name="info">Тело запроса с новыми заголовком и описанием.</param>
+    /// <param name="cancellationToken">Токен отмены операции.</param>
+    [HttpPut("info")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Put([FromBody] DashboardLayout? layout, CancellationToken cancellationToken)
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> PutInfo(
+        [FromBody] DashboardLayoutInfo? info,
+        CancellationToken cancellationToken)
     {
-        if (layout is null)
+        if (info is null || string.IsNullOrWhiteSpace(info.Title))
         {
-            logger.LogWarning("Сохранение раскладки отклонено: тело запроса пустое.");
-            return BadRequest(new { error = "Тело запроса с раскладкой обязательно." });
+            logger.LogWarning("Изменение информационной части раскладки отклонено: некорректное тело запроса.");
+            return BadRequest(new { error = "Укажите заголовок раскладки." });
         }
 
-        await layoutService.SaveMainLayoutAsync(layout, cancellationToken);
+        var updated = await layoutService.UpdateInfoAsync(info, cancellationToken);
+        if (!updated)
+        {
+            return NotFound(new { error = "Раскладка не найдена." });
+        }
+
         return NoContent();
     }
 }
