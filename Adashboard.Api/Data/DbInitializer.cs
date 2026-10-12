@@ -137,7 +137,7 @@ internal sealed class DbInitializer(DashboardDb db, ILogger<DbInitializer> logge
             Title = title,
             Url = url,
             UrlScheme = urlScheme,
-            CardImage = new CardImage { IconSource = iconClass },
+            IconSource = iconClass,
             BackgroundColor = backgroundColor,
             IsWide = isWide,
             Position = order,

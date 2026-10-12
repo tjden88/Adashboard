@@ -29,7 +29,6 @@
       Ссылка на WASM-клиент переводит API в режим хоста: статика клиента подключается
       как static web assets и раздаётся тем же сервером (один origin).
     -->
-    <ProjectReference Include="..\Adashboard\Adashboard.csproj" />
     <ProjectReference Include="..\Adashboard.Domain\Adashboard.Domain.csproj" />
   </ItemGroup>
 
