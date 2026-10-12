@@ -70,7 +70,6 @@ public static partial class Mapper
     /// Преобразует контрактную модель карточки в сущность.
     /// </summary>
     [MapperIgnoreTarget(nameof(DashboardCardEntity.Category))]
-    [MapperIgnoreSource(nameof(DashboardCard.UrlSchemeText))]
     public static partial DashboardCardEntity ToEntity(DashboardCard card);
 
     /// <summary>
@@ -84,7 +83,6 @@ public static partial class Mapper
     [MapperIgnoreTarget(nameof(DashboardCardEntity.Category))]
     [MapperIgnoreSource(nameof(DashboardCard.Id))]
     [MapperIgnoreSource(nameof(DashboardCard.DashboardCategoryId))]
-    [MapperIgnoreSource(nameof(DashboardCard.UrlSchemeText))]
     public static partial void UpdateCard(DashboardCard source, DashboardCardEntity target);
 
     /// <summary>

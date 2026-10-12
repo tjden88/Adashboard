@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Adashboard.Data;
 using Adashboard.Domain.Dto;
+using Adashboard.Domain.Extensions;
 using Adashboard.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 

@@ -92,11 +92,6 @@ public sealed class DashboardCard
     }
 
     /// <summary>
-    /// Возвращает текст схемы URL для отображения в интерфейсе: "http://", "https://" или пустая строка.
-    /// </summary>
-    public string UrlSchemeText => UrlScheme.ToSchemeText();
-
-    /// <summary>
     /// Цвет иконки, автоматически подобранный на основе фона карточки.
     /// </summary>
     public string GetIconColor() => ShouldUseLightText(BackgroundColor) ? "#ffffff" : "#0f172a";
