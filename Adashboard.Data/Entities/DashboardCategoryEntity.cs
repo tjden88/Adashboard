@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace Adashboard.Api.Data.Entities;
+namespace Adashboard.Data.Entities;
 
 /// <summary>
 /// Сущность БД категории ссылок.

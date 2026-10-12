@@ -1,4 +1,4 @@
-using Adashboard.Api.Data;
+using Adashboard.Data;
 using Adashboard.Api.Mapping;
 using Adashboard.Api.Services;
 using Microsoft.EntityFrameworkCore;

@@ -1,5 +1,4 @@
 using System.Security.Cryptography;
-using Adashboard.Api.Data;
 
 namespace Adashboard.Api.Services;
 

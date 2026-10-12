@@ -1,13 +1,14 @@
-using Adashboard.Api.Data.Entities;
+using Adashboard.Data.Entities;
 using Adashboard.Domain.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
-namespace Adashboard.Api.Data;
+namespace Adashboard.Data;
 
 /// <summary>
 /// Инициализирует базу данных: применяет миграции и один раз добавляет стартовое наполнение.
 /// </summary>
-internal sealed class DbInitializer(DashboardDb db, ILogger<DbInitializer> logger)
+public sealed class DbInitializer(DashboardDb db, ILogger<DbInitializer> logger)
 {
     /// <summary>
     /// Применяет миграции и добавляет стартовые данные, если раскладка ещё не создавалась.

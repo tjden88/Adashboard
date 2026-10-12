@@ -1,6 +1,6 @@
 using Adashboard.Domain.Models;
 
-namespace Adashboard.Api.Data.Entities;
+namespace Adashboard.Data.Entities;
 
 /// <summary>
 /// Сущность БД общих настроек dashboard.

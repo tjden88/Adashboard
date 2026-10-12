@@ -1,6 +1,4 @@
-using Adashboard.Api.Services;
-
-namespace Adashboard.Api.Data;
+namespace Adashboard.Api.Services;
 
 /// <summary>
 /// Наполняет каталог статики приложения стандартными файлами (фон, логотип и т.п.),

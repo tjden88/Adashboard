@@ -1,7 +1,7 @@
-using Adashboard.Api.Data.Entities;
+using Adashboard.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace Adashboard.Api.Data;
+namespace Adashboard.Data;
 
 /// <summary>
 /// Контекст базы данных dashboard.

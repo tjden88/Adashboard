@@ -1,4 +1,4 @@
-using Adashboard.Api.Data.Entities;
+using Adashboard.Data.Entities;
 using Adashboard.Domain.Models;
 using Riok.Mapperly.Abstractions;
 

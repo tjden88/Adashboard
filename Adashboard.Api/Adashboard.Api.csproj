@@ -15,7 +15,11 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.12" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
-    <!-- Явно поднимаем транзитивную зависимость: версия 2.0.0 содержит уязвимость GHSA-v5pm-xwqc-g5wc. -->
+    <!--
+      Явно поднимаем транзитивную зависимость (версия 2.0.0 содержит уязвимость GHSA-v5pm-xwqc-g5wc).
+      Кроме того, пакет нужен инструментам EF Core: миграции лежат в Adashboard.Data, но design-time
+      запускается из проекта-хоста (startup), поэтому пакет обязателен и здесь.
+    -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -32,6 +36,7 @@
       как static web assets и раздаётся тем же сервером (один origin).
     -->
     <ProjectReference Include="..\Adashboard.Domain\Adashboard.Domain.csproj" />
+    <ProjectReference Include="..\Adashboard.Data\Adashboard.Data.csproj" />
   </ItemGroup>
 
 </Project>

@@ -2,7 +2,7 @@
 
 #nullable disable
 
-namespace Adashboard.Api.Migrations
+namespace Adashboard.Data.Migrations
 {
     /// <inheritdoc />
     public partial class InitialCreate : Migration

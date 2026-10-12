@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Adashboard.Domain.Models;
 
-namespace Adashboard.Api.Data.Entities;
+namespace Adashboard.Data.Entities;
 
 /// <summary>
 /// Сущность БД карточки ссылки внутри категории.

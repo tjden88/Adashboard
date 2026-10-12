@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Adashboard.Api.Data.Entities;
+namespace Adashboard.Data.Entities;
 
 /// <summary>
 /// Сущность БД раскладки dashboard.
