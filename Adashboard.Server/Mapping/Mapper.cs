@@ -10,8 +10,8 @@ namespace Adashboard.Server.Mapping;
 /// <remarks>
 /// <para>
 /// Код маппинга не пишется руками: его генерирует source generator библиотеки Riok.Mapperly
-/// на этапе сборки. Частичные методы объявляются только публичными — реализации появятся
-/// в сгенерированной части класса.
+/// на этапе сборки. Частичные методы объявляются только публичными и статическими —
+/// реализации появятся в сгенерированной части класса.
 /// </para>
 /// <para>
 /// Расхождения сущностей и моделей описаны явно атрибутами <c>MapperIgnoreSource</c> и
@@ -21,29 +21,29 @@ namespace Adashboard.Server.Mapping;
 /// </para>
 /// </remarks>
 [Mapper]
-public partial class DashboardMapper
+public static partial class Mapper
 {
     /// <summary>
     /// Преобразует сущность раскладки в контрактную модель вместе с категориями и карточками.
     /// </summary>
-    public partial DashboardLayout ToModel(DashboardLayoutEntity entity);
+    public static partial DashboardLayout ToModel(DashboardLayoutEntity entity);
 
     /// <summary>
     /// Преобразует контрактную модель раскладки в сущность вместе с категориями и карточками.
     /// </summary>
-    public partial DashboardLayoutEntity ToEntity(DashboardLayout layout);
+    public static partial DashboardLayoutEntity ToEntity(DashboardLayout layout);
 
     /// <summary>
     /// Преобразует сущность категории в контрактную модель.
     /// </summary>
     [MapperIgnoreSource(nameof(DashboardCategoryEntity.Layout))]
-    public partial DashboardCategory ToModel(DashboardCategoryEntity entity);
+    public static partial DashboardCategory ToModel(DashboardCategoryEntity entity);
 
     /// <summary>
     /// Преобразует контрактную модель категории в сущность.
     /// </summary>
     [MapperIgnoreTarget(nameof(DashboardCategoryEntity.Layout))]
-    public partial DashboardCategoryEntity ToEntity(DashboardCategory category);
+    public static partial DashboardCategoryEntity ToEntity(DashboardCategory category);
 
     /// <summary>
     /// Копирует изменяемые поля контрактной модели категории в отслеживаемую сущность.
@@ -58,20 +58,20 @@ public partial class DashboardMapper
     [MapperIgnoreSource(nameof(DashboardCategory.Id))]
     [MapperIgnoreSource(nameof(DashboardCategory.DashboardLayoutId))]
     [MapperIgnoreSource(nameof(DashboardCategory.Cards))]
-    public partial void UpdateCategory(DashboardCategory source, DashboardCategoryEntity target);
+    public static partial void UpdateCategory(DashboardCategory source, DashboardCategoryEntity target);
 
     /// <summary>
     /// Преобразует сущность карточки в контрактную модель.
     /// </summary>
     [MapperIgnoreSource(nameof(DashboardCardEntity.Category))]
-    public partial DashboardCard ToModel(DashboardCardEntity entity);
+    public static partial DashboardCard ToModel(DashboardCardEntity entity);
 
     /// <summary>
     /// Преобразует контрактную модель карточки в сущность.
     /// </summary>
     [MapperIgnoreTarget(nameof(DashboardCardEntity.Category))]
     [MapperIgnoreSource(nameof(DashboardCard.UrlSchemeText))]
-    public partial DashboardCardEntity ToEntity(DashboardCard card);
+    public static partial DashboardCardEntity ToEntity(DashboardCard card);
 
     /// <summary>
     /// Копирует изменяемые поля контрактной модели карточки в отслеживаемую сущность.
@@ -85,23 +85,23 @@ public partial class DashboardMapper
     [MapperIgnoreSource(nameof(DashboardCard.Id))]
     [MapperIgnoreSource(nameof(DashboardCard.DashboardCategoryId))]
     [MapperIgnoreSource(nameof(DashboardCard.UrlSchemeText))]
-    public partial void UpdateCard(DashboardCard source, DashboardCardEntity target);
+    public static partial void UpdateCard(DashboardCard source, DashboardCardEntity target);
 
     /// <summary>
     /// Преобразует сущность настроек в контрактную модель.
     /// </summary>
     [MapperIgnoreSource(nameof(SiteSettingsEntity.Id))]
-    public partial SiteSettings ToModel(SiteSettingsEntity entity);
+    public static partial SiteSettings ToModel(SiteSettingsEntity entity);
 
     /// <summary>
     /// Преобразует контрактную модель настроек в сущность.
     /// </summary>
     [MapperIgnoreTarget(nameof(SiteSettingsEntity.Id))]
-    public partial SiteSettingsEntity ToEntity(SiteSettings settings);
+    public static partial SiteSettingsEntity ToEntity(SiteSettings settings);
 
     /// <summary>
     /// Копирует поля контрактной модели настроек в отслеживаемую сущность.
     /// </summary>
     [MapperIgnoreTarget(nameof(SiteSettingsEntity.Id))]
-    public partial void UpdateSettings(SiteSettings source, SiteSettingsEntity target);
+    public static partial void UpdateSettings(SiteSettings source, SiteSettingsEntity target);
 }

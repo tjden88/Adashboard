@@ -10,11 +10,10 @@ namespace Adashboard.Server.Services;
 /// CRUD категорий и карточек. Работает с контрактными моделями, наружу сущности не отдаёт.
 /// </summary>
 /// <remarks>
-/// Маппинг «сущность ↔ контрактная модель» выполняет сгенерированный <see cref="DashboardMapper"/>.
+/// Маппинг «сущность ↔ контрактная модель» выполняет статический <see cref="Mapper"/>.
 /// </remarks>
 public sealed class LayoutService(
     DashboardDb db,
-    DashboardMapper mapper,
     ILogger<LayoutService> logger)
 {
     /// <summary>
@@ -39,7 +38,7 @@ public sealed class LayoutService(
             return new DashboardLayout { Id = 1 };
         }
 
-        var layout = mapper.ToModel(entity);
+        var layout = Mapper.ToModel(entity);
 
         // Порядок из Include не гарантируется, поэтому выставляем его в памяти:
         // категории — по Order, карточки внутри категории — по Position.
@@ -88,7 +87,7 @@ public sealed class LayoutService(
     {
         logger.LogInformation("Начато создание категории {Title}.", category.Title);
 
-        var entity = mapper.ToEntity(category);
+        var entity = Mapper.ToEntity(category);
         // Идентификатор назначает EF Core, а категория всегда принадлежит основной раскладке.
         entity.Id = 0;
         entity.DashboardLayoutId = 1;
@@ -97,7 +96,7 @@ public sealed class LayoutService(
         await db.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Категория создана. Идентификатор: {CategoryId}.", entity.Id);
-        return mapper.ToModel(entity);
+        return Mapper.ToModel(entity);
     }
 
     /// <summary>
@@ -118,7 +117,7 @@ public sealed class LayoutService(
             return false;
         }
 
-        mapper.UpdateCategory(category, entity);
+        Mapper.UpdateCategory(category, entity);
         await db.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Категория {CategoryId} обновлена.", id);
@@ -167,14 +166,14 @@ public sealed class LayoutService(
             return null;
         }
 
-        var entity = mapper.ToEntity(card);
+        var entity = Mapper.ToEntity(card);
         entity.Id = 0;
 
         db.Cards.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Карточка создана. Идентификатор: {CardId}.", entity.Id);
-        return mapper.ToModel(entity);
+        return Mapper.ToModel(entity);
     }
 
     /// <summary>
@@ -195,7 +194,7 @@ public sealed class LayoutService(
             return false;
         }
 
-        mapper.UpdateCard(card, entity);
+        Mapper.UpdateCard(card, entity);
 
         // Перенос в другую категорию выполняем только при явно указанном идентификаторе,
         // иначе сохраняем текущую категорию карточки.

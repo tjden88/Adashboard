@@ -10,11 +10,10 @@ namespace Adashboard.Server.Services;
 /// </summary>
 /// <remarks>
 /// Настройки хранятся одной строкой (<c>Id = 1</c>) и всегда возвращаются контрактной моделью.
-/// Маппинг «сущность ↔ контрактная модель» выполняет <see cref="DashboardMapper"/>.
+/// Маппинг «сущность ↔ контрактная модель» выполняет статический <see cref="Mapper"/>.
 /// </remarks>
 public sealed class SiteSettingsService(
     DashboardDb db,
-    DashboardMapper mapper,
     ILogger<SiteSettingsService> logger)
 {
     /// <summary>
@@ -37,7 +36,7 @@ public sealed class SiteSettingsService(
         }
 
         logger.LogInformation("Настройки dashboard прочитаны.");
-        return mapper.ToModel(entity);
+        return Mapper.ToModel(entity);
     }
 
     /// <summary>
@@ -53,13 +52,13 @@ public sealed class SiteSettingsService(
         if (entity is null)
         {
             logger.LogWarning("Настройки dashboard не найдены. Создаётся новая запись.");
-            entity = mapper.ToEntity(settings);
+            entity = Mapper.ToEntity(settings);
             entity.Id = 1;
             db.SiteSettings.Add(entity);
         }
         else
         {
-            mapper.UpdateSettings(settings, entity);
+            Mapper.UpdateSettings(settings, entity);
         }
 
         await db.SaveChangesAsync(cancellationToken);

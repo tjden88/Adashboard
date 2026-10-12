@@ -1,10 +1,8 @@
 using Adashboard.Data;
-using Adashboard.Server.Mapping;
 using Adashboard.Server.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Scalar.AspNetCore;
-using DashboardMapper = Adashboard.Server.Mapping.DashboardMapper;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,9 +38,6 @@ services.AddScoped<LayoutService>();
 services.AddScoped<SiteSettingsService>();
 services.AddScoped<ImageIconService>();
 services.AddScoped<ProbeService>();
-
-// Mapperly-маппер не хранит состояния, поэтому регистрируем его как singleton.
-services.AddSingleton<DashboardMapper>();
 
 // Клиент загрузки иконок по ссылке отключён от редиректов: это снижает риск SSRF
 // через перенаправление.
