@@ -22,7 +22,6 @@ public sealed class DashboardLayoutService(
             .AsNoTracking()
             .Include(x => x.Categories)
             .ThenInclude(x => x.Cards)
-            .ThenInclude(c => c.CardImage)
             .FirstOrDefaultAsync(x => x.Id == 1, cancellationToken);
 
         if (layout is null)
@@ -105,7 +104,8 @@ public sealed class DashboardLayoutService(
                     IsWide = card.IsWide,
                     StatusMode = card.StatusMode,
                     Position = card.Position,
-                    CardImage = card.CardImage
+                    IconSource = card.IconSource,
+                    IsCustomIcon = card.IsCustomIcon
                 });
             }
 

@@ -37,24 +37,17 @@ public sealed class DashboardCard
     public UrlScheme UrlScheme { get; set; } = UrlScheme.Http;
 
     /// <summary>
-    /// Возвращает текст схемы URL для отображения в интерфейсе: "http://", "https://" или пустая строка.
+    /// Признак того, что изображение-иконка загружено пользователем и хранится в uploads.
+    /// Иначе является стандартной иконкой Font Awesome.
     /// </summary>
-    public string UrlSchemeText => UrlScheme switch
-    {
-        UrlScheme.Http => "http://",
-        UrlScheme.Https => "https://",
-        _ => string.Empty
-    };
+    public bool IsCustomIcon { get; set; }
+
 
     /// <summary>
-    /// Модель изображения-иконки карточки.
+    /// CSS-класс иконки Font Awesome.
+    /// Либо относительный путь к загруженному изображению-иконке
     /// </summary>
-    /// <remarks>
-    /// Атрибут <see cref="ForeignKeyAttribute"/> явно задаёт имя внешнего ключа — теневое
-    /// свойство <c>CardImageId</c>, которое EF Core создаёт для этой связи.
-    /// </remarks>
-    [ForeignKey("CardImageId")]
-    public CardImage CardImage { get; set; } = new();
+    public string IconSource { get; set; } = "fa-solid fa-link";
 
     /// <summary>
     /// Цвет фона карточки в формате CSS (например, #1e293b).
@@ -93,6 +86,16 @@ public sealed class DashboardCard
 
         return luminance < 0.45;
     }
+
+    /// <summary>
+    /// Возвращает текст схемы URL для отображения в интерфейсе: "http://", "https://" или пустая строка.
+    /// </summary>
+    public string UrlSchemeText => UrlScheme switch
+    {
+        UrlScheme.Http => "http://",
+        UrlScheme.Https => "https://",
+        _ => string.Empty
+    };
 
     /// <summary>
     /// Цвет иконки, автоматически подобранный на основе фона карточки.
