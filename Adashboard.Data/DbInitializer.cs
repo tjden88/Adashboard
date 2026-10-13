@@ -1,5 +1,5 @@
 using Adashboard.Data.Entities;
-using Adashboard.Domain.Models;
+using Adashboard.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 

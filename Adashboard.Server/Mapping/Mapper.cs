@@ -1,5 +1,5 @@
 using Adashboard.Data.Entities;
-using Adashboard.Domain.Models;
+using Adashboard.Domain.Contracts;
 using Riok.Mapperly.Abstractions;
 
 namespace Adashboard.Server.Mapping;

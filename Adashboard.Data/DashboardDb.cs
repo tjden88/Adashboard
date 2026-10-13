@@ -1,5 +1,4 @@
 using Adashboard.Data.Entities;
-using Adashboard.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace Adashboard.Data;

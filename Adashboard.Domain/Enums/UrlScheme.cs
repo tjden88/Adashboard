@@ -1,4 +1,4 @@
-namespace Adashboard.Domain.Models;
+namespace Adashboard.Domain.Enums;
 
 /// <summary>
 /// Схема URL, используемая для перехода по ссылке карточки.

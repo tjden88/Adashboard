@@ -1,4 +1,6 @@
-namespace Adashboard.Domain.Models;
+using Adashboard.Domain.Enums;
+
+namespace Adashboard.Domain.Contracts;
 
 /// <summary>
 /// Контрактная модель общих настроек dashboard, изменяемых пользователем через интерфейс.

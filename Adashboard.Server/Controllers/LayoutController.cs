@@ -1,4 +1,5 @@
-using Adashboard.Domain.Models;
+using Adashboard.Domain.Contracts;
+using Adashboard.Domain.ReadModels;
 using Adashboard.Server.Services;
 using Microsoft.AspNetCore.Mvc;
 

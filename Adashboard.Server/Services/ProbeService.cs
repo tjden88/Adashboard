@@ -2,9 +2,9 @@ using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using Adashboard.Data;
-using Adashboard.Domain.Dto;
+using Adashboard.Domain.Enums;
 using Adashboard.Domain.Extensions;
-using Adashboard.Domain.Models;
+using Adashboard.Domain.ReadModels;
 using Microsoft.EntityFrameworkCore;
 
 namespace Adashboard.Server.Services;
@@ -69,7 +69,7 @@ public sealed class ProbeService(
         if (card.StatusMode == CardStatusMode.None)
         {
             logger.LogDebug("Проверка доступности карточки {CardId} не требуется: режим проверки отключён.", cardId);
-            return new HealthCheckStatus(HealthCheckStatus.HealthStatus.Unknown, "Проверка статуса отключена.");
+            return new HealthCheckStatus(HealthStatus.Unknown, "Проверка статуса отключена.");
         }
 
         if (!TryBuildAbsoluteUri(card.UrlScheme.ToSchemeText() + card.Url, out var uri))
@@ -77,7 +77,7 @@ public sealed class ProbeService(
             logger.LogWarning(
                 "Проверка доступности карточки {CardId} пропущена: адрес не является абсолютным HTTP(S)-адресом.",
                 cardId);
-            return new HealthCheckStatus(HealthCheckStatus.HealthStatus.Unknown, "Некорректный адрес карточки.");
+            return new HealthCheckStatus(HealthStatus.Unknown, "Некорректный адрес карточки.");
         }
 
         logger.LogDebug("Проверка доступности карточки {CardId} на хосте {Host}.", cardId, uri.Host);
@@ -93,7 +93,7 @@ public sealed class ProbeService(
             using var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token);
             var result = Evaluate(card.StatusMode, (int)response.StatusCode);
 
-            if (result.Status == HealthCheckStatus.HealthStatus.Offline)
+            if (result.Status == HealthStatus.Offline)
             {
                 logger.LogWarning(
                     "Сервис карточки {CardId} недоступен. Код ответа: {StatusCode}.",
@@ -116,7 +116,7 @@ public sealed class ProbeService(
         {
             logger.LogWarning("Проверка доступности карточки {CardId} не завершилась за отведённое время.", cardId);
             return new HealthCheckStatus(
-                HealthCheckStatus.HealthStatus.Offline,
+                HealthStatus.Offline,
                 $"Превышено время ожидания ({HealthRequestTimeout.TotalSeconds:0} с).");
         }
         catch (HttpRequestException ex)
@@ -130,7 +130,7 @@ public sealed class ProbeService(
                 ? "Не удалось разрешить адрес сервиса."
                 : "Не удалось подключиться к сервису.";
 
-            return new HealthCheckStatus(HealthCheckStatus.HealthStatus.Offline, message);
+            return new HealthCheckStatus(HealthStatus.Offline, message);
         }
     }
 
@@ -209,8 +209,8 @@ public sealed class ProbeService(
         };
 
         return online
-            ? new HealthCheckStatus(HealthCheckStatus.HealthStatus.Online, $"Доступен ({statusCode})")
-            : new HealthCheckStatus(HealthCheckStatus.HealthStatus.Offline, $"Сервер вернул ошибку: {statusCode}.");
+            ? new HealthCheckStatus(HealthStatus.Online, $"Доступен ({statusCode})")
+            : new HealthCheckStatus(HealthStatus.Offline, $"Сервер вернул ошибку: {statusCode}.");
     }
 
     /// <summary>

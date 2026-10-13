@@ -1,4 +1,4 @@
-namespace Adashboard.Domain.Models;
+namespace Adashboard.Domain.Enums;
 
 /// <summary>
 /// Режим темы dashboard: auto, dark или light.

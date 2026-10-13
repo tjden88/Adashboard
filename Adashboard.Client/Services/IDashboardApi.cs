@@ -1,4 +1,4 @@
-using Adashboard.Domain.Models;
+using Adashboard.Domain.Contracts;
 using Refit;
 
 namespace Adashboard.Client.Services;

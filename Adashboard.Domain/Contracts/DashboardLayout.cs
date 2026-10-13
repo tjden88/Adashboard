@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Adashboard.Domain.Models;
+namespace Adashboard.Domain.Contracts;
 
 /// <summary>
 /// Контрактная модель раскладки dashboard для записи: тело <c>PUT /api/layout/info</c>.

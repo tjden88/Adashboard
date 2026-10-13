@@ -1,4 +1,6 @@
-namespace Adashboard.Domain.Models;
+using Adashboard.Domain.Contracts;
+
+namespace Adashboard.Domain.ReadModels;
 
 /// <summary>
 /// Read-модель раскладки dashboard: агрегат, который отдаёт <c>GET /api/layout</c>.

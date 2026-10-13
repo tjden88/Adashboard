@@ -1,4 +1,6 @@
-namespace Adashboard.Domain.Models;
+using Adashboard.Domain.Contracts;
+
+namespace Adashboard.Domain.ReadModels;
 
 /// <summary>
 /// Узел read-модели раскладки: категория вместе с входящими в неё карточками.

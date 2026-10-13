@@ -1,5 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-using Adashboard.Domain.Models;
+using Adashboard.Domain.Enums;
 
 namespace Adashboard.Data.Entities;
 

@@ -1,5 +1,6 @@
 using Adashboard.Data;
-using Adashboard.Domain.Models;
+using Adashboard.Domain.Contracts;
+using Adashboard.Domain.ReadModels;
 using Adashboard.Server.Mapping;
 using Microsoft.EntityFrameworkCore;
 

@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Adashboard.Domain.Models;
+namespace Adashboard.Domain.Contracts;
 
 /// <summary>
 /// Контрактная модель категории ссылок на dashboard: то, что получает и отправляет фронтенд.

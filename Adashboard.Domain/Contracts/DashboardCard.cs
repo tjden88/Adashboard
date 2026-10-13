@@ -1,14 +1,14 @@
 using System.ComponentModel.DataAnnotations;
-using System.Globalization;
+using Adashboard.Domain.Enums;
 
-namespace Adashboard.Domain.Models;
+namespace Adashboard.Domain.Contracts;
 
 /// <summary>
 /// Контрактная модель карточки ссылки внутри категории: то, что получает и отправляет фронтенд.
 /// </summary>
 /// <remarks>
-/// Это UI-модель, а не сущность БД. Она не содержит навигаций и атрибутов схемы базы:
-/// часть свойств вычисляется из собственных данных и служит для отображения на клиенте.
+/// Это плоский контракт для чтения и записи, а не сущность БД: навигаций и атрибутов схемы здесь нет.
+/// Представление (подбор цвета текста и иконки под фон и т.п.) в контракт не входит и живёт на клиенте.
 /// Для валидации входных данных оставлены только атрибуты <see cref="MaxLengthAttribute"/>.
 /// </remarks>
 public sealed class DashboardCard
@@ -46,7 +46,6 @@ public sealed class DashboardCard
     /// </summary>
     public bool IsCustomIcon { get; set; }
 
-
     /// <summary>
     /// CSS-класс иконки Font Awesome.
     /// Либо относительный путь к загруженному изображению-иконке
@@ -72,48 +71,4 @@ public sealed class DashboardCard
     /// Положение карточки внутри категории.
     /// </summary>
     public int Position { get; set; }
-
-    /// <summary>
-    /// Определяет, нужно ли для данного цвета фона использовать светлые (белые) текст и иконку.
-    /// Возвращает true для достаточно тёмных фонов.
-    /// </summary>
-    private static bool ShouldUseLightText(string hexColor)
-    {
-        var rgb = ParseHexColor(hexColor);
-        if (rgb is null) return true;
-
-        var r = Linearize(rgb.Value.R / 255.0);
-        var g = Linearize(rgb.Value.G / 255.0);
-        var b = Linearize(rgb.Value.B / 255.0);
-
-        var luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-
-        return luminance < 0.45;
-    }
-
-    /// <summary>
-    /// Цвет иконки, автоматически подобранный на основе фона карточки.
-    /// </summary>
-    public string GetIconColor() => ShouldUseLightText(BackgroundColor) ? "#ffffff" : "#0f172a";
-
-    /// <summary>
-    /// Цвет текста заголовка карточки, автоматически подобранный на основе фона.
-    /// </summary>
-    public string GetTextColor() => ShouldUseLightText(BackgroundColor) ? "#ffffff" : "#0f172a";
-
-    private static (byte R, byte G, byte B)? ParseHexColor(string hex)
-    {
-        if (string.IsNullOrWhiteSpace(hex)) return null;
-        var raw = hex.TrimStart('#');
-        if (raw.Length != 6) return null;
-        return (
-            byte.Parse(raw[..2], NumberStyles.HexNumber),
-            byte.Parse(raw[2..4], NumberStyles.HexNumber),
-            byte.Parse(raw[4..6], NumberStyles.HexNumber));
-    }
-
-    private static double Linearize(double c)
-    {
-        return c <= 0.04045 ? c / 12.92 : Math.Pow((c + 0.055) / 1.055, 2.4);
-    }
 }
