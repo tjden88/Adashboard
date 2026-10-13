@@ -3,21 +3,25 @@ using System.ComponentModel.DataAnnotations;
 namespace Adashboard.Domain.Models;
 
 /// <summary>
-/// Контрактная модель раскладки dashboard: то, что получает фронтенд на <c>GET /api/layout</c>.
+/// Контрактная модель раскладки dashboard для записи: тело <c>PUT /api/layout/info</c>.
 /// </summary>
 /// <remarks>
-/// UI-модель: содержит категории с карточками, но не имеет навигаций и атрибутов схемы БД.
+/// Плоская модель без дочерних коллекций: содержит только собственные поля раскладки.
+/// Агрегат для чтения (категории с карточками) отдаёт отдельная read-модель
+/// <see cref="DashboardLayoutReadModel"/>.
 /// </remarks>
 public sealed class DashboardLayout
 {
     /// <summary>
     /// Уникальный идентификатор раскладки.
+    /// В теле запроса не используется: раскладка определяется адресом эндпоинта.
     /// </summary>
     public int Id { get; set; }
 
     /// <summary>
     /// Заголовок, отображаемый в шапке dashboard.
     /// </summary>
+    [Required]
     [MaxLength(120)]
     public string Title { get; set; } = string.Empty;
 
@@ -26,9 +30,4 @@ public sealed class DashboardLayout
     /// </summary>
     [MaxLength(300)]
     public string Description { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Список категорий в раскладке.
-    /// </summary>
-    public ICollection<DashboardCategory> Categories { get; set; } = [];
 }

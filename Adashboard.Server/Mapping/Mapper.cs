@@ -24,32 +24,42 @@ namespace Adashboard.Server.Mapping;
 public static partial class Mapper
 {
     /// <summary>
-    /// Преобразует сущность раскладки в контрактную модель вместе с категориями и карточками.
+    /// Преобразует сущность раскладки в плоскую контрактную модель.
     /// </summary>
+    /// <remarks>
+    /// Переносятся только собственные поля раскладки: навигация на категории игнорируется,
+    /// поскольку вложенную read-модель сервис собирает отдельно.
+    /// </remarks>
+    [MapperIgnoreSource(nameof(DashboardLayoutEntity.Categories))]
     public static partial DashboardLayout ToModel(DashboardLayoutEntity entity);
 
     /// <summary>
-    /// Преобразует контрактную модель раскладки в сущность вместе с категориями и карточками.
+    /// Преобразует сущность категории в плоскую контрактную модель.
     /// </summary>
-    public static partial DashboardLayoutEntity ToEntity(DashboardLayout layout);
-
-    /// <summary>
-    /// Преобразует сущность категории в контрактную модель.
-    /// </summary>
+    /// <remarks>
+    /// Навигации сущности (<c>Layout</c> и <c>Cards</c>) в плоской модели отсутствуют,
+    /// поэтому явно игнорируются: иначе Mapperly сообщает о неотображённых членах.
+    /// </remarks>
     [MapperIgnoreSource(nameof(DashboardCategoryEntity.Layout))]
+    [MapperIgnoreSource(nameof(DashboardCategoryEntity.Cards))]
     public static partial DashboardCategory ToModel(DashboardCategoryEntity entity);
 
     /// <summary>
-    /// Преобразует контрактную модель категории в сущность.
+    /// Преобразует плоскую контрактную модель категории в сущность.
     /// </summary>
+    /// <remarks>
+    /// Навигации сущности в модели отсутствуют и потому игнорируются;
+    /// связанные карточки и родительскую раскладку задают отдельные операции.
+    /// </remarks>
     [MapperIgnoreTarget(nameof(DashboardCategoryEntity.Layout))]
+    [MapperIgnoreTarget(nameof(DashboardCategoryEntity.Cards))]
     public static partial DashboardCategoryEntity ToEntity(DashboardCategory category);
 
     /// <summary>
     /// Копирует изменяемые поля контрактной модели категории в отслеживаемую сущность.
     /// </summary>
     /// <remarks>
-    /// Идентификаторы хранения и вложенные карточки не затрагиваются: их меняют отдельные операции.
+    /// Идентификаторы хранения и навигации не затрагиваются: их меняют отдельные операции.
     /// </remarks>
     [MapperIgnoreTarget(nameof(DashboardCategoryEntity.Id))]
     [MapperIgnoreTarget(nameof(DashboardCategoryEntity.DashboardLayoutId))]
@@ -57,7 +67,6 @@ public static partial class Mapper
     [MapperIgnoreTarget(nameof(DashboardCategoryEntity.Cards))]
     [MapperIgnoreSource(nameof(DashboardCategory.Id))]
     [MapperIgnoreSource(nameof(DashboardCategory.DashboardLayoutId))]
-    [MapperIgnoreSource(nameof(DashboardCategory.Cards))]
     public static partial void UpdateCategory(DashboardCategory source, DashboardCategoryEntity target);
 
     /// <summary>

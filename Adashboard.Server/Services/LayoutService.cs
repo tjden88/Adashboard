@@ -20,8 +20,8 @@ public sealed class LayoutService(
     /// Загружает основную раскладку dashboard вместе с категориями и карточками.
     /// </summary>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns>Контрактная модель раскладки; пустая раскладка, если записи нет.</returns>
-    public async Task<DashboardLayout> GetMainLayoutAsync(CancellationToken cancellationToken = default)
+    /// <returns>Read-модель раскладки; пустая раскладка, если записи нет.</returns>
+    public async Task<DashboardLayoutReadModel> GetMainLayoutAsync(CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Начата загрузка основной раскладки dashboard из базы данных.");
 
@@ -35,30 +35,39 @@ public sealed class LayoutService(
         if (entity is null)
         {
             logger.LogWarning("Основная раскладка dashboard не найдена в базе данных.");
-            return new DashboardLayout { Id = 1 };
+            return new DashboardLayoutReadModel { Layout = new DashboardLayout { Id = 1 } };
         }
 
-        var layout = Mapper.ToModel(entity);
-
-        // Порядок из Include не гарантируется, поэтому выставляем его в памяти:
-        // категории — по Order, карточки внутри категории — по Position.
-        layout.Categories = layout.Categories.OrderBy(x => x.Order).ToList();
-        foreach (var category in layout.Categories)
+        // Вложенную read-модель собираем из плоских моделей прямо здесь:
+        // порядок из Include не гарантируется, поэтому категории упорядочиваем по Order,
+        // а карточки внутри категории — по Position.
+        var readModel = new DashboardLayoutReadModel
         {
-            category.Cards = category.Cards.OrderBy(x => x.Position).ToList();
-        }
+            Layout = Mapper.ToModel(entity),
+            Categories = entity.Categories
+                .OrderBy(x => x.Order)
+                .Select(category => new DashboardCategoryReadModel
+                {
+                    Category = Mapper.ToModel(category),
+                    Cards = category.Cards
+                        .OrderBy(x => x.Position)
+                        .Select(card => Mapper.ToModel(card))
+                        .ToList()
+                })
+                .ToList()
+        };
 
-        logger.LogInformation("Основная раскладка dashboard загружена: категорий {CategoryCount}.", layout.Categories.Count);
-        return layout;
+        logger.LogInformation("Основная раскладка dashboard загружена: категорий {CategoryCount}.", readModel.Categories.Count);
+        return readModel;
     }
 
     /// <summary>
     /// Изменяет заголовок и описание основной раскладки.
     /// </summary>
-    /// <param name="info">Новые заголовок и описание.</param>
+    /// <param name="info">Плоская модель раскладки с новыми заголовком и описанием; <c>Id</c> игнорируется.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
     /// <returns><c>true</c>, если раскладка найдена и обновлена; иначе <c>false</c>.</returns>
-    public async Task<bool> UpdateInfoAsync(DashboardLayoutInfo info, CancellationToken cancellationToken = default)
+    public async Task<bool> UpdateInfoAsync(DashboardLayout info, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Начато изменение информационной части раскладки dashboard.");
 

@@ -8,6 +8,8 @@ namespace Adashboard.Domain.Models;
 /// <remarks>
 /// UI-модель: навигации и атрибуты схемы БД живут в сущности <c>DashboardCategoryEntity</c>,
 /// а здесь остаются только поля, нужные интерфейсу, и атрибуты валидации.
+/// Плоская модель без дочерних карточек: и в запросах, и в ответах категория идёт сама по себе.
+/// Карточки категории отдаёт read-модель <see cref="DashboardCategoryReadModel"/>.
 /// </remarks>
 public sealed class DashboardCategory
 {
@@ -36,9 +38,4 @@ public sealed class DashboardCategory
     /// Ширина категории в колонках сетки.
     /// </summary>
     public int Width { get; set; } = 6;
-
-    /// <summary>
-    /// Карточки, входящие в категорию.
-    /// </summary>
-    public ICollection<DashboardCard> Cards { get; set; } = [];
 }

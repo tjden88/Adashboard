@@ -17,8 +17,8 @@ public class LayoutController(
     /// Возвращает основную раскладку dashboard вместе с категориями и карточками.
     /// </summary>
     [HttpGet]
-    [ProducesResponseType<DashboardLayout>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<DashboardLayout>> Get(CancellationToken cancellationToken)
+    [ProducesResponseType<DashboardLayoutReadModel>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<DashboardLayoutReadModel>> Get(CancellationToken cancellationToken)
     {
         var layout = await layoutService.GetMainLayoutAsync(cancellationToken);
         return Ok(layout);
@@ -34,7 +34,7 @@ public class LayoutController(
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> PutInfo(
-        [FromBody] DashboardLayoutInfo? info,
+        [FromBody] DashboardLayout? info,
         CancellationToken cancellationToken)
     {
         if (info is null || string.IsNullOrWhiteSpace(info.Title))
