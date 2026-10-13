@@ -7,17 +7,18 @@ namespace Adashboard.Domain.ReadModels;
 /// </summary>
 /// <remarks>
 /// Переиспользует плоские контрактные модели <see cref="DashboardCategory"/> и
-/// <see cref="DashboardCard"/>, не дублируя их поля.
+/// <see cref="DashboardCard"/>, не дублируя их поля. Модель неизменяема:
+/// заполняется один раз при чтении и дальше только сериализуется.
 /// </remarks>
-public sealed class DashboardCategoryReadModel
+public sealed record DashboardCategoryReadModel
 {
     /// <summary>
     /// Данные категории без дочерних коллекций.
     /// </summary>
-    public DashboardCategory Category { get; set; } = new();
+    public DashboardCategory Category { get; init; } = new();
 
     /// <summary>
     /// Карточки категории, упорядоченные по позиции.
     /// </summary>
-    public IReadOnlyList<DashboardCard> Cards { get; set; } = [];
+    public IReadOnlyList<DashboardCard> Cards { get; init; } = [];
 }

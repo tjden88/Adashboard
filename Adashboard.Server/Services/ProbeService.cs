@@ -51,7 +51,7 @@ public sealed class ProbeService(
     /// <param name="cardId">Идентификатор карточки.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
     /// <returns>Результат проверки или <c>null</c>, если карточка не найдена.</returns>
-    public async Task<HealthCheckStatus?> CheckCardAsync(int cardId, CancellationToken cancellationToken = default)
+    public async Task<HealthCheckResult?> CheckCardAsync(int cardId, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Начата проверка доступности карточки {CardId}.", cardId);
 
@@ -69,7 +69,7 @@ public sealed class ProbeService(
         if (card.StatusMode == CardStatusMode.None)
         {
             logger.LogDebug("Проверка доступности карточки {CardId} не требуется: режим проверки отключён.", cardId);
-            return new HealthCheckStatus(HealthStatus.Unknown, "Проверка статуса отключена.");
+            return new HealthCheckResult(HealthStatus.Unknown, "Проверка статуса отключена.");
         }
 
         if (!TryBuildAbsoluteUri(card.UrlScheme.ToSchemeText() + card.Url, out var uri))
@@ -77,7 +77,7 @@ public sealed class ProbeService(
             logger.LogWarning(
                 "Проверка доступности карточки {CardId} пропущена: адрес не является абсолютным HTTP(S)-адресом.",
                 cardId);
-            return new HealthCheckStatus(HealthStatus.Unknown, "Некорректный адрес карточки.");
+            return new HealthCheckResult(HealthStatus.Unknown, "Некорректный адрес карточки.");
         }
 
         logger.LogDebug("Проверка доступности карточки {CardId} на хосте {Host}.", cardId, uri.Host);
@@ -115,7 +115,7 @@ public sealed class ProbeService(
         catch (OperationCanceledException)
         {
             logger.LogWarning("Проверка доступности карточки {CardId} не завершилась за отведённое время.", cardId);
-            return new HealthCheckStatus(
+            return new HealthCheckResult(
                 HealthStatus.Offline,
                 $"Превышено время ожидания ({HealthRequestTimeout.TotalSeconds:0} с).");
         }
@@ -130,7 +130,7 @@ public sealed class ProbeService(
                 ? "Не удалось разрешить адрес сервиса."
                 : "Не удалось подключиться к сервису.";
 
-            return new HealthCheckStatus(HealthStatus.Offline, message);
+            return new HealthCheckResult(HealthStatus.Offline, message);
         }
     }
 
@@ -198,7 +198,7 @@ public sealed class ProbeService(
     /// <summary>
     /// Определяет состояние сервиса по режиму проверки и полученному коду ответа.
     /// </summary>
-    private static HealthCheckStatus Evaluate(CardStatusMode mode, int statusCode)
+    private static HealthCheckResult Evaluate(CardStatusMode mode, int statusCode)
     {
         var online = mode switch
         {
@@ -209,8 +209,8 @@ public sealed class ProbeService(
         };
 
         return online
-            ? new HealthCheckStatus(HealthStatus.Online, $"Доступен ({statusCode})")
-            : new HealthCheckStatus(HealthStatus.Offline, $"Сервер вернул ошибку: {statusCode}.");
+            ? new HealthCheckResult(HealthStatus.Online, $"Доступен ({statusCode})")
+            : new HealthCheckResult(HealthStatus.Offline, $"Сервер вернул ошибку: {statusCode}.");
     }
 
     /// <summary>

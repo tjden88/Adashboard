@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Adashboard.Domain.ReadModels;
 
 namespace Adashboard.Domain.Contracts;
 
