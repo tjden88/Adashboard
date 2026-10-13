@@ -13,9 +13,7 @@ namespace Adashboard.Server.Services;
 /// <remarks>
 /// Маппинг «сущность ↔ контрактная модель» выполняет статический <see cref="Mapper"/>.
 /// </remarks>
-public sealed class LayoutService(
-    DashboardDb db,
-    ILogger<LayoutService> logger)
+public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger)
 {
     /// <summary>
     /// Загружает основную раскладку dashboard вместе с категориями и карточками.
@@ -45,16 +43,10 @@ public sealed class LayoutService(
         var readModel = new DashboardLayoutReadModel
         {
             Layout = Mapper.ToModel(entity),
-            Categories = entity.Categories
-                .OrderBy(x => x.Order)
-                .Select(category => new DashboardCategoryReadModel
-                {
-                    Category = Mapper.ToModel(category),
-                    Cards = category.Cards
-                        .OrderBy(x => x.Position)
-                        .Select(card => Mapper.ToModel(card))
-                        .ToList()
-                })
+            Categories = entity.Categories.Select(Mapper.ToModel).ToList(),
+            Cards = entity.Categories
+                .SelectMany(c => c.Cards)
+                .Select(Mapper.ToModel)
                 .ToList()
         };
 

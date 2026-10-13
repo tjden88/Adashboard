@@ -18,7 +18,12 @@ public sealed record DashboardLayoutReadModel
     public DashboardLayout Layout { get; init; } = new();
 
     /// <summary>
-    /// Категории раскладки вместе с их карточками, упорядоченные для отображения.
+    /// Категории раскладки
     /// </summary>
-    public IReadOnlyList<DashboardCategoryReadModel> Categories { get; init; } = [];
+    public IReadOnlyList<DashboardCategory> Categories { get; init; } = [];
+
+    /// <summary>
+    /// Карточки категорий
+    /// </summary>
+    public IReadOnlyList<DashboardCard> Cards { get; init; } = [];
 }
