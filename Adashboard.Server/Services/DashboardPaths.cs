@@ -8,7 +8,18 @@ namespace Adashboard.Server.Services;
 /// Раздаётся только подкаталог загрузок (см. <see cref="UploadsPath"/>) по адресу <c>/uploads</c>.
 /// В контейнере каталог данных монтируется как volume.
 /// </remarks>
-/// <param name="DataPath">Корневой каталог изменяемых данных.</param>
-/// <param name="DatabasePath">Путь к файлу базы данных SQLite.</param>
-/// <param name="UploadsPath">Каталог пользовательских загрузок, раздаваемый по <c>/uploads</c>.</param>
-public sealed record DashboardPaths(string DataPath, string DatabasePath, string UploadsPath);
+public sealed class DashboardPaths(string rootPath)
+{
+    /// <summary>Корневой каталог изменяемых данных.</summary>
+    public string DataPath { get; init; } = Path.Combine(rootPath, "appdata");
+
+    /// <summary>Путь к файлу базы данных SQLite.</summary>
+    public string DatabasePath => Path.Combine(DataPath, "data.db");
+
+    /// <summary>Каталог пользовательских загрузок, раздаваемый по <c>/uploads</c>.</summary>
+    public string UploadsPath => Path.Combine(DataPath, "uploads");
+
+    /// <summary>Оригиналы стандартных файлов, поставляемые вместе с приложением.</summary>
+    public string AssetsPath => Path.Combine(UploadsPath, "assets");
+
+}

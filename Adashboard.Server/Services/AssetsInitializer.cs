@@ -10,11 +10,10 @@ namespace Adashboard.Server.Services;
 /// </remarks>
 internal sealed class AssetsInitializer(
     DashboardPaths paths,
-    IWebHostEnvironment environment,
     ILogger<AssetsInitializer> logger)
 {
     // Оригиналы стандартных файлов, поставляемые вместе с приложением.
-    private readonly string _sourceDirectory = Path.Combine(environment.ContentRootPath, "Assets");
+    private readonly string _sourceDirectory = paths.AssetsPath;
 
     // Каталог статики, доступный по адресу /uploads/assets.
     private readonly string _targetDirectory = Path.Combine(paths.UploadsPath, "assets");

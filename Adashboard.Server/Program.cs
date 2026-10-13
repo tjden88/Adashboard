@@ -14,15 +14,8 @@ builder.Logging.AddSimpleConsole(options =>
 
 var services = builder.Services;
 
-// Единый каталог изменяемых данных: файл БД и пользовательские загрузки. Лежит вне wwwroot,
-// поэтому сама БД не отдаётся как статика. В контейнере каталог монтируется как volume.
-var dataPath = Path.Combine(builder.Environment.ContentRootPath, "appdata");
-var paths = new DashboardPaths(
-    DataPath: dataPath,
-    DatabasePath: Path.Combine(dataPath, "data.db"),
-    UploadsPath: Path.Combine(dataPath, "uploads"));
 
-Directory.CreateDirectory(paths.UploadsPath);
+var paths = new DashboardPaths(builder.Environment.ContentRootPath);
 services.AddSingleton(paths);
 
 // Подключаем контроллеры и генерацию OpenAPI-документа.
