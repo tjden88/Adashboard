@@ -24,7 +24,7 @@ public class CategoriesController(
         if (category is null || string.IsNullOrWhiteSpace(category.Title))
         {
             logger.LogWarning("Создание категории отклонено: некорректное тело запроса.");
-            return BadRequest(new { error = "Укажите название категории." });
+            return BadRequest("Укажите название категории.");
         }
 
         var result = await pageService.CreateCategoryAsync(category, cancellationToken);
@@ -48,7 +48,7 @@ public class CategoriesController(
         if (category is null || string.IsNullOrWhiteSpace(category.Title))
         {
             logger.LogWarning("Изменение категории {CategoryId} отклонено: некорректное тело запроса.", category?.Id);
-            return BadRequest(new { error = "Укажите название категории." });
+            return BadRequest("Укажите название категории.");
         }
 
         var result = await pageService.UpdateCategoryAsync(category, cancellationToken);

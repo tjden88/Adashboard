@@ -1,6 +1,7 @@
 using Adashboard.Data;
 using Adashboard.Server.Mapping;
 using Adashboard.Server.Services;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Scalar.AspNetCore;
@@ -25,6 +26,21 @@ services.AddSingleton(paths);
 // Подключаем контроллеры и генерацию OpenAPI-документа.
 
 services.AddControllers();
+
+// Контракт ошибок API: любой отказ отдаётся кодом 400/404 и текстом ошибки в теле
+// (text/plain), без обёрток вроде { error: ... }. Автоматический 400 от валидации
+// модели приводит к тому же виду, чтобы клиент разбирал один формат и не показывал
+// в UI технические детали разбора запроса.
+services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = _ => new ContentResult
+    {
+        StatusCode = StatusCodes.Status400BadRequest,
+        ContentType = "text/plain; charset=utf-8",
+        Content = "Некорректный запрос."
+    };
+});
+
 services.AddOpenApi();
 
 services.AddDbContext<DashboardDb>(options => options.UseSqlite($"Data Source={paths.DatabasePath}"));

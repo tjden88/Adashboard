@@ -24,7 +24,7 @@ public class ProbeController(
         if (cardId <= 0)
         {
             logger.LogWarning("Проверка доступности отклонена: некорректный идентификатор карточки {CardId}.", cardId);
-            return BadRequest(new { error = "Некорректный идентификатор карточки." });
+            return BadRequest("Некорректный идентификатор карточки.");
         }
 
         var result = await probeService.CheckCardAsync(cardId, cancellationToken);

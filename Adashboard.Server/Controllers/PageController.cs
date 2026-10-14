@@ -54,13 +54,13 @@ public class PageController(
         if (page is null || string.IsNullOrWhiteSpace(page.Title))
         {
             logger.LogWarning("Создание страницы отклонено: некорректное тело запроса.");
-            return BadRequest(new { error = "Укажите название страницы." });
+            return BadRequest("Укажите название страницы.");
         }
 
         if (!PagePathRules.IsValid(page.Path) || page.Path.Length == 0)
         {
             logger.LogWarning("Создание страницы отклонено: некорректный путь {Path}.", page.Path);
-            return BadRequest(new { error = "Укажите корректный путь страницы (латиница, цифры и дефис)." });
+            return BadRequest("Укажите корректный путь страницы (латиница, цифры и дефис).");
         }
 
         var result = await pageService.CreatePageAsync(page, cancellationToken);
@@ -84,13 +84,13 @@ public class PageController(
         if (info is null || string.IsNullOrWhiteSpace(info.Title))
         {
             logger.LogWarning("Изменение страницы отклонено: некорректное тело запроса.");
-            return BadRequest(new { error = "Укажите название страницы." });
+            return BadRequest("Укажите название страницы.");
         }
 
         if (!PagePathRules.IsValid(info.Path))
         {
             logger.LogWarning("Изменение страницы отклонено: некорректный путь {Path}.", info.Path);
-            return BadRequest(new { error = "Укажите корректный путь страницы (латиница, цифры и дефис)." });
+            return BadRequest("Укажите корректный путь страницы (латиница, цифры и дефис).");
         }
 
         var result = await pageService.UpdatePageInfoAsync(info, cancellationToken);

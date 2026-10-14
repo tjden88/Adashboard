@@ -33,10 +33,10 @@ public class SettingsController(SiteSettingsService settingsService, ILogger<Set
         if (settings is null)
         {
             logger.LogWarning("Обновление настроек отклонено: тело запроса пустое.");
-            return BadRequest(new { error = "Тело запроса с настройками обязательно." });
+            return BadRequest("Тело запроса с настройками обязательно.");
         }
 
         var result = await settingsService.UpdateAsync(settings, cancellationToken);
-        return result.IsSuccess ? NoContent() : BadRequest(new { error = result.Error });
+        return result.IsSuccess ? NoContent() : BadRequest(result.Error);
     }
 }

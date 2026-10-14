@@ -26,13 +26,13 @@ public class CardsController(
         if (card is null)
         {
             logger.LogWarning("Создание карточки отклонено: тело запроса пустое.");
-            return BadRequest(new { error = "Тело запроса с карточкой обязательно." });
+            return BadRequest("Тело запроса с карточкой обязательно.");
         }
 
         if (card.DashboardCategoryId <= 0)
         {
             logger.LogWarning("Создание карточки отклонено: не указана категория.");
-            return BadRequest(new { error = "Укажите категорию карточки." });
+            return BadRequest("Укажите категорию карточки.");
         }
 
         var result = await pageService.CreateCardAsync(card, cancellationToken);
@@ -56,7 +56,7 @@ public class CardsController(
         if (card is null)
         {
             logger.LogWarning("Изменение карточки отклонено: тело запроса пустое.");
-            return BadRequest(new { error = "Тело запроса с карточкой обязательно." });
+            return BadRequest("Тело запроса с карточкой обязательно.");
         }
 
         var result = await pageService.UpdateCardAsync(card, cancellationToken);
