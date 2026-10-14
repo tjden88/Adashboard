@@ -76,10 +76,10 @@ else
             {
                 <Category @key="category.Id" Model="@category"
                           Cards="@GetCards(category.Id)"
-                          EditRequested="category => OpenEditCategoryDialog(category)"
-                          AddCardRequested="category => OpenAddCardDialog(category)"
-                          DeleteRequested="category => OpenDeleteCategoryConfirm(category)"
-                          CardEditRequested="card => OpenEditCardDialog(card)"
+                          EditRequested="OpenEditCategoryDialog"
+                          AddCardRequested="OpenAddCardDialog"
+                          DeleteRequested="OpenDeleteCategoryConfirm"
+                          CardEditRequested="OpenEditCardDialog"
                           HealthLookup="GetHealthResult" />
             }
         </div>
@@ -374,7 +374,7 @@ else
     private async Task OpenDeleteCategoryConfirm(DashboardCategory category)
     {
         // Пустую категорию удаляем сразу: подтверждать нечего.
-        if (!_cards.Any(x => x.DashboardCategoryId == category.Id))
+        if (_cards.All(x => x.DashboardCategoryId != category.Id))
         {
             await DeleteCategory(category);
             return;

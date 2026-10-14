@@ -43,9 +43,13 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger,
         var readModel = new DashboardLayoutReadModel
         {
             Layout = entity.Adapt<DashboardLayout>(),
-            Categories = entity.Categories.Adapt<List<DashboardCategory>>(),
+            Categories = entity.Categories
+                .OrderBy(c=>c.Order)
+                .Adapt<List<DashboardCategory>>(),
             Cards = entity.Categories
-                .SelectMany(c => c.Cards).Adapt<List<DashboardCard>>()
+                .SelectMany(c => c.Cards)
+                .OrderBy(c => c.Position)
+                .Adapt<List<DashboardCard>>()
         };
 
         logger.LogDebug("Раскладка dashboard с ID {LayoutId} загружена.", id);
@@ -72,8 +76,7 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger,
             return false;
         }
 
-        entity.Title = layout.Title;
-        entity.Description = layout.Description;
+        layout.Adapt(entity);
         await db.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Информационная часть раскладки dashboard обновлена.");
