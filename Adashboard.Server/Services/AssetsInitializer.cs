@@ -23,7 +23,7 @@ internal sealed class AssetsInitializer(
     /// </summary>
     public void Initialize()
     {
-        logger.LogInformation("Запущено наполнение каталога статики стандартными файлами.");
+        logger.LogDebug("Запущено наполнение каталога статики стандартными файлами.");
 
         if (!Directory.Exists(_sourceDirectory))
         {

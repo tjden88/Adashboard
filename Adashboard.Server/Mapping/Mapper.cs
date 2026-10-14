@@ -34,6 +34,15 @@ public static partial class Mapper
     public static partial DashboardLayout ToModel(this DashboardLayoutEntity entity);
 
     /// <summary>
+    /// Преобразует плоскую контрактную модель раскладки в сущность.
+    /// </summary>
+    /// <param name="layout"></param>
+    /// <returns></returns>
+    public static partial DashboardLayoutEntity ToEntity(this DashboardLayout layout);
+
+
+
+    /// <summary>
     /// Преобразует сущность категории в плоскую контрактную модель.
     /// </summary>
     /// <remarks>

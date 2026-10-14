@@ -1,4 +1,5 @@
 using Adashboard.Data;
+using Adashboard.Data.Entities;
 using Adashboard.Domain.Contracts;
 using Adashboard.Domain.ReadModels;
 using Adashboard.Server.Mapping;
@@ -13,33 +14,31 @@ namespace Adashboard.Server.Services;
 /// <remarks>
 /// Маппинг «сущность ↔ контрактная модель» выполняет статический <see cref="Mapper"/>.
 /// </remarks>
-public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger)
+public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger, ImageIconService iconService)
 {
     /// <summary>
-    /// Загружает основную раскладку dashboard вместе с категориями и карточками.
+    /// Загружает раскладку dashboard вместе с категориями и карточками.
     /// </summary>
+    /// <param name="id">Идентификатор раскладки.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns>Read-модель раскладки; пустая раскладка, если записи нет.</returns>
-    public async Task<DashboardLayoutReadModel> GetMainLayoutAsync(CancellationToken cancellationToken = default)
+    /// <returns>Read-модель раскладки</returns>
+    public async Task<DashboardLayoutReadModel> GetLayoutAsync(int id, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Начата загрузка основной раскладки dashboard из базы данных.");
+        logger.LogDebug("Начата загрузка раскладки dashboard с ID {LayoutId} из базы данных.", id);
 
         var entity = await db.Layouts
             .AsNoTracking()
             .AsSplitQuery()
             .Include(x => x.Categories)
             .ThenInclude(x => x.Cards)
-            .FirstOrDefaultAsync(x => x.Id == 1, cancellationToken);
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
         if (entity is null)
         {
-            logger.LogWarning("Основная раскладка dashboard не найдена в базе данных.");
-            return new DashboardLayoutReadModel { Layout = new DashboardLayout { Id = 1 } };
+            logger.LogWarning("Раскладка dashboard с ID {LayoutId} не найдена в базе данных.", id);
+            return new DashboardLayoutReadModel { Layout = new DashboardLayout { Id = id } };
         }
 
-        // Вложенную read-модель собираем из плоских моделей прямо здесь:
-        // порядок из Include не гарантируется, поэтому категории упорядочиваем по Order,
-        // а карточки внутри категории — по Position.
         var readModel = new DashboardLayoutReadModel
         {
             Layout = entity.ToModel(),
@@ -49,29 +48,32 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger)
                 .ToList()
         };
 
-        logger.LogInformation("Основная раскладка dashboard загружена: категорий {CategoryCount}.", readModel.Categories.Count);
+        logger.LogDebug("Раскладка dashboard с ID {LayoutId} загружена.", id);
         return readModel;
     }
 
     /// <summary>
-    /// Изменяет заголовок и описание основной раскладки.
+    /// Добавляет или обновляет информационную часть раскладки dashboard (заголовок и описание).
     /// </summary>
-    /// <param name="info">Плоская модель раскладки с новыми заголовком и описанием; <c>Id</c> игнорируется.</param>
+    /// <param name="layout">Плоская модель раскладки с новыми заголовком и описанием; <c>Id</c> игнорируется.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
     /// <returns><c>true</c>, если раскладка найдена и обновлена; иначе <c>false</c>.</returns>
-    public async Task<bool> UpdateInfoAsync(DashboardLayout info, CancellationToken cancellationToken = default)
+    public async Task<bool> AddOrUpdateLayoutAsync(DashboardLayout layout, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Начато изменение информационной части раскладки dashboard.");
+        logger.LogDebug("Начато изменение информационной части раскладки dashboard.");
 
-        var entity = await db.Layouts.FirstOrDefaultAsync(x => x.Id == 1, cancellationToken);
+        var entity = layout.Id == 0 
+            ? new DashboardLayoutEntity() 
+            : await db.Layouts.FirstOrDefaultAsync(x => x.Id == layout.Id, cancellationToken);
+
         if (entity is null)
         {
-            logger.LogWarning("Изменение информационной части отклонено: раскладка dashboard не найдена.");
+            logger.LogWarning("Изменение информационной части отклонено: раскладка dashboard с id {LayoutId} не найдена.", layout.Id);
             return false;
         }
 
-        entity.Title = info.Title;
-        entity.Description = info.Description;
+        entity.Title = layout.Title;
+        entity.Description = layout.Description;
         await db.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Информационная часть раскладки dashboard обновлена.");
@@ -86,9 +88,9 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger)
     /// <returns>Созданная категория с назначенным идентификатором.</returns>
     public async Task<DashboardCategory> CreateCategoryAsync(DashboardCategory category, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Начато создание категории {Title}.", category.Title);
+        logger.LogDebug("Начато создание категории {Title}.", category.Title);
 
-        var entity = Mapper.ToEntity(category);
+        var entity = category.ToEntity();
         // Идентификатор назначает EF Core, а категория всегда принадлежит основной раскладке.
         entity.Id = 0;
         entity.DashboardLayoutId = 1;
@@ -97,7 +99,7 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger)
         await db.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Категория создана. Идентификатор: {CategoryId}.", entity.Id);
-        return Mapper.ToModel(entity);
+        return entity.ToModel();
     }
 
     /// <summary>
@@ -109,7 +111,7 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger)
     /// <returns><c>true</c>, если категория найдена и обновлена; иначе <c>false</c>.</returns>
     public async Task<bool> UpdateCategoryAsync(int id, DashboardCategory category, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Начато изменение категории {CategoryId}.", id);
+        logger.LogDebug("Начато изменение категории {CategoryId}.", id);
 
         var entity = await db.Categories.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (entity is null)
@@ -133,7 +135,7 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger)
     /// <returns><c>true</c>, если категория найдена и удалена; иначе <c>false</c>.</returns>
     public async Task<bool> DeleteCategoryAsync(int id, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Начато удаление категории {CategoryId}.", id);
+        logger.LogDebug("Начато удаление категории {CategoryId}.", id);
 
         var entity = await db.Categories.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (entity is null)
@@ -142,9 +144,26 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger)
             return false;
         }
 
+        // Получаем идентификаторы карточек с кастомными изображениями, чтобы удалить их файлы после удаления категории.
+        var cardsWithCustomImagesIds = await db.Cards
+            .Where(c => c.DashboardCategoryId == id && c.IsCustomIcon)
+            .Select(c=>c.Id)
+            .ToListAsync(cancellationToken);
+
+
         // Карточки категории удаляются каскадно на уровне БД (обязательная связь).
         db.Categories.Remove(entity);
-        await db.SaveChangesAsync(cancellationToken);
+        if(await db.SaveChangesAsync(cancellationToken) == 0)
+        {
+            logger.LogWarning("Удаление категории {CategoryId} отклонено базой данных.", id);
+            return false;
+        }
+
+        // Удаляем файлы кастомных изображений карточек после успешного удаления категории и её карточек.
+        foreach (var cardId in cardsWithCustomImagesIds)
+        {
+            iconService.Delete(cardId);
+        }
 
         logger.LogInformation("Категория {CategoryId} удалена.", id);
         return true;
@@ -158,7 +177,7 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger)
     /// <returns>Созданная карточка с назначенным идентификатором либо <c>null</c>, если категория не найдена.</returns>
     public async Task<DashboardCard?> CreateCardAsync(DashboardCard card, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Начато создание карточки {Title} в категории {CategoryId}.", card.Title, card.DashboardCategoryId);
+        logger.LogDebug("Начато создание карточки {Title} в категории {CategoryId}.", card.Title, card.DashboardCategoryId);
 
         var categoryExists = await db.Categories.AnyAsync(x => x.Id == card.DashboardCategoryId, cancellationToken);
         if (!categoryExists)
@@ -167,14 +186,14 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger)
             return null;
         }
 
-        var entity = Mapper.ToEntity(card);
+        var entity = card.ToEntity();
         entity.Id = 0;
 
         db.Cards.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Карточка создана. Идентификатор: {CardId}.", entity.Id);
-        return Mapper.ToModel(entity);
+        return entity.ToModel();
     }
 
     /// <summary>
@@ -186,7 +205,7 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger)
     /// <returns><c>true</c>, если карточка найдена и обновлена; иначе <c>false</c>.</returns>
     public async Task<bool> UpdateCardAsync(int id, DashboardCard card, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Начато изменение карточки {CardId}.", id);
+        logger.LogDebug("Начато изменение карточки {CardId}.", id);
 
         var entity = await db.Cards.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (entity is null)
@@ -218,7 +237,7 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger)
     /// <returns><c>true</c>, если карточка найдена и удалена; иначе <c>false</c>.</returns>
     public async Task<bool> DeleteCardAsync(int id, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Начато удаление карточки {CardId}.", id);
+        logger.LogDebug("Начато удаление карточки {CardId}.", id);
 
         var entity = await db.Cards.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (entity is null)

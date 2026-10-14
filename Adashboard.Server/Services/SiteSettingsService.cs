@@ -23,7 +23,7 @@ public sealed class SiteSettingsService(
     /// <returns>Настройки; значения по умолчанию, если записи в базе нет.</returns>
     public async Task<SiteSettings> GetAsync(CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Начато чтение настроек dashboard.");
+        logger.LogDebug("Начато чтение настроек dashboard.");
 
         var entity = await db.SiteSettings
             .AsNoTracking()
@@ -35,7 +35,7 @@ public sealed class SiteSettingsService(
             return new SiteSettings();
         }
 
-        logger.LogInformation("Настройки dashboard прочитаны.");
+        logger.LogDebug("Настройки dashboard прочитаны.");
         return Mapper.ToModel(entity);
     }
 
@@ -46,7 +46,7 @@ public sealed class SiteSettingsService(
     /// <param name="cancellationToken">Токен отмены операции.</param>
     public async Task UpdateAsync(SiteSettings settings, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Начато обновление настроек dashboard.");
+        logger.LogDebug("Начато обновление настроек dashboard.");
 
         var entity = await db.SiteSettings.FirstOrDefaultAsync(x => x.Id == 1, cancellationToken);
         if (entity is null)

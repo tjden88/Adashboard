@@ -44,7 +44,7 @@ public sealed class ImageIconService(
     /// <returns>Относительный путь к сохранённому изображению.</returns>
     public async Task<string> SaveFromUrlAsync(int cardId, string url, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Начата загрузка изображения карточки {CardId} по ссылке.", cardId);
+        logger.LogDebug("Начата загрузка изображения карточки {CardId} по ссылке.", cardId);
 
         if (cardId <= 0)
         {
@@ -89,7 +89,7 @@ public sealed class ImageIconService(
     /// <returns>Относительный путь к сохранённому изображению.</returns>
     public async Task<string> SaveFromBytesAsync(int cardId, byte[] content, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Начато сохранение изображения карточки {CardId} из загруженных данных.", cardId);
+        logger.LogDebug("Начато сохранение изображения карточки {CardId} из загруженных данных.", cardId);
 
         if (cardId <= 0)
         {

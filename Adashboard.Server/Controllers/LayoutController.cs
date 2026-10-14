@@ -21,7 +21,7 @@ public class LayoutController(
     [ProducesResponseType<DashboardLayoutReadModel>(StatusCodes.Status200OK)]
     public async Task<ActionResult<DashboardLayoutReadModel>> Get(CancellationToken cancellationToken)
     {
-        var layout = await layoutService.GetMainLayoutAsync(cancellationToken);
+        var layout = await layoutService.GetLayoutAsync(1, cancellationToken);
         return Ok(layout);
     }
 
@@ -44,7 +44,7 @@ public class LayoutController(
             return BadRequest(new { error = "Укажите заголовок раскладки." });
         }
 
-        var updated = await layoutService.UpdateInfoAsync(info, cancellationToken);
+        var updated = await layoutService.AddOrUpdateLayoutAsync(info, cancellationToken);
         if (!updated)
         {
             return NotFound(new { error = "Раскладка не найдена." });

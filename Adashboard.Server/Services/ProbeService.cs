@@ -53,7 +53,7 @@ public sealed class ProbeService(
     /// <returns>Результат проверки или <c>null</c>, если карточка не найдена.</returns>
     public async Task<HealthCheckResult?> CheckCardAsync(int cardId, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Начата проверка доступности карточки {CardId}.", cardId);
+        logger.LogDebug("Начата проверка доступности карточки {CardId}.", cardId);
 
         var card = await db.Cards
             .AsNoTracking()
@@ -101,7 +101,7 @@ public sealed class ProbeService(
             }
             else
             {
-                logger.LogInformation("Проверка доступности карточки {CardId} завершена: {Status}.", cardId, result.Status);
+                logger.LogDebug("Проверка доступности карточки {CardId} завершена: {Status}.", cardId, result.Status);
             }
 
             return result;
@@ -147,7 +147,7 @@ public sealed class ProbeService(
             throw new InvalidOperationException("Укажите корректную HTTP(S)-ссылку.");
         }
 
-        logger.LogInformation("Начато получение заголовка страницы на хосте {Host}.", uri.Host);
+        logger.LogDebug("Начато получение заголовка страницы на хосте {Host}.", uri.Host);
 
         try
         {
@@ -174,7 +174,7 @@ public sealed class ProbeService(
                 return null;
             }
 
-            logger.LogInformation("Заголовок страницы на хосте {Host} успешно получен.", uri.Host);
+            logger.LogDebug("Заголовок страницы на хосте {Host} успешно получен.", uri.Host);
             return title;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
