@@ -1,10 +1,19 @@
+@*
+    Шапка dashboard. Живёт внутри Home.razor (а не в layout): её содержимое относится
+    к конкретной странице dashboard.
+
+    Режим редактирования приходит из AppState, данные страницы — из каскадной модели
+    DashboardPageModel (обе задаёт Home). Логотип из настроек сайта подключит часть
+    theme/site-settings-dialog.
+*@
+
 <header class="dashboard-header">
     <div class="dashboard-header-brand">
         <div>
-            <h1>@PageState.DisplayTitle</h1>
-            @if (!string.IsNullOrWhiteSpace(PageState.Page.Description))
+            <h1>@Model.DisplayTitle</h1>
+            @if (!string.IsNullOrWhiteSpace(Model.Page.Description))
             {
-                <p>@PageState.Page.Description</p>
+                <p>@Model.Page.Description</p>
             }
         </div>
     </div>
@@ -38,7 +47,7 @@
     private AppState AppState { get; set; } = null!;
 
     [CascadingParameter]
-    private PageState PageState { get; set; } = null!;
+    private DashboardPageModel Model { get; set; } = null!;
 
     // Кнопки диалогов пока ничего не делают: сами диалоги появятся в частях dialogs,
     // page-dialog и site-settings-dialog. Разметку и видимость оставляем как в шапке референса.

@@ -1,38 +1,43 @@
 @page "/"
 @page "/{**PagePath}"
 
-@*
-    Точка маршрута dashboard: любой путь открывается здесь. Из адреса берётся путь, по нему
-    PageState загружает страницу, а шапка и представление читают общие данные.
+@implements IDisposable
 
-    Состояния загрузки, ошибки и «страница не найдена» относятся к самой маршрутизации,
-    поэтому показаны здесь, а не в PageView.
+@inject IDashboardApi DashboardApi
+@inject ILogger<Home> Logger
+
+@*
+    Точка маршрута dashboard: любой путь открывается здесь. Home сам загружает страницу по пути
+    и складывает данные в изменяемую модель DashboardPageModel, которую каскадным значением
+    получают шапка, представление страницы, категории и карточки.
+
+    Состояния загрузки, ошибки и «страница не найдена» относятся к маршрутизации и живут здесь.
 *@
 
 <PageTitle>@PageTitleText</PageTitle>
 
-@if (PageState.IsLoading)
+@if (_isLoading)
 {
     <div class="page-status" role="status" aria-live="polite" aria-label="Загрузка страницы">
         <span class="page-status__spinner" aria-hidden="true"></span>
     </div>
 }
-else if (PageState.Error is not null)
+else if (_loadError is not null)
 {
     <section class="page-status" role="alert">
         <h1 class="page-status__title">Не удалось открыть страницу</h1>
-        <p class="page-status__text page-status__text--error">@PageState.Error</p>
-        <button type="button" class="btn btn-primary" @onclick="ReloadAsync">
+        <p class="page-status__text page-status__text--error">@_loadError</p>
+        <button type="button" class="btn btn-primary" @onclick="RetryAsync">
             <i class="fa-solid fa-rotate-right" aria-hidden="true"></i> Повторить
         </button>
     </section>
 }
-else if (PageState.IsNotFound)
+else if (_isNotFound)
 {
     <section class="page-status" role="alert">
         <p class="page-status__code" aria-hidden="true">404</p>
         <h1 class="page-status__title">Страница не найдена</h1>
-        <p class="page-status__text">Такой страницы на dashboard нет. Проверьте адрес или вернитесь на основную страницу.</p>
+        <p class="page-status__text">Такой страницы нет. Проверьте адрес или вернитесь на основную страницу.</p>
         <a class="btn btn-primary" href="/">
             <i class="fa-solid fa-house" aria-hidden="true"></i> На главную
         </a>
@@ -40,26 +45,178 @@ else if (PageState.IsNotFound)
 }
 else
 {
-    <Header />
-    <PageView />
+    <CascadingValue Value="_model">
+        <Header />
+        <PageView />
+    </CascadingValue>
 }
 
 @code {
+    // Изменяемая модель текущей страницы: с ней работают шапка, представление, категории и карточки.
+    private readonly DashboardPageModel _model = new();
+
+    private bool _isLoading;
+    private bool _isNotFound;
+    private string? _loadError;
+
+    // Путь последней загрузки: отличает переход между страницами от повторного срабатывания
+    // жизненного цикла с тем же параметром маршрута.
+    private string _loadedPath = string.Empty;
+    private bool _isLoaded;
+
+    // Номер актуальной загрузки: результат отменённой загрузки не должен перезаписать новую.
+    private int _loadVersion;
+    private CancellationTokenSource? _loadCancellation;
+
     /// <summary>
     /// Путь страницы из адреса. <c>null</c> или пустая строка — основная страница «/».
     /// </summary>
     [Parameter]
     public string? PagePath { get; set; }
 
-    [CascadingParameter]
-    private PageState PageState { get; set; } = null!;
+    // Заголовок вкладки: у найденной страницы — её заголовок, при «не найдена» — отдельная подпись.
+    private string PageTitleText => _isNotFound ? "Страница не найдена" : _model.DisplayTitle;
 
-    // Заголовок вкладки: у найденной страницы — её заголовок (с fallback из PageState),
-    // а при «не найдена» — отдельная подпись.
-    private string PageTitleText => PageState.IsNotFound ? "Страница не найдена" : PageState.DisplayTitle;
+    protected override Task OnParametersSetAsync()
+    {
+        var normalized = NormalizePath(PagePath);
 
-    // Загрузку по пути выполняет PageState: повторный вызов с тем же путём он пропускает сам.
-    protected override Task OnParametersSetAsync() => PageState.LoadAsync(PagePath);
+        // Тот же путь уже загружен: повторный вызов жизненного цикла не должен обращаться к API.
+        if (_isLoaded && string.Equals(normalized, _loadedPath, StringComparison.Ordinal))
+        {
+            return Task.CompletedTask;
+        }
 
-    private Task ReloadAsync() => PageState.ReloadAsync();
+        return LoadAsync(normalized);
+    }
+
+    /// <summary>
+    /// Отменяет незавершённую загрузку при уходе со страницы.
+    /// </summary>
+    public void Dispose()
+    {
+        _loadCancellation?.Cancel();
+        _loadCancellation?.Dispose();
+        _loadCancellation = null;
+    }
+
+    // Повторная загрузка текущей страницы (кнопка «Повторить» после ошибки).
+    private Task RetryAsync() => LoadAsync(_loadedPath);
+
+    // Загружает страницу и её содержимое в модель, приводя состояние к одному из итогов:
+    // загружено, не найдено или ошибка.
+    private async Task LoadAsync(string normalized)
+    {
+        var version = ++_loadVersion;
+
+        _loadCancellation?.Cancel();
+        _loadCancellation?.Dispose();
+        _loadCancellation = new CancellationTokenSource();
+        var cancellationToken = _loadCancellation.Token;
+
+        _loadedPath = normalized;
+        _isLoaded = true;
+        _isLoading = true;
+        _isNotFound = false;
+        _loadError = null;
+
+        // Индикатор загрузки показываем сразу: при переходе между страницами данные приходят позже.
+        StateHasChanged();
+
+        try
+        {
+            // Регистр пути из адреса не важен, поэтому допустимость проверяем без его учёта:
+            // адрес «/About» открывает страницу «about», а невозможный путь сразу даёт 404.
+            if (normalized.Length > 0 && !PagePathRules.IsValid(normalized.ToLowerInvariant()))
+            {
+                ApplyNotFound();
+                return;
+            }
+
+            Logger.LogDebug("Загрузка страницы по пути {Path}.", normalized);
+
+            // Список страниц нужен, чтобы по адресу найти нужную, а затем загрузить её содержимое.
+            var pagesResponse = await DashboardApi.GetPagesAsync(cancellationToken);
+            if (version != _loadVersion)
+            {
+                return;
+            }
+
+            if (!pagesResponse.IsSuccessStatusCode)
+            {
+                Logger.LogWarning("Не удалось получить список страниц. Код: {StatusCode}.", (int?)pagesResponse.StatusCode);
+                ApplyError(pagesResponse.ErrorText());
+                return;
+            }
+
+            _model.Pages = pagesResponse.Content?.ToList() ?? [];
+
+            var page = _model.Pages.FirstOrDefault(x => string.Equals(x.Path, normalized, StringComparison.OrdinalIgnoreCase));
+            if (page is null)
+            {
+                ApplyNotFound();
+                return;
+            }
+
+            var pageResponse = await DashboardApi.GetPageAsync(page.Id, cancellationToken);
+            if (version != _loadVersion)
+            {
+                return;
+            }
+
+            if (!pageResponse.IsSuccessStatusCode)
+            {
+                Logger.LogWarning("Не удалось загрузить страницу {PageId}. Код: {StatusCode}.", page.Id, (int?)pageResponse.StatusCode);
+                ApplyError(pageResponse.ErrorText());
+                return;
+            }
+
+            // Read-модель отдаёт страницу и плоские списки категорий и карточек.
+            var readModel = pageResponse.Content;
+            _model.Page = readModel?.Page ?? page;
+            _model.Categories = readModel?.Categories?.ToList() ?? [];
+            _model.Cards = readModel?.Cards?.ToList() ?? [];
+
+            Logger.LogDebug("Страница по пути {Path} загружена.", normalized);
+
+            _isLoading = false;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Переход на другую страницу отменил загрузку: состояние обновит новая загрузка.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Не удалось загрузить страницу по пути {Path}.", normalized);
+            ApplyError("Не удалось загрузить страницу. Проверьте соединение с сервером и попробуйте снова.");
+        }
+    }
+
+    // Приводит состояние к «страница не найдена» и очищает данные предыдущей страницы.
+    private void ApplyNotFound()
+    {
+        Logger.LogWarning("Страница по пути {Path} не найдена.", _loadedPath);
+
+        ResetModel();
+        _isNotFound = true;
+        _isLoading = false;
+    }
+
+    // Приводит состояние к ошибке загрузки и очищает данные предыдущей страницы.
+    private void ApplyError(string message)
+    {
+        ResetModel();
+        _loadError = message;
+        _isLoading = false;
+    }
+
+    private void ResetModel()
+    {
+        _model.Page = new DashboardPage();
+        _model.Categories = [];
+        _model.Cards = [];
+    }
+
+    // Приводит путь из адреса к виду, в котором он хранится: без ведущих и завершающих слэшей.
+    private static string NormalizePath(string? path) => path?.Trim().Trim('/') ?? string.Empty;
 }

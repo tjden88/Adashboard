@@ -29,11 +29,6 @@ builder.Services.AddTransient<NetworkErrorHandler>();
 builder.Services.AddScoped<AppState>();
 builder.Services.AddCascadingValue(sp => sp.GetRequiredService<AppState>().Source);
 
-// Состояние текущей страницы dashboard — тоже корневое каскадное значение: шапка и представление
-// страницы получают одну загрузку и одинаковые данные.
-builder.Services.AddScoped<PageState>();
-builder.Services.AddCascadingValue(sp => sp.GetRequiredService<PageState>().Source);
-
 builder.Services
     .AddRefitGeneratedClient<IDashboardApi>(refitSettings)
     .ConfigureHttpClient(client => client.BaseAddress = new Uri(apiBaseAddress))

@@ -4,10 +4,6 @@ namespace Adashboard.Domain.Reference;
 /// Общие константы dashboard: ограничения размеров и значения по умолчанию,
 /// которые используют домен, API и клиент.
 /// </summary>
-/// <remarks>
-/// Значения заданы в одном месте, чтобы атрибуты валидации контрактов и сущностей БД,
-/// проверки API и ограничения полей ввода клиента не расходились между собой.
-/// </remarks>
 public static class DomainConstants
 {
     /// <summary>Максимальная длина заголовка карточки.</summary>
@@ -45,4 +41,7 @@ public static class DomainConstants
 
     /// <summary>Цвет фона карточки по умолчанию.</summary>
     public const string DefaultCardBackgroundColor = "#1e40af";
+
+    /// <summary>Заголовок dashboard по умолчанию: подставляется, когда у страницы пустой заголовок.</summary>
+    public const string AppTitle = "Adashboard";
 }
