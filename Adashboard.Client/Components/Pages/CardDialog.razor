@@ -1,5 +1,4 @@
 @using Refit
-@using System.Text.Json
 @using Adashboard.Client.Services
 @implements IAsyncDisposable
 @inject IDashboardApi DashboardApi
@@ -91,15 +90,6 @@
                 </div>
 
                 <div class="card-dialog__image-controls">
-                    <input class="form-control"
-                           type="text"
-                           maxlength="1000"
-                           autocomplete="off"
-                           placeholder="https://example.com/icon.png"
-                           value="@_imageUrl"
-                           @oninput="OnImageUrlInput"
-                           aria-label="Ссылка на изображение" />
-
                     <div class="card-dialog__image-buttons">
                         <label class="btn btn-outline-secondary card-dialog__image-upload">
                             <i class="fa-solid fa-upload" aria-hidden="true"></i>Выбрать файл
@@ -113,7 +103,7 @@
                     </div>
 
                     <p class="card-dialog__hint">
-                        Ссылка, файл или вставка из буфера обмена (Ctrl+V).
+                        Выберите файл или вставьте изображение из буфера обмена (Ctrl+V).
                     </p>
                 </div>
             </div>
@@ -205,7 +195,6 @@
     private string? _error;
 
     private bool _useCustomImage;
-    private string _imageUrl = string.Empty;
     private byte[]? _uploadedBytes;
     private string? _uploadedPreview;
     private string? _existingImagePath;
@@ -234,10 +223,9 @@
         _ => "○"
     };
 
-    /// <summary>Источник для предпросмотра: загруженный файл, ссылка или уже сохранённое изображение.</summary>
+    /// <summary>Источник для предпросмотра: выбранный файл, вставка из буфера или уже сохранённое изображение.</summary>
     private string? _previewSource =>
         _uploadedPreview
-        ?? (!string.IsNullOrWhiteSpace(_imageUrl) ? _imageUrl.Trim() : null)
         ?? ApiOptions.ResolveUploadPath(_existingImagePath);
 
     /// <summary>Карточка для редактирования или <c>null</c> при создании.</summary>
@@ -368,20 +356,6 @@
         }
     }
 
-    private void OnImageUrlInput(ChangeEventArgs args)
-    {
-        _imageUrl = args.Value?.ToString() ?? string.Empty;
-
-        // Ссылка имеет приоритет над ранее выбранным файлом: иначе предпросмотр не обновится.
-        if (_imageUrl.Length > 0)
-        {
-            _uploadedBytes = null;
-            _uploadedPreview = null;
-        }
-
-        _imageError = null;
-    }
-
     private async Task OnFileSelected(InputFileChangeEventArgs args)
     {
         _imageError = null;
@@ -401,7 +375,6 @@
 
             _uploadedBytes = buffer.ToArray();
             _uploadedPreview = $"data:{file.ContentType};base64,{Convert.ToBase64String(_uploadedBytes)}";
-            _imageUrl = string.Empty;
         }
         catch (Exception)
         {
@@ -435,7 +408,6 @@
             {
                 _uploadedBytes = bytes;
                 _uploadedPreview = dataUrl;
-                _imageUrl = string.Empty;
                 _useCustomImage = true;
                 _imageError = null;
             }
@@ -450,7 +422,6 @@
 
     private void ClearImage()
     {
-        _imageUrl = string.Empty;
         _uploadedBytes = null;
         _uploadedPreview = null;
         _existingImagePath = null;
@@ -498,13 +469,12 @@
             icon = DefaultIcon;
         }
 
-        // Пользовательская иконка без файла, ссылки и ранее сохранённого пути не имеет смысла.
+        // Пользовательская иконка без нового файла и без ранее сохранённого изображения не имеет смысла.
         if (_useCustomImage
             && _uploadedBytes is null
-            && string.IsNullOrWhiteSpace(_imageUrl)
             && string.IsNullOrWhiteSpace(_existingImagePath))
         {
-            _imageError = "Укажите ссылку или выберите изображение.";
+            _imageError = "Выберите изображение.";
             return;
         }
 
@@ -552,15 +522,12 @@
                 _createdCardId = card.Id;
             }
 
-            if (_useCustomImage && (_uploadedBytes is not null || !string.IsNullOrWhiteSpace(_imageUrl)))
+            // Новое изображение можно загрузить только для существующей карточки: API принимает
+            // бинарные данные и само удаляет предыдущий файл. При отказе от пользовательской
+            // иконки файл стирает уже обновление карточки на сервере.
+            if (_useCustomImage && _uploadedBytes is not null)
             {
-                // Загружаем новое изображение и запоминаем путь, который вернул API.
-                card.IconSource = await UploadIconAsync(card.Id);
-                card.IsCustomIcon = true;
-            }
-            else if (!_useCustomImage && !isNew)
-            {
-                card.IsCustomIcon = false;
+                card.IconSource = await UploadIconAsync(card.Id, _uploadedBytes);
             }
 
             // При создании без пользовательской иконки запись сохранять повторно не нужно.
@@ -617,7 +584,6 @@
 
         try
         {
-            await TryDeleteCardImageAsync(createdId);
             await DashboardApi.DeleteCardAsync(createdId);
         }
         catch (Exception ex)
@@ -630,20 +596,13 @@
     /// Загружает изображение-иконку для уже сохранённой карточки и возвращает путь к нему.
     /// </summary>
     /// <remarks>
-    /// Файл отправляется как бинарные данные, ссылка — как JSON-тело. Поток выбранного файла
-    /// должен жить до конца запроса, поэтому создаётся здесь и не закрывается раньше времени.
+    /// API принимает только бинарные данные изображения и само заменяет предыдущий файл.
+    /// Ошибки приходят строкой и превращаются в исключение, которое перехватывает <see cref="Save"/>.
     /// </remarks>
-    private async Task<string> UploadIconAsync(int cardId)
+    private async Task<string> UploadIconAsync(int cardId, byte[] bytes)
     {
-        if (_uploadedBytes is not null)
-        {
-            var response = await DashboardApi.UploadImageAsync(cardId, _uploadedBytes);
-            return await ReadImagePathAsync(response);
-        }
-
-        var urlResponse = await DashboardApi.UploadImageFromUrlAsync(
-            cardId, _imageUrl.Trim());
-        return await ReadImagePathAsync(urlResponse);
+        var response = await DashboardApi.UploadImageAsync(cardId, bytes);
+        return await ReadImagePathAsync(response);
     }
 
     private async Task Delete()
@@ -658,55 +617,33 @@
     /// Читает путь к сохранённому изображению из ответа API.
     /// </summary>
     /// <remarks>
-    /// Разбор сделан вручную, без отдельной модели: успешный ответ — <c>{ "imagePath": "..." }</c>,
-    /// неуспешный — <c>{ "error": "..." }</c>. При ошибке выбрасываем понятное исключение,
-    /// которое перехватывает <see cref="Save"/>.
+    /// API отвечает строкой с путём (например, <c>/uploads/card-icons/1-ab12.png</c>),
+    /// при ошибке — строкой с пояснением. Тело читаем как текст и снимаем обрамляющие
+    /// кавычки, если ответ сериализован как JSON-строка.
     /// </remarks>
     private static async Task<string> ReadImagePathAsync(HttpResponseMessage response)
     {
-        var body = await response.Content.ReadAsStringAsync();
+        var body = Unquote((await response.Content.ReadAsStringAsync()).Trim());
 
         if (!response.IsSuccessStatusCode)
         {
-            throw new InvalidOperationException(ExtractString(body, "error") ?? "Не удалось сохранить изображение.");
+            throw new InvalidOperationException(
+                body.Length > 0 ? body : "Не удалось сохранить изображение.");
         }
 
-        var imagePath = ExtractString(body, "imagePath");
-        if (string.IsNullOrWhiteSpace(imagePath))
+        if (body.Length == 0)
         {
             throw new InvalidOperationException("API не вернуло путь к изображению.");
         }
 
-        return imagePath;
+        return body;
     }
 
-    /// <summary>
-    /// Извлекает строковое свойство из JSON-ответа API, не полагаясь на строгую модель.
-    /// </summary>
-    private static string? ExtractString(string body, string property)
-    {
-        if (string.IsNullOrWhiteSpace(body))
-        {
-            return null;
-        }
-
-        try
-        {
-            using var document = JsonDocument.Parse(body);
-            if (document.RootElement.ValueKind == JsonValueKind.Object
-                && document.RootElement.TryGetProperty(property, out var value)
-                && value.ValueKind == JsonValueKind.String)
-            {
-                return value.GetString();
-            }
-        }
-        catch (JsonException)
-        {
-            // Формат ответа неожиданный: считаем свойство отсутствующим.
-        }
-
-        return null;
-    }
+    /// <summary>Убирает обрамляющие кавычки JSON-строки, если они есть.</summary>
+    private static string Unquote(string value) =>
+        value.Length >= 2 && value[0] == '"' && value[^1] == '"'
+            ? value[1..^1]
+            : value;
 
 
     /// <summary>

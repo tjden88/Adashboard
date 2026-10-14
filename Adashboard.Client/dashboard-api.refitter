@@ -18,7 +18,6 @@
     "Adashboard.Domain.ReadModels"
   ],
   "responseTypeOverride": {
-    "UploadImage": "System.Net.Http.HttpResponseMessage",
-    "UploadImageFromUrl": "System.Net.Http.HttpResponseMessage"
+    "UploadImage": "System.Net.Http.HttpResponseMessage"
   }
 }

@@ -282,13 +282,6 @@ else
 
     private async Task DeleteCategory(DashboardCategory category)
     {
-        // Вместе с категорией удаляем файлы пользовательских иконок всех её карточек:
-        // сервер чистит только записи БД, файлы изображений лежат отдельно.
-        foreach (var card in _cards.Where(x => x.DashboardCategoryId == category.Id).ToList())
-        {
-            await TryDeleteCardImageAsync(card.Id);
-        }
-
         try
         {
             await DashboardApi.DeleteCategoryAsync(category.Id);
@@ -551,19 +544,6 @@ else
         {
             // Refit выбрасывает ApiException при неуспешном ответе: оставляем понятное сообщение с кодом.
             throw new InvalidOperationException($"Не удалось сохранить раскладку (код {(int)ex.StatusCode}).", ex);
-        }
-    }
-
-    // Удаление файла иконки не должно срывать другие операции: ошибку только логируем.
-    private async Task TryDeleteCardImageAsync(int cardId)
-    {
-        try
-        {
-            await DashboardApi.DeleteImageAsync(cardId);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogWarning(ex, "Не удалось удалить изображение карточки {CardId} через API.", cardId);
         }
     }
 

@@ -34,16 +34,8 @@ services.AddScoped<AssetsInitializer>();
 services.AddScoped<LayoutService>();
 services.AddScoped<SiteSettingsService>();
 
-// Клиент загрузки иконок по ссылке отключён от редиректов: это снижает риск SSRF
-// через перенаправление.
-services.AddHttpClient<ImageIconService>(client =>
-{
-    client.Timeout = TimeSpan.FromSeconds(12);
-})
-    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
-    {
-        AllowAutoRedirect = false,
-    });
+// Сервис хранения изображений-иконок карточек: пишет файлы в каталог загрузок.
+services.AddScoped<ImageIconService>();
 
 // Клиент серверной проверки карточек и получения заголовка страницы. Редиректы не следуем,
 // чтобы вернуть настоящий код ответа целевого сервиса.
