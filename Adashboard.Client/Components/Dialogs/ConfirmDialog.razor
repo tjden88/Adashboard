@@ -1,0 +1,28 @@
+@using Adashboard.Client.Services
+@inherits DialogComponent<ConfirmDialogParameters, bool?>
+
+@*
+    Диалог подтверждения действия.
+
+    Ничего не выполняет сам: результат сообщает, подтвердил пользователь действие или нет,
+    а само действие (в том числе запрос к API) выполняет тот, кто открывал окно.
+*@
+
+<div class="confirm-dialog">
+    <p class="confirm-dialog__message">@Parameters.Message</p>
+
+    <div class="confirm-dialog__actions">
+        <button type="button" class="btn btn-outline-secondary" @onclick="() => Close(false)">
+            Отмена
+        </button>
+        <button type="button" class="@ConfirmButtonClass" @onclick="() => Close(true)">
+            <i class="fa-solid @ConfirmIconClass" aria-hidden="true"></i>@Parameters.ConfirmLabel
+        </button>
+    </div>
+</div>
+
+@code {
+    private string ConfirmButtonClass => Parameters.Action == ConfirmDialogAction.Danger ? "btn btn-danger" : "btn btn-primary";
+
+    private string ConfirmIconClass => Parameters.Action == ConfirmDialogAction.Danger ? "fa-trash" : "fa-check";
+}

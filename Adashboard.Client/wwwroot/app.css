@@ -76,6 +76,21 @@ input {
     font: inherit;
 }
 
+/* Пока открыт диалог, прокрутка фона заблокирована (класс ставит js/dialog.js). */
+body.dialog-open {
+    overflow: hidden;
+}
+
+/* Сообщения валидации формы (Blazor) в оформлении проекта. */
+.validation-message {
+    color: #dc2626;
+    font-size: 0.8rem;
+}
+
+html[data-theme="dark"] .validation-message {
+    color: #fca5a5;
+}
+
 /* Поля ввода в оформлении проекта: следуют выбранной теме. */
 .form-control,
 .form-select {

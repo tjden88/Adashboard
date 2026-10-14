@@ -1,3 +1,7 @@
+@inject DialogService DialogService
+@inject NavigationManager Navigation
+@inject ILogger<Header> Logger
+
 @*
     Шапка dashboard. Живёт внутри Home.razor (а не в layout): её содержимое относится
     к конкретной странице dashboard.
@@ -29,7 +33,7 @@
     <div class="dashboard-header-actions">
         @if (AppState.IsEditMode)
         {
-            <button type="button" class="btn btn-sm btn-success" @onclick="OpenAddPageDialog" aria-label="Добавить страницу" title="Добавить страницу">
+            <button type="button" class="btn btn-sm btn-success" @onclick="OpenAddPageDialogAsync" aria-label="Добавить страницу" title="Добавить страницу">
                 <i class="fa-solid fa-file-circle-plus" aria-hidden="true"></i>
                 <span class="header-button-label">Добавить страницу</span>
             </button>
@@ -37,6 +41,12 @@
             <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="OpenSiteSettings" aria-label="Настройки сайта" title="Настройки сайта">
                 <i class="fa-solid fa-sliders" aria-hidden="true"></i>
                 <span class="header-button-label">Настройки</span>
+            </button>
+
+            @* ВРЕМЕННО: проверка диалога подтверждения. Удалить вместе с подключением удаления страницы в части page-view. *@
+            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CheckConfirmDialogAsync" aria-label="Проверить диалог подтверждения" title="Проверить диалог подтверждения">
+                <i class="fa-solid fa-vial" aria-hidden="true"></i>
+                <span class="header-button-label">Проверка</span>
             </button>
         }
 
@@ -64,14 +74,35 @@
     [CascadingParameter]
     private DashboardPageModel Model { get; set; } = null!;
 
-    // Кнопки диалогов пока ничего не делают: сами диалоги появятся в частях dialogs,
-    // page-dialog и site-settings-dialog. Разметку и видимость оставляем как в шапке референса.
-    private void OpenAddPageDialog()
+    // Создание страницы: запрос к API и валидацию выполняет сам диалог, сюда приходит
+    // созданная страница либо null, если окно закрыли без сохранения.
+    private async Task OpenAddPageDialogAsync()
     {
+        var created = await DialogService.ShowAsync<PageDialog, PageDialogParameters, DashboardPage?>(
+            new PageDialogParameters(Model.Pages.Select(x => x.Path).ToList()),
+            "Создать страницу");
+
+        if (created is not null)
+        {
+            // Открываем созданную страницу: Home загрузит её по новому адресу.
+            Navigation.NavigateTo("/" + created.Path);
+        }
     }
 
     private void OpenSiteSettings()
     {
+    }
+
+    // ВРЕМЕННО: кнопка проверки диалога подтверждения, пока его не подключит удаление страницы
+    // (часть page-view). Результат пишем в лог, чтобы видеть, что диалог вернул.
+    private async Task CheckConfirmDialogAsync()
+    {
+        var confirmed = await DialogService.ShowAsync<ConfirmDialog, ConfirmDialogParameters, bool?>(
+            new ConfirmDialogParameters("Это проверка диалога подтверждения. Продолжить?", "Подтвердить"),
+            "Подтверждение",
+            new DialogOptions(CloseOnOverlayClick: true));
+
+        Logger.LogInformation("Проверка диалога подтверждения. Результат: {Result}.", confirmed);
     }
 
     private void ToggleEditMode() => AppState.ToggleEditMode();

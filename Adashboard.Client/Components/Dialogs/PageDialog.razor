@@ -1,0 +1,163 @@
+@using Adashboard.Client.Services
+@inherits DialogComponent<PageDialogParameters, DashboardPage?>
+@inject IDashboardApi DashboardApi
+@inject ILogger<PageDialog> Logger
+
+@*
+    Диалог создания страницы dashboard.
+
+    Запрос к API (POST) выполняет сам диалог: при отказе окно остаётся открытым и показывает
+    понятный текст ошибки. Созданная страница уходит результатом работы диалога, а переход
+    на неё выполняет тот, кто открывал окно.
+
+    Пока путь не правили вручную, он генерируется из названия страницы.
+*@
+
+<EditForm Model="_model" OnValidSubmit="SaveAsync" class="page-dialog">
+    <DataAnnotationsValidator />
+
+    <div class="page-dialog__field">
+        <label for="pageDialogTitle" class="page-dialog__label">Название страницы</label>
+        <InputText id="pageDialogTitle"
+                   class="form-control"
+                   maxlength="@DomainConstants.PageTitleMaxLength"
+                   autocomplete="off"
+                   placeholder="Отображается в заголовке"
+                   autofocus
+                   @bind-Value="_model.Title"
+                   @oninput="OnTitleInput" />
+        <ValidationMessage For="() => _model.Title" />
+    </div>
+
+    <div class="page-dialog__field">
+        <label for="pageDialogDescription" class="page-dialog__label">Описание</label>
+        <InputText id="pageDialogDescription"
+                   class="form-control"
+                   maxlength="@DomainConstants.PageDescriptionMaxLength"
+                   autocomplete="off"
+                   placeholder="Подзаголовок"
+                   @bind-Value="_model.Description" />
+    </div>
+
+    <div class="page-dialog__field">
+        <label for="pageDialogPath" class="page-dialog__label">Путь</label>
+        <input id="pageDialogPath"
+               class="form-control"
+               type="text"
+               maxlength="@DomainConstants.PagePathMaxLength"
+               autocomplete="off"
+               placeholder="path-to-page"
+               value="@EffectivePath"
+               @oninput="OnPathInput" />
+        <p class="page-dialog__hint">Латиница, цифры и дефис. Страница будет доступна по адресу /путь.</p>
+    </div>
+
+    @if (_error is not null)
+    {
+        <p class="page-dialog__error text-danger" role="alert">@_error</p>
+    }
+
+    <div class="page-dialog__actions">
+        <button type="submit" class="btn btn-primary" disabled="@_isSaving">
+            <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>@(_isSaving ? "Сохранение..." : "Сохранить")
+        </button>
+    </div>
+</EditForm>
+
+@code {
+    private EditModel _model = new();
+    private string? _error;
+    private bool _isSaving;
+
+    // Путь, введённый вручную. Пока его не трогали, путь генерируется из названия страницы.
+    private string _manualPath = string.Empty;
+    private bool _pathTouched;
+
+    // Пока путь не трогали, он следует за названием: латиница, нижний регистр, дефисы.
+    private string EffectivePath => _pathTouched ? _manualPath : PagePathRules.CreateSlug(_model.Title);
+
+    // Название вводится посимвольно, чтобы путь обновлялся сразу; проверки EditForm
+    // подхватят значение по штатному событию изменения поля.
+    private void OnTitleInput(ChangeEventArgs args) => _model.Title = args.Value?.ToString() ?? string.Empty;
+
+    private void OnPathInput(ChangeEventArgs args)
+    {
+        _pathTouched = true;
+        _manualPath = (args.Value?.ToString() ?? string.Empty).Trim().ToLowerInvariant();
+    }
+
+    private async Task SaveAsync()
+    {
+        _error = null;
+
+        var path = EffectivePath.Trim();
+        if (path.Length == 0)
+        {
+            _error = "Укажите путь страницы.";
+            return;
+        }
+
+        if (!PagePathRules.IsValid(path))
+        {
+            _error = "Путь может содержать только латиницу в нижнем регистре, цифры и дефис.";
+            return;
+        }
+
+        if (IsPathTaken(path))
+        {
+            _error = "Страница с таким путём уже существует.";
+            return;
+        }
+
+        _isSaving = true;
+        SetBusy(true);
+
+        try
+        {
+            var page = new DashboardPage
+            {
+                Title = _model.Title.Trim(),
+                Description = _model.Description.Trim(),
+                Path = path
+            };
+
+            Logger.LogDebug("Создание страницы dashboard {Title}.", page.Title);
+
+            var response = await DashboardApi.CreatePageAsync(page);
+            if (!response.IsSuccessStatusCode || response.Content is null)
+            {
+                Logger.LogWarning("Создание страницы завершилось ошибкой API. Код: {StatusCode}.", (int?)response.StatusCode);
+                _error = response.ErrorText();
+                return;
+            }
+
+            Logger.LogInformation("Страница dashboard создана. Идентификатор: {PageId}.", response.Content.Id);
+            Close(response.Content);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Не удалось создать страницу dashboard.");
+            _error = "Не удалось создать страницу. Проверьте соединение с сервером и попробуйте снова.";
+        }
+        finally
+        {
+            _isSaving = false;
+            SetBusy(false);
+        }
+    }
+
+    // Путь уже занят другой страницей: сервер проверит это же, но ответим сразу, без запроса.
+    private bool IsPathTaken(string path)
+        => Parameters.ExistingPaths.Any(existing => string.Equals(existing, path, StringComparison.Ordinal));
+
+    /// <summary>
+    /// Редактируемые поля новой страницы.
+    /// </summary>
+    private sealed class EditModel
+    {
+        [Required(ErrorMessage = "Укажите название страницы.")]
+        public string Title { get; set; } = string.Empty;
+
+        public string Description { get; set; } = string.Empty;
+    }
+}

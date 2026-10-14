@@ -29,6 +29,9 @@ builder.Services.AddTransient<NetworkErrorHandler>();
 builder.Services.AddScoped<AppState>();
 builder.Services.AddCascadingValue(sp => sp.GetRequiredService<AppState>().Source);
 
+// Диалоговые окна: сервис открывает окна, а контейнер в MainLayout их отрисовывает.
+builder.Services.AddScoped<DialogService>();
+
 builder.Services
     .AddRefitGeneratedClient<IDashboardApi>(refitSettings)
     .ConfigureHttpClient(client => client.BaseAddress = new Uri(apiBaseAddress))
