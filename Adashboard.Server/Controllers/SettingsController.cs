@@ -9,9 +9,7 @@ namespace Adashboard.Server.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/settings")]
-public class SettingsController(
-    SiteSettingsService settingsService,
-    ILogger<SettingsController> logger) : ControllerBase
+public class SettingsController(SiteSettingsService settingsService, ILogger<SettingsController> logger) : ControllerBase
 {
     /// <summary>
     /// Возвращает текущие настройки dashboard.
@@ -21,20 +19,16 @@ public class SettingsController(
     public async Task<ActionResult<SiteSettings>> Get(CancellationToken cancellationToken)
     {
         var settings = await settingsService.GetAsync(cancellationToken);
-        return Ok(settings);
+        return settings;
     }
 
     /// <summary>
     /// Обновляет настройки dashboard.
     /// </summary>
-    /// <param name="settings">Тело запроса с новыми настройками.</param>
-    /// <param name="cancellationToken">Токен отмены операции.</param>
     [HttpPut(Name = "SaveSettings")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Put(
-        [FromBody] SiteSettings? settings,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> Put([FromBody] SiteSettings? settings, CancellationToken cancellationToken)
     {
         if (settings is null)
         {
@@ -43,8 +37,6 @@ public class SettingsController(
         }
 
         var result = await settingsService.UpdateAsync(settings, cancellationToken);
-
-        // Единственная причина отказа — некорректное значение настройки.
         return result.IsSuccess ? NoContent() : BadRequest(new { error = result.Error });
     }
 }

@@ -18,8 +18,6 @@ public class PageController(
     /// <summary>
     /// Возвращает список всех страниц dashboard.
     /// </summary>
-    // Name задаёт operationId в OpenAPI-документе, а из него Refitter строит имя метода
-    // в клиентском интерфейсе IDashboardApi (см. Adashboard.Client/dashboard-api.refitter).
     [HttpGet(Name = "GetPages")]
     [ProducesResponseType<IReadOnlyList<DashboardPage>>(StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<DashboardPage>>> GetPages(CancellationToken cancellationToken)
@@ -31,18 +29,15 @@ public class PageController(
     /// <summary>
     /// Возвращает страницу dashboard вместе с категориями и карточками.
     /// </summary>
-    /// <param name="id">Идентификатор страницы.</param>
-    /// <param name="cancellationToken">Токен отмены операции.</param>
     [HttpGet("{id:int}", Name = "GetPage")]
     [ProducesResponseType<DashboardPageReadModel>(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<DashboardPageReadModel>> GetPage(int id, CancellationToken cancellationToken)
     {
         var result = await pageService.GetPageAsync(id, cancellationToken);
         if (!result.IsSuccess)
         {
-            // Единственная причина отказа — страница не найдена.
-            return NotFound(new { error = result.Error });
+            return BadRequest(result.Error);
         }
 
         return Ok(result.Value);
@@ -51,14 +46,10 @@ public class PageController(
     /// <summary>
     /// Создаёт новую страницу dashboard.
     /// </summary>
-    /// <param name="page">Тело запроса с данными страницы.</param>
-    /// <param name="cancellationToken">Токен отмены операции.</param>
     [HttpPost(Name = "CreatePage")]
     [ProducesResponseType<DashboardPage>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<DashboardPage>> Create(
-        [FromBody] DashboardPage? page,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<DashboardPage>> Create([FromBody] DashboardPage? page, CancellationToken cancellationToken)
     {
         if (page is null || string.IsNullOrWhiteSpace(page.Title))
         {
@@ -75,8 +66,7 @@ public class PageController(
         var result = await pageService.CreatePageAsync(page, cancellationToken);
         if (!result.IsSuccess)
         {
-            // Единственная причина отказа — путь уже занят.
-            return BadRequest(new { error = result.Error });
+            return BadRequest(result.Error);
         }
 
         var created = result.Value;
@@ -86,15 +76,10 @@ public class PageController(
     /// <summary>
     /// Изменяет заголовок, описание и путь страницы dashboard.
     /// </summary>
-    /// <param name="info">Тело запроса с новыми данными страницы.</param>
-    /// <param name="cancellationToken">Токен отмены операции.</param>
     [HttpPut("info", Name = "SavePageInfo")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> PutInfo(
-        [FromBody] DashboardPage? info,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> PutInfo([FromBody] DashboardPage? info, CancellationToken cancellationToken)
     {
         if (info is null || string.IsNullOrWhiteSpace(info.Title))
         {
@@ -109,26 +94,19 @@ public class PageController(
         }
 
         var result = await pageService.UpdatePageInfoAsync(info, cancellationToken);
-
-        // Отказ — это отклонение изменения (некорректный путь), поэтому отвечаем 400.
-        return result.IsSuccess ? NoContent() : BadRequest(new { error = result.Error });
+        return result.IsSuccess ? NoContent() : BadRequest(result.Error);
     }
 
     /// <summary>
     /// Удаляет страницу dashboard вместе с её категориями и карточками.
     /// Основную страницу удалить нельзя.
     /// </summary>
-    /// <param name="id">Идентификатор страницы.</param>
-    /// <param name="cancellationToken">Токен отмены операции.</param>
     [HttpDelete("{id:int}", Name = "DeletePage")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
         var result = await pageService.DeletePageAsync(id, cancellationToken);
-
-        // Отказ — это запрет удаления (страница не найдена или основная страница), отвечаем 400.
-        return result.IsSuccess ? NoContent() : BadRequest(new { error = result.Error });
+        return result.IsSuccess ? NoContent() : BadRequest(result.Error);
     }
 }

@@ -16,14 +16,10 @@ public class CategoriesController(
     /// <summary>
     /// Создаёт новую категорию на указанной странице.
     /// </summary>
-    /// <param name="category">Тело запроса с данными категории.</param>
-    /// <param name="cancellationToken">Токен отмены операции.</param>
     [HttpPost(Name = "CreateCategory")]
     [ProducesResponseType<DashboardCategory>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<DashboardCategory>> Create(
-        [FromBody] DashboardCategory? category,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<DashboardCategory>> Create([FromBody] DashboardCategory? category, CancellationToken cancellationToken)
     {
         if (category is null || string.IsNullOrWhiteSpace(category.Title))
         {
@@ -34,8 +30,7 @@ public class CategoriesController(
         var result = await pageService.CreateCategoryAsync(category, cancellationToken);
         if (!result.IsSuccess)
         {
-            // Единственная причина отказа — страница не найдена.
-            return BadRequest(new { error = result.Error });
+            return BadRequest(result.Error);
         }
 
         var created = result.Value;
@@ -45,15 +40,10 @@ public class CategoriesController(
     /// <summary>
     /// Изменяет существующую категорию.
     /// </summary>
-    /// <param name="category">Тело запроса с новыми данными категории.</param>
-    /// <param name="cancellationToken">Токен отмены операции.</param>
     [HttpPut(Name = "UpdateCategory")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Update(
-        [FromBody] DashboardCategory? category,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> Update([FromBody] DashboardCategory? category, CancellationToken cancellationToken)
     {
         if (category is null || string.IsNullOrWhiteSpace(category.Title))
         {
@@ -62,9 +52,7 @@ public class CategoriesController(
         }
 
         var result = await pageService.UpdateCategoryAsync(category, cancellationToken);
-
-        // Единственная причина отказа — категория или её страница не найдена.
-        return result.IsSuccess ? NoContent() : NotFound(new { error = result.Error });
+        return result.IsSuccess ? NoContent() : BadRequest(result.Error);
     }
 
     /// <summary>
@@ -78,8 +66,6 @@ public class CategoriesController(
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
         var result = await pageService.DeleteCategoryAsync(id, cancellationToken);
-
-        // Единственная причина отказа — категория не найдена.
-        return result.IsSuccess ? NoContent() : NotFound(new { error = result.Error });
+        return result.IsSuccess ? NoContent() : BadRequest(result.Error);
     }
 }

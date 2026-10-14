@@ -17,15 +17,11 @@ public class CardsController(
     /// <summary>
     /// Создаёт новую карточку в указанной категории.
     /// </summary>
-    /// <param name="card">Тело запроса с данными карточки (включая <c>DashboardCategoryId</c>).</param>
-    /// <param name="cancellationToken">Токен отмены операции.</param>
     [HttpPost(Name = "CreateCard")]
     [ProducesResponseType<DashboardCard>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<DashboardCard>> Create(
-        [FromBody] DashboardCard? card,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<DashboardCard>> Create([FromBody] DashboardCard? card, CancellationToken cancellationToken)
     {
         if (card is null)
         {
@@ -42,8 +38,7 @@ public class CardsController(
         var result = await pageService.CreateCardAsync(card, cancellationToken);
         if (!result.IsSuccess)
         {
-            // Единственная причина отказа — категория не найдена.
-            return NotFound(new { error = result.Error });
+            return BadRequest(result.Error);
         }
 
         var created = result.Value;
@@ -53,15 +48,10 @@ public class CardsController(
     /// <summary>
     /// Изменяет существующую карточку.
     /// </summary>
-    /// <param name="card">Тело запроса с новыми данными карточки.</param>
-    /// <param name="cancellationToken">Токен отмены операции.</param>
     [HttpPut(Name = "UpdateCard")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Update(
-        [FromBody] DashboardCard? card,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> Update([FromBody] DashboardCard? card, CancellationToken cancellationToken)
     {
         if (card is null)
         {
@@ -71,36 +61,24 @@ public class CardsController(
 
         var result = await pageService.UpdateCardAsync(card, cancellationToken);
 
-        // Единственная причина отказа — карточка или её категория не найдена.
-        return result.IsSuccess ? NoContent() : NotFound(new { error = result.Error });
+        return result.IsSuccess ? NoContent() : BadRequest(result.Error);
     }
 
     /// <summary>
     /// Удаляет карточку.
     /// </summary>
-    /// <param name="id">Идентификатор карточки.</param>
-    /// <param name="cancellationToken">Токен отмены операции.</param>
     [HttpDelete("{id:int}", Name = "DeleteCard")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
         var result = await pageService.DeleteCardAsync(id, cancellationToken);
-
-        // Единственная причина отказа — карточка не найдена.
-        return result.IsSuccess ? NoContent() : NotFound(new { error = result.Error });
+        return result.IsSuccess ? NoContent() : BadRequest(result.Error);
     }
 
     /// <summary>
     /// Сохраняет или обновляет кастомное изображение для карточки, и возвращает путь к нему.
     /// </summary>
-    /// <param name="cardId">Идентификатор карточки, для которой сохраняется изображение.</param>
-    /// <param name="data">Бинарные данные изображения.</param>
-    /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <remarks>
-    /// В отличие от остальных эндпоинтов, ответ об ошибке — просто текст (без обёртки <c>{ error }</c>):
-    /// клиент читает тело как строку с путём или сообщением.
-    /// </remarks>
     [HttpPost("{cardId}/image", Name = "UploadImage")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

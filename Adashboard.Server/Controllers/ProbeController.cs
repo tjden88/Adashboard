@@ -7,10 +7,6 @@ namespace Adashboard.Server.Controllers;
 /// <summary>
 /// Эндпоинты серверной проверки карточек: доступность сервиса и заголовок страницы.
 /// </summary>
-/// <remarks>
-/// WASM-клиент не может обращаться к целевым сервисам напрямую из-за политики CORS, поэтому
-/// запросы выполняет backend (см. <see cref="ProbeService"/>).
-/// </remarks>
 [ApiController]
 [Route("api/probe")]
 public class ProbeController(
@@ -20,13 +16,10 @@ public class ProbeController(
     /// <summary>
     /// Проверяет доступность сервиса карточки по её идентификатору.
     /// </summary>
-    /// <param name="cardId">Идентификатор карточки.</param>
-    /// <param name="cancellationToken">Токен отмены операции.</param>
     [HttpGet("health/{cardId:int}", Name = "CheckHealth")]
     [ProducesResponseType<HealthCheckResult>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetHealth(int cardId, CancellationToken cancellationToken)
+    public async Task<ActionResult<HealthCheckResult>> GetHealth(int cardId, CancellationToken cancellationToken)
     {
         if (cardId <= 0)
         {
@@ -37,19 +30,16 @@ public class ProbeController(
         var result = await probeService.CheckCardAsync(cardId, cancellationToken);
         if (!result.IsSuccess)
         {
-            // Единственная причина отказа — карточка не найдена. Клиент по 404 прекращает проверки.
-            return NotFound(new { error = result.Error });
+            return BadRequest(result.Error);
         }
 
         var check = result.Value;
-        return Ok(new { status = check.Status, message = check.Message });
+        return check;
     }
 
     /// <summary>
     /// Пытается получить заголовок страницы по указанному адресу.
     /// </summary>
-    /// <param name="url">Абсолютная HTTP(S)-ссылка на страницу.</param>
-    /// <param name="cancellationToken">Токен отмены операции.</param>
     [HttpGet("title", Name = "GetTitle")]
     [ProducesResponseType<string>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -58,12 +48,12 @@ public class ProbeController(
         if (string.IsNullOrWhiteSpace(url))
         {
             logger.LogWarning("Получение заголовка отклонено: ссылка не указана.");
-            return BadRequest(new { error = "Укажите ссылку на страницу." });
+            return BadRequest("Укажите ссылку на страницу.");
         }
 
         var result = await probeService.GetTitleAsync(url, cancellationToken);
 
         // Отказ — это некорректная ссылка или недоступная страница, поэтому отвечаем 400.
-        return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
     }
 }
