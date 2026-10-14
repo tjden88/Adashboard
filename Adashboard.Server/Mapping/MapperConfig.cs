@@ -1,5 +1,3 @@
-using Adashboard.Data.Entities;
-using Adashboard.Domain.Contracts;
 using Mapster;
 
 namespace Adashboard.Server.Mapping;
@@ -30,18 +28,5 @@ public static class MapperConfig
     {
         var config = TypeAdapterConfig.GlobalSettings;
 
-        // Категория: идентификатор, родительская раскладка и навигации задаются отдельными операциями.
-        config.NewConfig<DashboardCategory, DashboardCategoryEntity>()
-            .Ignore(dest => dest.Id)
-            .Ignore(dest => dest.DashboardLayoutId)
-            .Ignore(dest => dest.Layout)
-            .Ignore(dest => dest.Cards);
-
-        // Карточка: идентификатор и категория маппингом не переносятся. Категорию при создании
-        // задаём явно, а при изменении — отдельным кодом, чтобы случайно не «перевесить» карточку.
-        config.NewConfig<DashboardCard, DashboardCardEntity>()
-            .Ignore(dest => dest.Id)
-            .Ignore(dest => dest.DashboardCategoryId)
-            .Ignore(dest => dest.Category);
     }
 }

@@ -57,12 +57,27 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger,
     }
 
     /// <summary>
-    /// Добавляет или обновляет информационную часть раскладки dashboard (заголовок и описание).
+    /// Добавляет новую раскладку
+    /// </summary>
+    public async Task<DashboardLayout> AddLayoutAsync(DashboardLayout layout, CancellationToken cancellationToken = default)
+    {
+
+        var entity = layout.Adapt<DashboardLayoutEntity>();
+        entity.Id = 0; // Идентификатор назначает EF Core
+        db.Layouts.Add(entity);
+        await db.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Раскладка dashboard добавлена.");
+        return entity.Adapt<DashboardLayout>();
+    }
+
+    /// <summary>
+    /// Обновляет информационную часть раскладки dashboard (заголовок и описание).
     /// </summary>
     /// <param name="layout">Плоская модель раскладки с новыми заголовком и описанием; <c>Id</c> игнорируется.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
     /// <returns><c>true</c>, если раскладка найдена и обновлена; иначе <c>false</c>.</returns>
-    public async Task<bool> AddOrUpdateLayoutAsync(DashboardLayout layout, CancellationToken cancellationToken = default)
+    public async Task<bool> UpdateLayoutAsync(DashboardLayout layout, CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Начато изменение информационной части раскладки dashboard.");
 
@@ -94,9 +109,8 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger,
         logger.LogDebug("Начато создание категории {Title}.", category.Title);
 
         var entity = category.Adapt<DashboardCategoryEntity>();
-        // Идентификатор назначает EF Core, а категория всегда принадлежит основной раскладке.
+        // Идентификатор назначает EF Core
         entity.Id = 0;
-        entity.DashboardLayoutId = 1;
 
         db.Categories.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
@@ -108,25 +122,24 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger,
     /// <summary>
     /// Изменяет существующую категорию.
     /// </summary>
-    /// <param name="id">Идентификатор категории.</param>
     /// <param name="category">Новые значения полей категории.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
     /// <returns><c>true</c>, если категория найдена и обновлена; иначе <c>false</c>.</returns>
-    public async Task<bool> UpdateCategoryAsync(int id, DashboardCategory category, CancellationToken cancellationToken = default)
+    public async Task<bool> UpdateCategoryAsync(DashboardCategory category, CancellationToken cancellationToken = default)
     {
-        logger.LogDebug("Начато изменение категории {CategoryId}.", id);
+        logger.LogDebug("Начато изменение категории {CategoryId}.", category.Id);
 
-        var entity = await db.Categories.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        var entity = await db.Categories.FirstOrDefaultAsync(x => x.Id == category.Id, cancellationToken);
         if (entity is null)
         {
-            logger.LogWarning("Изменение категории {CategoryId} отклонено: категория не найдена.", id);
+            logger.LogWarning("Изменение категории {CategoryId} отклонено: категория не найдена.", category.Id);
             return false;
         }
 
         category.Adapt(entity);
         await db.SaveChangesAsync(cancellationToken);
 
-        logger.LogInformation("Категория {CategoryId} обновлена.", id);
+        logger.LogInformation("Категория {CategoryId} обновлена.", category.Id);
         return true;
     }
 
@@ -182,8 +195,14 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger,
     {
         logger.LogDebug("Начато создание карточки {Title} в категории {CategoryId}.", card.Title, card.DashboardCategoryId);
 
-        var categoryExists = await db.Categories.AnyAsync(x => x.Id == card.DashboardCategoryId, cancellationToken);
-        if (!categoryExists)
+        var category = await db.Categories
+            .Select(c => new
+            {
+                c.Id,
+                c.Cards.Count
+            })
+            .FirstOrDefaultAsync(x => x.Id == card.DashboardCategoryId, cancellationToken);
+        if (category is null)
         {
             logger.LogWarning("Создание карточки отклонено: категория {CategoryId} не найдена.", card.DashboardCategoryId);
             return null;
@@ -191,8 +210,7 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger,
 
         var entity = card.Adapt<DashboardCardEntity>();
         entity.Id = 0;
-        // Категорию маппинг не переносит (см. MapperConfig), поэтому задаём её явно.
-        entity.DashboardCategoryId = card.DashboardCategoryId;
+        entity.Position = category.Count; // Новая карточка добавляется в конец списка
 
         db.Cards.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
@@ -221,11 +239,13 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger,
 
         card.Adapt(entity);
 
-        // Перенос в другую категорию выполняем только при явно указанном идентификаторе,
-        // иначе сохраняем текущую категорию карточки.
-        if (card.DashboardCategoryId > 0)
+        // Проверим существование категории.
+        var categoryExists = await db.Categories.AnyAsync(c => c.Id == entity.DashboardCategoryId, cancellationToken);
+
+        if (!categoryExists)
         {
-            entity.DashboardCategoryId = card.DashboardCategoryId;
+            logger.LogWarning("Изменение карточки {CardId} отклонено: категория {CategoryId} не найдена.", id, entity.DashboardCategoryId);
+            return false;
         }
 
         await db.SaveChangesAsync(cancellationToken);
@@ -253,6 +273,9 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger,
 
         db.Cards.Remove(entity);
         await db.SaveChangesAsync(cancellationToken);
+
+        // Удаляем файл кастомного изображения карточки после успешного удаления карточки.
+        if (entity.IsCustomIcon) iconService.Delete(id);
 
         logger.LogInformation("Карточка {CardId} удалена.", id);
         return true;

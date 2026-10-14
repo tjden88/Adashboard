@@ -44,7 +44,7 @@ public class LayoutController(
             return BadRequest(new { error = "Укажите заголовок раскладки." });
         }
 
-        var updated = await layoutService.AddOrUpdateLayoutAsync(info, cancellationToken);
+        var updated = await layoutService.UpdateLayoutAsync(info, cancellationToken);
         if (!updated)
         {
             return NotFound(new { error = "Раскладка не найдена." });
