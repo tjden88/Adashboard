@@ -3,17 +3,26 @@
     к конкретной странице dashboard.
 
     Режим редактирования приходит из AppState, данные страницы — из каскадной модели
-    DashboardPageModel (обе задаёт Home). Логотип из настроек сайта подключит часть
-    theme/site-settings-dialog.
+    DashboardPageModel (обе задаёт Home). Пока страница грузится, вместо текста рисуется
+    скелет заголовка, а кнопки остаются на месте. Логотип из настроек сайта подключит
+    часть theme/site-settings-dialog.
 *@
 
 <header class="dashboard-header">
     <div class="dashboard-header-brand">
         <div>
-            <h1>@Model.DisplayTitle</h1>
-            @if (!string.IsNullOrWhiteSpace(Model.Page.Description))
+            @if (IsLoading)
             {
-                <p>@Model.Page.Description</p>
+                <span class="header-skeleton header-skeleton--title" aria-hidden="true"></span>
+                <span class="header-skeleton header-skeleton--subtitle" aria-hidden="true"></span>
+            }
+            else
+            {
+                <h1>@Model.DisplayTitle</h1>
+                @if (!string.IsNullOrWhiteSpace(Model.Page.Description))
+                {
+                    <p>@Model.Page.Description</p>
+                }
             }
         </div>
     </div>
@@ -43,6 +52,12 @@
 </header>
 
 @code {
+    /// <summary>
+    /// Идёт загрузка страницы: вместо заголовка и описания рисуется скелет.
+    /// </summary>
+    [Parameter]
+    public bool IsLoading { get; set; }
+
     [CascadingParameter]
     private AppState AppState { get; set; } = null!;
 

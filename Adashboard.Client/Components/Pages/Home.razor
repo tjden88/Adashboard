@@ -4,6 +4,7 @@
 @implements IDisposable
 
 @inject IDashboardApi DashboardApi
+@inject NavigationManager Navigation
 @inject ILogger<Home> Logger
 
 @*
@@ -11,45 +12,54 @@
     и складывает данные в изменяемую модель DashboardPageModel, которую каскадным значением
     получают шапка, представление страницы, категории и карточки.
 
-    Состояния загрузки, ошибки и «страница не найдена» относятся к маршрутизации и живут здесь.
+    Состояния загрузки, ошибки, «страница не найдена» и «dashboard не настроен» относятся
+    к маршрутизации и живут здесь.
 *@
 
 <PageTitle>@PageTitleText</PageTitle>
 
-@if (_isLoading)
-{
-    <div class="page-status" role="status" aria-live="polite" aria-label="Загрузка страницы">
-        <span class="page-status__spinner" aria-hidden="true"></span>
-    </div>
-}
-else if (_loadError is not null)
-{
-    <section class="page-status" role="alert">
-        <h1 class="page-status__title">Не удалось открыть страницу</h1>
-        <p class="page-status__text page-status__text--error">@_loadError</p>
-        <button type="button" class="btn btn-primary" @onclick="RetryAsync">
-            <i class="fa-solid fa-rotate-right" aria-hidden="true"></i> Повторить
-        </button>
-    </section>
-}
-else if (_isNotFound)
-{
-    <section class="page-status" role="alert">
-        <p class="page-status__code" aria-hidden="true">404</p>
-        <h1 class="page-status__title">Страница не найдена</h1>
-        <p class="page-status__text">Такой страницы нет. Проверьте адрес или вернитесь на основную страницу.</p>
-        <a class="btn btn-primary" href="/">
-            <i class="fa-solid fa-house" aria-hidden="true"></i> На главную
-        </a>
-    </section>
-}
-else
-{
-    <CascadingValue Value="_model">
+<CascadingValue Value="_model">
+    @if (_isLoading)
+    {
+        <Header IsLoading="true" />
+        <div class="page-status" role="status" aria-live="polite" aria-label="Загрузка страницы">
+            <span class="page-status__spinner" aria-hidden="true"></span>
+        </div>
+    }
+    else if (_loadError is not null)
+    {
+        <section class="page-status" role="alert">
+            <h1 class="page-status__title">Не удалось открыть страницу</h1>
+            <p class="page-status__text page-status__text--error">@_loadError</p>
+            <button type="button" class="btn btn-primary" @onclick="RetryAsync">
+                <i class="fa-solid fa-rotate-right" aria-hidden="true"></i> Повторить
+            </button>
+        </section>
+    }
+    else if (_isNotFound)
+    {
+        <section class="page-status" role="alert">
+            <p class="page-status__code" aria-hidden="true">404</p>
+            <h1 class="page-status__title">Страница не найдена</h1>
+            <p class="page-status__text">Такой страницы нет. Проверьте адрес или вернитесь на основную страницу.</p>
+            <a class="btn btn-primary" href="/">
+                <i class="fa-solid fa-house" aria-hidden="true"></i> На главную
+            </a>
+        </section>
+    }
+    else if (_isNotConfigured)
+    {
+        <section class="page-status" role="alert">
+            <h1 class="page-status__title">Сервер не настроен</h1>
+            <p class="page-status__text">Основная страница не найдена. Проверьте состояние данных на сервере.</p>
+        </section>
+    }
+    else
+    {
         <Header />
         <PageView />
-    </CascadingValue>
-}
+    }
+</CascadingValue>
 
 @code {
     // Изменяемая модель текущей страницы: с ней работают шапка, представление, категории и карточки.
@@ -57,6 +67,7 @@ else
 
     private bool _isLoading;
     private bool _isNotFound;
+    private bool _isNotConfigured;
     private string? _loadError;
 
     // Путь последней загрузки: отличает переход между страницами от повторного срабатывания
@@ -74,7 +85,8 @@ else
     [Parameter]
     public string? PagePath { get; set; }
 
-    // Заголовок вкладки: у найденной страницы — её заголовок, при «не найдена» — отдельная подпись.
+    // Заголовок вкладки: у найденной страницы — её заголовок, при «не найдена» — отдельная подпись,
+    // в остальных состояниях модель пуста и подставляется имя приложения (см. DashboardPageModel).
     private string PageTitleText => _isNotFound ? "Страница не найдена" : _model.DisplayTitle;
 
     protected override Task OnParametersSetAsync()
@@ -104,7 +116,7 @@ else
     private Task RetryAsync() => LoadAsync(_loadedPath);
 
     // Загружает страницу и её содержимое в модель, приводя состояние к одному из итогов:
-    // загружено, не найдено или ошибка.
+    // загружено, не найдено, dashboard не настроен или ошибка.
     private async Task LoadAsync(string normalized)
     {
         var version = ++_loadVersion;
@@ -118,6 +130,7 @@ else
         _isLoaded = true;
         _isLoading = true;
         _isNotFound = false;
+        _isNotConfigured = false;
         _loadError = null;
 
         // Индикатор загрузки показываем сразу: при переходе между страницами данные приходят позже.
@@ -154,7 +167,16 @@ else
             var page = _model.Pages.FirstOrDefault(x => string.Equals(x.Path, normalized, StringComparison.OrdinalIgnoreCase));
             if (page is null)
             {
-                ApplyNotFound();
+                // Отсутствие основной страницы — это не «ненайденный адрес», а ненастроенный dashboard.
+                if (normalized.Length == 0)
+                {
+                    ApplyNotConfigured();
+                }
+                else
+                {
+                    ApplyNotFound();
+                }
+
                 return;
             }
 
@@ -176,6 +198,11 @@ else
             _model.Page = readModel?.Page ?? page;
             _model.Categories = readModel?.Categories?.ToList() ?? [];
             _model.Cards = readModel?.Cards?.ToList() ?? [];
+
+            // Путь в адресе мог отличаться регистром или лишним слэшем: запоминаем канонический путь,
+            // чтобы повторный вызов маршрута не запускал загрузку снова.
+            _loadedPath = page.Path;
+            CanonicalizeUrl(page.Path);
 
             Logger.LogDebug("Страница по пути {Path} загружена.", normalized);
 
@@ -202,12 +229,42 @@ else
         _isLoading = false;
     }
 
+    // Приводит состояние к «dashboard не настроен»: страницы с пустым путём (основной) нет.
+    private void ApplyNotConfigured()
+    {
+        Logger.LogWarning("Основная страница не найдена: сервер не настроен.");
+
+        ResetModel();
+        _isNotConfigured = true;
+        _isLoading = false;
+    }
+
     // Приводит состояние к ошибке загрузки и очищает данные предыдущей страницы.
     private void ApplyError(string message)
     {
         ResetModel();
         _loadError = message;
         _isLoading = false;
+    }
+
+    // Заменяет адрес на канонический путь страницы, убирая различия в регистре и лишние слэши.
+    private void CanonicalizeUrl(string pagePath)
+    {
+        // Текущий путь без ведущего слэша и без строки запроса и хэша.
+        var current = Navigation.ToBaseRelativePath(Navigation.Uri);
+        var cutIndex = current.IndexOfAny(['?', '#']);
+        if (cutIndex >= 0)
+        {
+            current = current[..cutIndex];
+        }
+
+        if (string.Equals(current, pagePath, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        // Замена без новой записи в истории: кнопка «Назад» не должна возвращать на неканонический адрес.
+        Navigation.NavigateTo(pagePath.Length == 0 ? "/" : "/" + pagePath, replace: true);
     }
 
     private void ResetModel()

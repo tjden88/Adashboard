@@ -32,6 +32,42 @@
     color: var(--text-muted);
 }
 
+/* Скелет шапки на время загрузки: заглушки заголовка и описания без прыжка вёрстки. */
+.header-skeleton {
+    display: block;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--text-muted) 24%, transparent);
+    animation: header-skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.header-skeleton--title {
+    width: min(16rem, 55vw);
+    height: clamp(1.35rem, 2.8vw, 1.95rem);
+}
+
+.header-skeleton--subtitle {
+    width: min(22rem, 70vw);
+    height: 0.9rem;
+    margin-top: 0.5rem;
+}
+
+@keyframes header-skeleton-pulse {
+    0%,
+    100% {
+        opacity: 0.6;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .header-skeleton {
+        animation: none;
+    }
+}
+
 /* В светлой теме подзаголовок делаем темнее для лучшей читаемости. */
 html[data-theme="light"] .dashboard-header p {
     color: #3c3d55;
