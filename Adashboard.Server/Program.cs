@@ -31,7 +31,7 @@ services.AddDbContext<DashboardDb>(options => options.UseSqlite($"Data Source={p
 services.AddScoped<DbInitializer>();
 services.AddScoped<AssetsInitializer>();
 
-services.AddScoped<LayoutService>();
+services.AddScoped<PageService>();
 services.AddScoped<SiteSettingsService>();
 
 // Сервис хранения изображений-иконок карточек: пишет файлы в каталог загрузок.

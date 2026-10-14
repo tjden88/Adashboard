@@ -10,7 +10,7 @@ namespace Adashboard.Server.Controllers;
 [ApiController]
 [Route("api/cards")]
 public class CardsController(
-    LayoutService layoutService,
+    PageService pageService,
     ImageIconService imageIconService,
     ILogger<CardsController> logger) : ControllerBase
 {
@@ -39,7 +39,7 @@ public class CardsController(
             return BadRequest(new { error = "Укажите категорию карточки." });
         }
 
-        var created = await layoutService.CreateCardAsync(card, cancellationToken);
+        var created = await pageService.CreateCardAsync(card, cancellationToken);
         if (created is null)
         {
             return NotFound(new { error = "Категория не найдена." });
@@ -67,7 +67,7 @@ public class CardsController(
             return BadRequest(new { error = "Тело запроса с карточкой обязательно." });
         }
 
-        var updated = await layoutService.UpdateCardAsync(card, cancellationToken);
+        var updated = await pageService.UpdateCardAsync(card, cancellationToken);
         return updated ? NoContent() : NotFound(new { error = "Карточка не найдена." });
     }
 
@@ -81,7 +81,7 @@ public class CardsController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
-        var deleted = await layoutService.DeleteCardAsync(id, cancellationToken);
+        var deleted = await pageService.DeleteCardAsync(id, cancellationToken);
         return deleted ? NoContent() : NotFound(new { error = "Карточка не найдена." });
     }
 

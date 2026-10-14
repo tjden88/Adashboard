@@ -10,7 +10,7 @@ namespace Adashboard.Domain.Contracts;
 /// UI-модель: навигации и атрибуты схемы БД живут в сущности <c>DashboardCategoryEntity</c>,
 /// а здесь остаются только поля, нужные интерфейсу, и атрибуты валидации.
 /// Плоская модель без дочерних карточек: и в запросах, и в ответах категория идёт сама по себе.
-/// Карточки категории отдаёт read-модель <see cref="DashboardCategoryReadModel"/>.
+/// Карточки категории отдаёт read-модель <see cref="DashboardPageReadModel"/>.
 /// </remarks>
 public sealed class DashboardCategory
 {
@@ -20,9 +20,9 @@ public sealed class DashboardCategory
     public int Id { get; set; }
 
     /// <summary>
-    /// Идентификатор родительской раскладки.
+    /// Идентификатор родительской страницы.
     /// </summary>
-    public int DashboardLayoutId { get; set; }
+    public int DashboardPageId { get; set; }
 
     /// <summary>
     /// Отображаемое название категории.

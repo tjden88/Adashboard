@@ -581,42 +581,49 @@
         }
       }
     },
-    "/api/layout": {
+    "/api/pages": {
       "get": {
         "tags": [
-          "Layout"
+          "Page"
         ],
-        "operationId": "GetLayout",
+        "operationId": "GetPages",
         "responses": {
           "200": {
             "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/DashboardLayoutReadModel"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DashboardPage"
+                  }
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DashboardLayoutReadModel"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DashboardPage"
+                  }
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DashboardLayoutReadModel"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DashboardPage"
+                  }
                 }
               }
             }
           }
         }
-      }
-    },
-    "/api/layout/info": {
-      "put": {
+      },
+      "post": {
         "tags": [
-          "Layout"
+          "Page"
         ],
-        "operationId": "SaveLayoutInfo",
+        "operationId": "CreatePage",
         "requestBody": {
           "content": {
             "application/json": {
@@ -626,7 +633,7 @@
                     "type": "null"
                   },
                   {
-                    "$ref": "#/components/schemas/DashboardLayout"
+                    "$ref": "#/components/schemas/DashboardPage"
                   }
                 ]
               }
@@ -638,7 +645,7 @@
                     "type": "null"
                   },
                   {
-                    "$ref": "#/components/schemas/DashboardLayout"
+                    "$ref": "#/components/schemas/DashboardPage"
                   }
                 ]
               }
@@ -650,7 +657,222 @@
                     "type": "null"
                   },
                   {
-                    "$ref": "#/components/schemas/DashboardLayout"
+                    "$ref": "#/components/schemas/DashboardPage"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardPage"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardPage"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pages/{id}": {
+      "get": {
+        "tags": [
+          "Page"
+        ],
+        "operationId": "GetPage",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardPageReadModel"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardPageReadModel"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardPageReadModel"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Page"
+        ],
+        "operationId": "DeletePage",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pages/info": {
+      "put": {
+        "tags": [
+          "Page"
+        ],
+        "operationId": "SavePageInfo",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DashboardPage"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DashboardPage"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DashboardPage"
                   }
                 ]
               }
@@ -1018,7 +1240,7 @@
             ],
             "format": "int32"
           },
-          "dashboardLayoutId": {
+          "dashboardPageId": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
@@ -1048,7 +1270,7 @@
           }
         }
       },
-      "DashboardLayout": {
+      "DashboardPage": {
         "required": [
           "title"
         ],
@@ -1069,14 +1291,18 @@
           "description": {
             "maxLength": 300,
             "type": "string"
+          },
+          "path": {
+            "maxLength": 120,
+            "type": "string"
           }
         }
       },
-      "DashboardLayoutReadModel": {
+      "DashboardPageReadModel": {
         "type": "object",
         "properties": {
-          "layout": {
-            "$ref": "#/components/schemas/DashboardLayout"
+          "page": {
+            "$ref": "#/components/schemas/DashboardPage"
           },
           "categories": {
             "type": "array",
@@ -1186,7 +1412,7 @@
       "name": "Health"
     },
     {
-      "name": "Layout"
+      "name": "Page"
     },
     {
       "name": "Probe"

@@ -9,9 +9,9 @@ namespace Adashboard.Data;
 public sealed class DashboardDb(DbContextOptions<DashboardDb> options) : DbContext(options)
 {
     /// <summary>
-    /// Раскладки dashboard.
+    /// Страницы dashboard.
     /// </summary>
-    public DbSet<DashboardLayoutEntity> Layouts => Set<DashboardLayoutEntity>();
+    public DbSet<DashboardPageEntity> Pages => Set<DashboardPageEntity>();
 
     /// <summary>
     /// Категории ссылок.
@@ -40,6 +40,12 @@ public sealed class DashboardDb(DbContextOptions<DashboardDb> options) : DbConte
             {
                 Id = 1,
             });
+        });
+
+        // Путь страницы уникален: по нему страница открывается в клиенте.
+        modelBuilder.Entity<DashboardPageEntity>(entity =>
+        {
+            entity.HasIndex(x => x.Path).IsUnique();
         });
     }
 }

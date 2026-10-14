@@ -10,7 +10,7 @@
 
     Компонент сам управляет категорией и её карточками: открывает диалоги создания и изменения
     карточек, создаёт, изменяет и удаляет карточки, а также изменяет и удаляет саму категорию.
-    О результатах родителю (LayoutView) сообщают события Saved/Deleted и CardSaved/CardDeleted,
+    О результатах родителю (PageView) сообщают события Saved/Deleted и CardSaved/CardDeleted,
     чтобы общие списки оставались актуальными.
 *@
 
@@ -75,6 +75,10 @@
     [Parameter, EditorRequired]
     public DashboardCategory Model { get; set; } = null!;
 
+    /// <summary>Список всех страниц: нужен селектору страницы в диалоге изменения категории.</summary>
+    [Parameter]
+    public IReadOnlyList<DashboardPage> Pages { get; set; } = [];
+
     /// <summary>
     /// Карточки категории. Read-модель API отдаёт их плоским списком, поэтому карточки
     /// передаются отдельным параметром, а не живут внутри модели категории.
@@ -121,6 +125,7 @@
         var parameters = new Dictionary<string, object?>
         {
             [nameof(CategoryDialog.Category)] = Model,
+            [nameof(CategoryDialog.Pages)] = Pages,
             [nameof(CategoryDialog.OnSave)] = EventCallback.Factory.Create<DashboardCategory>(this, OnCategorySavedAsync)
         };
 

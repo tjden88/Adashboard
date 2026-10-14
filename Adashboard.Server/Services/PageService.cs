@@ -8,26 +8,46 @@ using Microsoft.EntityFrameworkCore;
 namespace Adashboard.Server.Services;
 
 /// <summary>
-/// Сервис работы с раскладкой dashboard: чтение, изменение информационной части,
-/// CRUD категорий и карточек. Работает с контрактными моделями, наружу сущности не отдаёт.
+/// Сервис работы со страницами dashboard: чтение, создание, изменение информационной части,
+/// удаление, а также CRUD категорий и карточек. Работает с контрактными моделями,
+/// наружу сущности не отдаёт.
 /// </summary>
 /// <remarks>
 /// Маппинг «сущность ↔ контрактная модель» выполняет Mapster по правилам из
 /// <see cref="Adashboard.Server.Mapping.MapperConfig"/>.
+/// Основная страница имеет пустой путь; её нельзя удалить и нельзя изменить её путь.
 /// </remarks>
-public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger, ImageIconService iconService)
+public sealed class PageService(DashboardDb db, ILogger<PageService> logger, ImageIconService iconService)
 {
     /// <summary>
-    /// Загружает раскладку dashboard вместе с категориями и карточками.
+    /// Возвращает список всех страниц dashboard.
     /// </summary>
-    /// <param name="id">Идентификатор раскладки.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns>Read-модель раскладки</returns>
-    public async Task<DashboardLayoutReadModel> GetLayoutAsync(int id, CancellationToken cancellationToken = default)
+    public async Task<List<DashboardPage>> GetPagesAsync(CancellationToken cancellationToken = default)
     {
-        logger.LogDebug("Начата загрузка раскладки dashboard с ID {LayoutId} из базы данных.", id);
+        logger.LogDebug("Начата загрузка списка страниц dashboard.");
 
-        var entity = await db.Layouts
+        var pages = await db.Pages
+            .AsNoTracking()
+            .OrderBy(x => x.Id)
+            .ProjectToType<DashboardPage>()
+            .ToListAsync(cancellationToken);
+
+        logger.LogDebug("Загружено страниц dashboard: {Count}.", pages.Count);
+        return pages;
+    }
+
+    /// <summary>
+    /// Загружает страницу dashboard вместе с категориями и карточками.
+    /// </summary>
+    /// <param name="id">Идентификатор страницы.</param>
+    /// <param name="cancellationToken">Токен отмены операции.</param>
+    /// <returns>Read-модель страницы либо <c>null</c>, если страница не найдена.</returns>
+    public async Task<DashboardPageReadModel?> GetPageAsync(int id, CancellationToken cancellationToken = default)
+    {
+        logger.LogDebug("Начата загрузка страницы dashboard с ID {PageId} из базы данных.", id);
+
+        var entity = await db.Pages
             .AsNoTracking()
             .AsSplitQuery()
             .Include(x => x.Categories)
@@ -36,15 +56,15 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger,
 
         if (entity is null)
         {
-            logger.LogWarning("Раскладка dashboard с ID {LayoutId} не найдена в базе данных.", id);
-            return new DashboardLayoutReadModel { Layout = new DashboardLayout { Id = id } };
+            logger.LogWarning("Страница dashboard с ID {PageId} не найдена в базе данных.", id);
+            return null;
         }
 
-        var readModel = new DashboardLayoutReadModel
+        var readModel = new DashboardPageReadModel
         {
-            Layout = entity.Adapt<DashboardLayout>(),
+            Page = entity.Adapt<DashboardPage>(),
             Categories = entity.Categories
-                .OrderBy(c=>c.Order)
+                .OrderBy(c => c.Order)
                 .Adapt<List<DashboardCategory>>(),
             Cards = entity.Categories
                 .SelectMany(c => c.Cards)
@@ -52,54 +72,130 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger,
                 .Adapt<List<DashboardCard>>()
         };
 
-        logger.LogDebug("Раскладка dashboard с ID {LayoutId} загружена.", id);
+        logger.LogDebug("Страница dashboard с ID {PageId} загружена.", id);
         return readModel;
     }
 
     /// <summary>
-    /// Добавляет новую раскладку
+    /// Создаёт новую страницу dashboard.
     /// </summary>
-    public async Task<DashboardLayout> AddLayoutAsync(DashboardLayout layout, CancellationToken cancellationToken = default)
-    {
-
-        var entity = layout.Adapt<DashboardLayoutEntity>();
-        entity.Id = 0; // Идентификатор назначает EF Core
-        db.Layouts.Add(entity);
-        await db.SaveChangesAsync(cancellationToken);
-
-        logger.LogInformation("Раскладка dashboard добавлена.");
-        return entity.Adapt<DashboardLayout>();
-    }
-
-    /// <summary>
-    /// Обновляет информационную часть раскладки dashboard (заголовок и описание).
-    /// </summary>
-    /// <param name="layout">Плоская модель раскладки с новыми заголовком и описанием; <c>Id</c> игнорируется.</param>
+    /// <param name="page">Контрактная модель создаваемой страницы. Путь обязателен и уникален.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns><c>true</c>, если раскладка найдена и обновлена; иначе <c>false</c>.</returns>
-    public async Task<bool> UpdateLayoutAsync(DashboardLayout layout, CancellationToken cancellationToken = default)
+    /// <returns>Созданная страница с назначенным идентификатором либо <c>null</c>, если путь уже занят.</returns>
+    public async Task<DashboardPage?> CreatePageAsync(DashboardPage page, CancellationToken cancellationToken = default)
     {
-        logger.LogDebug("Начато изменение информационной части раскладки dashboard.");
+        logger.LogDebug("Начато создание страницы dashboard {Title}.", page.Title);
 
-        var entity = layout.Id == 0 
-            ? new DashboardLayoutEntity() 
-            : await db.Layouts.FirstOrDefaultAsync(x => x.Id == layout.Id, cancellationToken);
+        var path = page.Path.Trim();
 
-        if (entity is null)
+        if (await db.Pages.AnyAsync(x => x.Path == path, cancellationToken))
         {
-            logger.LogWarning("Изменение информационной части отклонено: раскладка dashboard с id {LayoutId} не найдена.", layout.Id);
-            return false;
+            logger.LogWarning("Создание страницы отклонено: путь {Path} уже занят.", path);
+            return null;
         }
 
-        layout.Adapt(entity);
+        var entity = page.Adapt<DashboardPageEntity>();
+        entity.Id = 0; // Идентификатор назначает EF Core
+        entity.Path = path;
+
+        db.Pages.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
 
-        logger.LogInformation("Информационная часть раскладки dashboard обновлена.");
-        return true;
+        logger.LogInformation("Страница dashboard создана. Идентификатор: {PageId}.", entity.Id);
+        return entity.Adapt<DashboardPage>();
     }
 
     /// <summary>
-    /// Создаёт новую категорию в основной раскладке.
+    /// Обновляет информационную часть страницы dashboard (заголовок, описание и путь).
+    /// </summary>
+    /// <param name="page">Плоская модель страницы с новыми значениями; <c>Id</c> задаёт изменяемую страницу.</param>
+    /// <param name="cancellationToken">Токен отмены операции.</param>
+    /// <returns>Результат операции: успех, страница не найдена, путь занят или путь основной страницы зарезервирован.</returns>
+    public async Task<PageMutationResult> UpdatePageInfoAsync(DashboardPage page, CancellationToken cancellationToken = default)
+    {
+        logger.LogDebug("Начато изменение информационной части страницы dashboard {PageId}.", page.Id);
+
+        var entity = await db.Pages.FirstOrDefaultAsync(x => x.Id == page.Id, cancellationToken);
+        if (entity is null)
+        {
+            logger.LogWarning("Изменение страницы отклонено: страница dashboard с id {PageId} не найдена.", page.Id);
+            return PageMutationResult.NotFound;
+        }
+
+        var path = page.Path.Trim();
+        if (!string.Equals(path, entity.Path, StringComparison.Ordinal))
+        {
+            // Пустой путь зарезервирован за основной страницей: занять его или изменить её путь нельзя.
+            if (entity.Path.Length == 0 || path.Length == 0)
+            {
+                logger.LogWarning("Изменение страницы {PageId} отклонено: путь основной страницы зарезервирован.", page.Id);
+                return PageMutationResult.MainPageProtected;
+            }
+
+            var pathTaken = await db.Pages.AnyAsync(x => x.Id != page.Id && x.Path == path, cancellationToken);
+            if (pathTaken)
+            {
+                logger.LogWarning("Изменение страницы {PageId} отклонено: путь {Path} уже занят.", page.Id, path);
+                return PageMutationResult.PathTaken;
+            }
+        }
+
+        page.Adapt(entity);
+        entity.Path = path;
+        await db.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Информационная часть страницы dashboard {PageId} обновлена.", page.Id);
+        return PageMutationResult.Success;
+    }
+
+    /// <summary>
+    /// Удаляет страницу dashboard вместе с её категориями и карточками.
+    /// </summary>
+    /// <param name="id">Идентификатор страницы.</param>
+    /// <param name="cancellationToken">Токен отмены операции.</param>
+    /// <returns>Результат операции.</returns>
+    public async Task<PageMutationResult> DeletePageAsync(int id, CancellationToken cancellationToken = default)
+    {
+        logger.LogDebug("Начато удаление страницы dashboard {PageId}.", id);
+
+        var entity = await db.Pages.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (entity is null)
+        {
+            logger.LogWarning("Удаление страницы {PageId} отклонено: страница не найдена.", id);
+            return PageMutationResult.NotFound;
+        }
+
+        if (entity.Path.Length == 0)
+        {
+            logger.LogWarning("Удаление страницы {PageId} отклонено: основную страницу удалить нельзя.", id);
+            return PageMutationResult.MainPageProtected;
+        }
+
+        // Собираем карточки с кастомными изображениями, чтобы удалить их файлы после удаления страницы.
+        var cardsWithCustomImagesIds = await db.Cards
+            .Where(c => c.Category!.DashboardPageId == id && c.IsCustomIcon)
+            .Select(c => c.Id)
+            .ToListAsync(cancellationToken);
+
+        // Категории и карточки удаляются каскадно на уровне БД.
+        db.Pages.Remove(entity);
+        if (await db.SaveChangesAsync(cancellationToken) == 0)
+        {
+            logger.LogWarning("Удаление страницы {PageId} отклонено базой данных.", id);
+            return PageMutationResult.NotFound;
+        }
+
+        foreach (var cardId in cardsWithCustomImagesIds)
+        {
+            iconService.Delete(cardId);
+        }
+
+        logger.LogInformation("Страница dashboard {PageId} удалена.", id);
+        return PageMutationResult.Success;
+    }
+
+    /// <summary>
+    /// Создаёт новую категорию на указанной странице.
     /// </summary>
     /// <param name="category">Контрактная модель создаваемой категории.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
@@ -108,11 +204,11 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger,
     {
         logger.LogDebug("Начато создание категории {Title}.", category.Title);
 
-        // Проверим существование раскладки.
-        var layoutExists = await db.Layouts.AnyAsync(x => x.Id == category.DashboardLayoutId, cancellationToken);
-        if (!layoutExists)
+        // Проверим существование страницы.
+        var pageExists = await db.Pages.AnyAsync(x => x.Id == category.DashboardPageId, cancellationToken);
+        if (!pageExists)
         {
-            logger.LogWarning("Создание категории отклонено: раскладка dashboard с id {LayoutId} не найдена.", category.DashboardLayoutId);
+            logger.LogWarning("Создание категории отклонено: страница dashboard с id {PageId} не найдена.", category.DashboardPageId);
             return null;
         }
 
@@ -128,7 +224,7 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger,
     }
 
     /// <summary>
-    /// Изменяет существующую категорию.
+    /// Изменяет существующую категорию, в том числе переносит её на другую страницу.
     /// </summary>
     /// <param name="category">Новые значения полей категории.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
@@ -145,6 +241,16 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger,
         }
 
         category.Adapt(entity);
+
+        // Проверим существование страницы, на которую переносится категория.
+        var pageExists = await db.Pages.AnyAsync(c => c.Id == entity.DashboardPageId, cancellationToken);
+
+        if (!pageExists)
+        {
+            logger.LogWarning("Изменение категории {CategoryId} отклонено: страница {PageId} не найдена.", category.Id, entity.DashboardPageId);
+            return false;
+        }
+
         await db.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Категория {CategoryId} обновлена.", category.Id);

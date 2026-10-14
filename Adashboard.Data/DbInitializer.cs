@@ -11,7 +11,7 @@ namespace Adashboard.Data;
 public sealed class DbInitializer(DashboardDb db, ILogger<DbInitializer> logger)
 {
     /// <summary>
-    /// Применяет миграции и добавляет стартовые данные, если раскладка ещё не создавалась.
+    /// Применяет миграции и добавляет стартовые данные, если страница ещё не создавалась.
     /// </summary>
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
@@ -30,23 +30,23 @@ public sealed class DbInitializer(DashboardDb db, ILogger<DbInitializer> logger)
             logger.LogInformation("Нет ожидающих миграций.");
 
 
-        // Наличие раскладки служит признаком, что первичное наполнение уже выполнялось.
-        var hasLayout = await db.Layouts.AnyAsync(cancellationToken);
-        if (hasLayout)
+        // Наличие страницы служит признаком, что первичное наполнение уже выполнялось.
+        var hasPage = await db.Pages.AnyAsync(cancellationToken);
+        if (hasPage)
         {
-            logger.LogInformation("Раскладка уже существует. Стартовое наполнение не требуется.");
+            logger.LogInformation("Страница уже существует. Стартовое наполнение не требуется.");
         }
         else
         {
             // Идентификаторы сущностям не задаём: их назначает EF Core при сохранении.
-            var layout = CreateDefaultLayout();
-            db.Layouts.Add(layout);
+            var page = CreateDefaultPage();
+            db.Pages.Add(page);
             await db.SaveChangesAsync(cancellationToken);
 
-            logger.LogInformation("Добавлена стартовая раскладка.");
+            logger.LogInformation("Добавлена стартовая страница.");
         }
 
-        // Настройки сидируем отдельно: наличие раскладки не означает, что запись настроек есть.
+        // Настройки сидируем отдельно: наличие страницы не означает, что запись настроек есть.
         var hasSettings = await db.SiteSettings.AnyAsync(cancellationToken);
         if (hasSettings)
         {
@@ -70,11 +70,13 @@ public sealed class DbInitializer(DashboardDb db, ILogger<DbInitializer> logger)
     }
 
     /// <summary>
-    /// Формирует стартовую раскладку dashboard со стартовыми категориями и карточками.
+    /// Формирует стартовую страницу dashboard со стартовыми категориями и карточками.
     /// </summary>
-    private static DashboardLayoutEntity CreateDefaultLayout() => new()
+    private static DashboardPageEntity CreateDefaultPage() => new()
     {
         Id = 1,
+        // У основной страницы пустой путь: она открывается по корневому адресу.
+        Path = string.Empty,
         Categories = CreateDefaultCategories(),
         Title = "Adashboard",
         Description = "Персональный дашборд для быстрого доступа к сервисам"

@@ -60,7 +60,7 @@ export function setBackgroundImages(lightUrl, darkUrl) {
     }
 }
 
-// Раскладка категорий и собственный drag-and-drop на Pointer Events.
+// Порядок категорий и собственный drag-and-drop на Pointer Events.
 // Категории позиционируются абсолютно (masonry-алгоритм), порядок списков во время
 // перетаскивания меняет только Blazor — это исключает рассинхрон DOM.
 const DRAG_THRESHOLD_PX = 6;
@@ -221,12 +221,12 @@ function layout() {
     }
 
     // Во время перетаскивания позиции задаёт превью/placeholder, а не общий layout.
-    // При изменении ширины категории раскладку, наоборот, нужно пересчитывать.
+    // При изменении ширины категории порядок, наоборот, нужно пересчитывать.
     if (dragState && dragState.active && dragState.kind !== "resize") {
         return;
     }
 
-    // Пока держится превью после drop, старый порядок не раскладываем.
+    // Пока держится превью после drop, старый порядок не перестраиваем.
     if (pendingCategoryDrop) {
         return;
     }

@@ -1,0 +1,227 @@
+@using Adashboard.Client.Services
+@using Adashboard.Domain.Reference
+@using Refit
+@inject IDashboardApi DashboardApi
+@inject ILogger<PageDialog> Logger
+
+@*
+    Диалог создания и изменения страницы dashboard.
+
+    Запросы к API выполняются здесь же (как и у CategoryDialog): создание — POST, изменение — PUT.
+    Родителю возвращается итоговая контрактная модель через OnSave. При создании путь страницы
+    генерируется из названия, пока пользователь не введёт путь вручную.
+*@
+
+<form class="page-dialog" @onsubmit="Save" @onsubmit:preventDefault>
+    <div class="page-dialog__field">
+        <label for="pageTitle" class="page-dialog__label">Название страницы</label>
+        <input id="pageTitle"
+               class="form-control"
+               type="text"
+               maxlength="120"
+               autocomplete="off"
+               placeholder="Например: Домашний сервер"
+               value="@_model.Title"
+               @oninput="OnTitleInput" />
+    </div>
+
+    <div class="page-dialog__field">
+        <label for="pageDescription" class="page-dialog__label">Описание</label>
+        <input id="pageDescription"
+               class="form-control"
+               type="text"
+               maxlength="300"
+               autocomplete="off"
+               value="@_model.Description"
+               @oninput="args => _model.Description = args.Value?.ToString() ?? string.Empty" />
+    </div>
+
+    <div class="page-dialog__field">
+        <label for="pagePath" class="page-dialog__label">Путь</label>
+        <input id="pagePath"
+               class="form-control"
+               type="text"
+               maxlength="120"
+               autocomplete="off"
+               placeholder="domashniy-server"
+               disabled="@IsMainPage"
+               value="@_model.Path"
+               @oninput="OnPathInput" />
+        <p class="page-dialog__hint">
+            @if (IsMainPage)
+            {
+                <span>Основная страница открывается по корневому адресу, путь изменить нельзя.</span>
+            }
+            else
+            {
+                <span>Латиница, цифры и дефис. Страница будет доступна по адресу /путь.</span>
+            }
+        </p>
+    </div>
+
+    @if (_error is not null)
+    {
+        <p class="text-danger" role="alert">@_error</p>
+    }
+
+    <div class="page-dialog__actions">
+        <button type="submit" class="btn btn-primary" disabled="@(_isSaving)">
+            <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>@(_isSaving ? "Сохранение..." : "Сохранить")
+        </button>
+    </div>
+</form>
+
+@code {
+    private EditModel _model = new();
+    private string? _error;
+    private bool _isSaving;
+
+    // Пока путь не трогали вручную (и страница создаётся), он генерируется из названия.
+    private bool _pathTouched;
+
+    /// <summary>Страница для редактирования или <c>null</c> при создании.</summary>
+    [Parameter]
+    public DashboardPage? Page { get; set; }
+
+    /// <summary>Пути всех существующих страниц: нужны для проверки уникальности пути.</summary>
+    [Parameter]
+    public IReadOnlyList<string> ExistingPaths { get; set; } = [];
+
+    /// <summary>Событие сохранения: родитель обновляет списки по сохранённой странице.</summary>
+    [Parameter, EditorRequired]
+    public required EventCallback<DashboardPage> OnSave { get; set; }
+
+    private bool IsCreate => Page is null;
+
+    // У основной страницы путь пустой и не меняется.
+    private bool IsMainPage => Page is { Path.Length: 0 };
+
+    protected override void OnInitialized()
+    {
+        _model = Page is null
+            ? new EditModel()
+            : new EditModel
+            {
+                Title = Page.Title,
+                Description = Page.Description,
+                Path = Page.Path
+            };
+
+        // При редактировании автогенерация пути отключена.
+        _pathTouched = !IsCreate;
+    }
+
+    private void OnTitleInput(ChangeEventArgs args)
+    {
+        _model.Title = args.Value?.ToString() ?? string.Empty;
+
+        if (IsCreate && !_pathTouched)
+        {
+            _model.Path = PagePathRules.CreateSlug(_model.Title);
+        }
+    }
+
+    private void OnPathInput(ChangeEventArgs args)
+    {
+        _pathTouched = true;
+        _model.Path = (args.Value?.ToString() ?? string.Empty).Trim().ToLowerInvariant();
+    }
+
+    private async Task Save()
+    {
+        _error = null;
+
+        var title = _model.Title.Trim();
+        if (title.Length == 0)
+        {
+            _error = "Укажите название страницы.";
+            return;
+        }
+
+        var path = _model.Path.Trim();
+
+        if (IsMainPage)
+        {
+            // Путь основной страницы зарезервирован и не отправляется на сервер.
+            path = Page!.Path;
+        }
+        else if (path.Length == 0)
+        {
+            _error = "Укажите путь страницы.";
+            return;
+        }
+        else if (!PagePathRules.IsValid(path))
+        {
+            _error = "Путь может содержать только латиницу в нижнем регистре, цифры и дефис.";
+            return;
+        }
+
+        if (!IsMainPage && IsPathTaken(path))
+        {
+            _error = "Страница с таким путём уже существует.";
+            return;
+        }
+
+        _isSaving = true;
+
+        try
+        {
+            var page = new DashboardPage
+            {
+                Id = Page?.Id ?? 0,
+                Title = title,
+                Description = _model.Description.Trim(),
+                Path = path
+            };
+
+            if (IsCreate)
+            {
+                page = await DashboardApi.CreatePageAsync(page);
+            }
+            else
+            {
+                await DashboardApi.SavePageInfoAsync(page);
+            }
+
+            await OnSave.InvokeAsync(page);
+        }
+        catch (ApiException ex)
+        {
+            Logger.LogWarning(ex, "Сохранение страницы завершилось ошибкой API. Код: {StatusCode}.", ex.StatusCode);
+            _error = $"Не удалось сохранить страницу (код {(int)ex.StatusCode}).";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    // Путь уже занят другой страницей (свой путь при редактировании не учитываем).
+    private bool IsPathTaken(string path)
+    {
+        foreach (var existing in ExistingPaths)
+        {
+            if (string.Equals(existing, Page?.Path, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (string.Equals(existing, path, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Набор редактируемых полей страницы.</summary>
+    private sealed class EditModel
+    {
+        public string Title { get; set; } = string.Empty;
+
+        public string Description { get; set; } = string.Empty;
+
+        public string Path { get; set; } = string.Empty;
+    }
+}

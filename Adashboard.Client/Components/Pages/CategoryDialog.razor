@@ -24,6 +24,16 @@
     </div>
 
     <div class="category-dialog__field">
+        <label for="categoryPage" class="category-dialog__label">Страница</label>
+        <select id="categoryPage" class="form-control" value="@_model.PageId" @onchange="OnPageSelected">
+            @foreach (var item in Pages)
+            {
+                <option value="@item.Id">@PageLabel(item)</option>
+            }
+        </select>
+    </div>
+
+    <div class="category-dialog__field">
         <div class="category-dialog__slider-head">
             <label for="categoryWidth" class="category-dialog__label">Ширина</label>
             <span class="category-dialog__width-value" aria-hidden="true">
@@ -61,9 +71,13 @@
     [Parameter]
     public DashboardCategory? Category { get; set; }
 
-    /// <summary>Идентификатор раскладки, в которую добавляется новая категория.</summary>
+    /// <summary>Идентификатор страницы, в которую добавляется новая категория.</summary>
     [Parameter]
-    public int DashboardLayoutId { get; set; }
+    public int DashboardPageId { get; set; }
+
+    /// <summary>Список всех страниц: категорию можно отнести к любой из них.</summary>
+    [Parameter]
+    public IReadOnlyList<DashboardPage> Pages { get; set; } = [];
 
     /// <summary>Порядок новой категории (используется только при создании).</summary>
     [Parameter]
@@ -77,9 +91,21 @@
     protected override void OnInitialized()
     {
         _model = Category is null
-            ? new CategoryEditModel()
+            ? new CategoryEditModel { PageId = DashboardPageId }
             : CategoryEditModel.FromCategory(Category);
     }
+
+    private void OnPageSelected(ChangeEventArgs args)
+    {
+        if (int.TryParse(args.Value?.ToString(), out var pageId))
+        {
+            _model.PageId = pageId;
+        }
+    }
+
+    // Подпись страницы в селекторе: путь показываем, чтобы различать страницы с похожими названиями.
+    private static string PageLabel(DashboardPage page)
+        => page.Path.Length == 0 ? $"{page.Title} (основная)" : $"{page.Title} — /{page.Path}";
 
     private void OnWidthInput(ChangeEventArgs args)
     {
@@ -104,11 +130,11 @@
             var isNew = Category is null;
 
             // Собираем контрактную модель из редактируемых полей: при изменении сохраняем
-            // идентификатор, раскладку и порядок, при создании берём их из параметров.
+            // идентификатор и порядок, при создании берём порядок из параметров.
             var category = new DashboardCategory
             {
                 Id = Category?.Id ?? 0,
-                DashboardLayoutId = Category?.DashboardLayoutId ?? DashboardLayoutId,
+                DashboardPageId = _model.PageId,
                 Order = Category?.Order ?? Order,
                 Title = _model.Title.Trim(),
                 Width = _model.Width
@@ -139,12 +165,15 @@
     /// <summary>Набор редактируемых полей категории.</summary>
     private sealed class CategoryEditModel
     {
+        public int PageId { get; set; }
+
         public string Title { get; set; } = string.Empty;
 
         public int Width { get; set; } = 4;
 
         public static CategoryEditModel FromCategory(DashboardCategory category) => new()
         {
+            PageId = category.DashboardPageId,
             Title = category.Title,
             Width = Math.Clamp(category.Width, 1, 12)
         };

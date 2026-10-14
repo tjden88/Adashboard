@@ -7,7 +7,7 @@ namespace Adashboard.Data.Entities;
 /// Сущность БД категории ссылок.
 /// </summary>
 /// <remarks>
-/// Ориентирована на EF Core: двусторонние навигации (родительская раскладка и дочерние
+/// Ориентирована на EF Core: двусторонние навигации (родительская страница и дочерние
 /// карточки) и атрибуты схемы.
 /// </remarks>
 public sealed class DashboardCategoryEntity
@@ -18,9 +18,9 @@ public sealed class DashboardCategoryEntity
     public int Id { get; set; }
 
     /// <summary>
-    /// Идентификатор родительской раскладки.
+    /// Идентификатор родительской страницы.
     /// </summary>
-    public int DashboardLayoutId { get; set; }
+    public int DashboardPageId { get; set; }
 
     /// <summary>
     /// Отображаемое название категории.
@@ -39,10 +39,10 @@ public sealed class DashboardCategoryEntity
     public int Width { get; set; } = 6;
 
     /// <summary>
-    /// Родительская раскладка (навигация).
+    /// Родительская страница (навигация).
     /// </summary>
-    [ForeignKey(nameof(DashboardLayoutId))]
-    public DashboardLayoutEntity? Layout { get; set; }
+    [ForeignKey(nameof(DashboardPageId))]
+    public DashboardPageEntity? Page { get; set; }
 
     /// <summary>
     /// Карточки, входящие в категорию.

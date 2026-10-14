@@ -10,11 +10,11 @@ namespace Adashboard.Server.Controllers;
 [ApiController]
 [Route("api/categories")]
 public class CategoriesController(
-    LayoutService layoutService,
+    PageService pageService,
     ILogger<CategoriesController> logger) : ControllerBase
 {
     /// <summary>
-    /// Создаёт новую категорию в основной раскладке.
+    /// Создаёт новую категорию на указанной странице.
     /// </summary>
     /// <param name="category">Тело запроса с данными категории.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
@@ -31,7 +31,7 @@ public class CategoriesController(
             return BadRequest(new { error = "Укажите название категории." });
         }
 
-        var created = await layoutService.CreateCategoryAsync(category, cancellationToken);
+        var created = await pageService.CreateCategoryAsync(category, cancellationToken);
         if (created is null)
         {
             return BadRequest();
@@ -59,7 +59,7 @@ public class CategoriesController(
             return BadRequest(new { error = "Укажите название категории." });
         }
 
-        var updated = await layoutService.UpdateCategoryAsync(category, cancellationToken);
+        var updated = await pageService.UpdateCategoryAsync(category, cancellationToken);
         return updated ? NoContent() : NotFound();
     }
 
@@ -73,7 +73,7 @@ public class CategoriesController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
-        var deleted = await layoutService.DeleteCategoryAsync(id, cancellationToken);
+        var deleted = await pageService.DeleteCategoryAsync(id, cancellationToken);
         return deleted ? NoContent() : NotFound();
     }
 }

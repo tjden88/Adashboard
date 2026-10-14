@@ -3,16 +3,16 @@ using System.ComponentModel.DataAnnotations;
 namespace Adashboard.Data.Entities;
 
 /// <summary>
-/// Сущность БД раскладки dashboard.
+/// Сущность БД страницы dashboard.
 /// </summary>
 /// <remarks>
 /// Ориентирована на EF Core: содержит навигацию на категории и атрибуты схемы.
-/// Идентификатор раскладки фиксирован (основная раскладка — строка <c>Id = 1</c>).
+/// Основная страница имеет пустой путь и не удаляется.
 /// </remarks>
-public sealed class DashboardLayoutEntity
+public sealed class DashboardPageEntity
 {
     /// <summary>
-    /// Уникальный идентификатор раскладки.
+    /// Уникальный идентификатор страницы.
     /// </summary>
     public int Id { get; set; }
 
@@ -29,11 +29,18 @@ public sealed class DashboardLayoutEntity
     public string Description { get; set; } = string.Empty;
 
     /// <summary>
-    /// Категории, входящие в раскладку.
+    /// Относительный путь, по которому открывается страница.
+    /// У основной страницы путь пустой.
+    /// </summary>
+    [MaxLength(120)]
+    public string Path { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Категории, входящие в страницу.
     /// </summary>
     /// <remarks>
-    /// Внешний ключ связи хранится в <see cref="DashboardCategoryEntity.DashboardLayoutId"/>
-    /// зависимой сущности (задан атрибутом на навигации <see cref="DashboardCategoryEntity.Layout"/>).
+    /// Внешний ключ связи хранится в <see cref="DashboardCategoryEntity.DashboardPageId"/>
+    /// зависимой сущности (задан атрибутом на навигации <see cref="DashboardCategoryEntity.Page"/>).
     /// </remarks>
     public ICollection<DashboardCategoryEntity> Categories { get; set; } = [];
 }

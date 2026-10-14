@@ -8,14 +8,15 @@
 @inject DashboardApiOptions ApiOptions
 @inject IDashboardApi DashboardApi
 @inject IJSRuntime JS
-@inject ILogger<LayoutHeader> Logger
+@inject ILogger<PageHeader> Logger
 
 @*
-    Шапка dashboard: логотип, заголовок и описание раскладки и кнопки управления.
+    Шапка dashboard: логотип, заголовок и описание страницы и кнопки управления.
 
     Компонент владеет настройками сайта: загружает их через SiteSettingsService, применяет тему
-    оформления и показывает логотип по настройке ShowLogo. Он же переключает режим редактирования
-    и открывает диалоги настроек (сайта и раскладки) и создания категории.
+    оформления и показывает логотип по настройке ShowLogo. Он же переключает режим редактирования,
+    открывает настройки сайта и добавление новой страницы. Настройки и удаление текущей страницы
+    и создание категорий живут на самой странице (PageView), потому что относятся к её содержимому.
 *@
 
 <PageTitle>@PageTitleText</PageTitle>
@@ -27,19 +28,15 @@
             <img class="dashboard-logo" src="@LogoPath" alt="" />
         }
         <div>
-            <h1>@Layout.Title</h1>
-            <p>@Layout.Description</p>
+            <h1>@Page.Title</h1>
+            <p>@Page.Description</p>
         </div>
     </div>
     <div class="dashboard-header-actions">
         @if (EditModeService.IsEnabled)
         {
-            <button type="button" class="btn btn-icon btn-sm btn-success" @onclick="OpenAddCategoryDialog" aria-label="Добавить категорию" title="Добавить категорию">
-                <i class="fa-regular fa-layer-plus"></i>
-            </button>
-
-            <button type="button" class="btn btn-icon btn-sm btn-outline-secondary" @onclick="OpenLayoutSettings" aria-label="Настройки раскладки" title="Настройки раскладки">
-                <i class="fa-solid fa-gear" aria-hidden="true"></i>
+            <button type="button" class="btn btn-icon btn-sm btn-success" @onclick="OpenAddPageDialog" aria-label="Добавить страницу" title="Добавить страницу">
+                <i class="fa-solid fa-file-circle-plus" aria-hidden="true"></i>
             </button>
 
             <button type="button" class="btn btn-icon btn-sm btn-outline-secondary" @onclick="OpenSiteSettings" aria-label="Настройки сайта" title="Настройки сайта">
@@ -67,22 +64,22 @@
     private IJSObjectReference? _module;
     private SiteSettings _settings = new();
 
-    /// <summary>Информационная часть раскладки, отображаемая в шапке.</summary>
+    /// <summary>Информационная часть страницы, отображаемая в шапке.</summary>
     [Parameter, EditorRequired]
-    public DashboardLayout Layout { get; set; } = null!;
+    public DashboardPage Page { get; set; } = null!;
 
-    /// <summary>Порядковый номер для новой категории (ставится в конец списка категорий).</summary>
+    /// <summary>Список всех страниц: нужен для проверки уникальности пути при создании.</summary>
     [Parameter]
-    public int NextCategoryOrder { get; set; }
+    public IReadOnlyList<DashboardPage> Pages { get; set; } = [];
 
-    /// <summary>Уведомление родителя о созданной категории.</summary>
+    /// <summary>Уведомление родителя о созданной странице.</summary>
     [Parameter]
-    public EventCallback<DashboardCategory> CategoryCreated { get; set; }
+    public EventCallback<DashboardPage> PageCreated { get; set; }
 
     private string LogoPath => ApiOptions.ResolveUploadPath(LogoAsset)!;
 
     // Заголовок вкладки браузера повторяет заголовок в шапке, а при пустом значении — «Adashboard».
-    private string PageTitleText => string.IsNullOrWhiteSpace(Layout.Title) ? "Adashboard" : Layout.Title;
+    private string PageTitleText => string.IsNullOrWhiteSpace(Page.Title) ? "Adashboard" : Page.Title;
 
     protected override async Task OnInitializedAsync()
     {
@@ -148,33 +145,24 @@
     }
 
     // ---------------------------------------------------------------
-    // Настройки раскладки (заголовок и описание).
+    // Создание новой страницы.
     // ---------------------------------------------------------------
 
-    private void OpenLayoutSettings()
+    private void OpenAddPageDialog()
     {
+        // Страницу создаёт сам диалог (через API), а результат уходит родителю.
         var parameters = new Dictionary<string, object?>
         {
-            [nameof(SettingsDialog.Layout)] = Layout,
-            [nameof(SettingsDialog.OnSave)] = EventCallback.Factory.Create(this, SaveLayoutInfoAsync)
+            [nameof(PageDialog.ExistingPaths)] = Pages.Select(x => x.Path).ToList(),
+            [nameof(PageDialog.OnSave)] = EventCallback.Factory.Create<DashboardPage>(this, OnPageCreatedAsync)
         };
 
-        DialogService.Show<SettingsDialog>("Настройки раскладки", parameters, closeOnOverlayClick: false);
+        DialogService.Show<PageDialog>("Создать страницу", parameters, closeOnOverlayClick: false);
     }
 
-    private async Task SaveLayoutInfoAsync()
+    private async Task OnPageCreatedAsync(DashboardPage page)
     {
-        try
-        {
-            await DashboardApi.SaveLayoutInfoAsync(Layout);
-        }
-        catch (ApiException ex)
-        {
-            // Refit выбрасывает ApiException при неуспешном ответе: оставляем понятное сообщение с кодом.
-            throw new InvalidOperationException($"Не удалось сохранить раскладку (код {(int)ex.StatusCode}).", ex);
-        }
-
-        await InvokeAsync(StateHasChanged);
+        await PageCreated.InvokeAsync(page);
         DialogService.Close();
     }
 
@@ -202,29 +190,10 @@
     }
 
     // ---------------------------------------------------------------
-    // Режим редактирования и создание категории.
+    // Режим редактирования.
     // ---------------------------------------------------------------
 
     private void ToggleEditMode() => EditModeService.Toggle();
-
-    private void OpenAddCategoryDialog()
-    {
-        // Новую категорию создаёт сам диалог (через API), а результат уходит родителю.
-        var parameters = new Dictionary<string, object?>
-        {
-            [nameof(CategoryDialog.DashboardLayoutId)] = Layout.Id,
-            [nameof(CategoryDialog.Order)] = NextCategoryOrder,
-            [nameof(CategoryDialog.OnSave)] = EventCallback.Factory.Create<DashboardCategory>(this, OnCategoryCreatedAsync)
-        };
-
-        DialogService.Show<CategoryDialog>("Создать категорию", parameters, closeOnOverlayClick: false);
-    }
-
-    private async Task OnCategoryCreatedAsync(DashboardCategory category)
-    {
-        await CategoryCreated.InvokeAsync(category);
-        DialogService.Close();
-    }
 
     private static string ThemeString(ThemeMode mode) => mode switch
     {

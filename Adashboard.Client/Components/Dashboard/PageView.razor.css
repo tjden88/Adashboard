@@ -20,6 +20,21 @@
     gap: 1.1rem;
 }
 
+/* Отдельный блок действий над страницей: добавление категории, настройки и удаление
+   самой страницы. Показывается только в режиме редактирования. */
+.page-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.page-actions .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border-radius: 10px;
+}
+
 .dashboard-grid {
     position: relative;
     column-gap: var(--dashboard-gap);
