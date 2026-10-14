@@ -8,18 +8,16 @@
 @inject DashboardApiOptions ApiOptions
 @inject DialogService DialogService
 @inject EditModeService EditModeService
-@inject ILogger<DashboardView> Logger
+@inject ILogger<LayoutView> Logger
 
 @*
-    Раскладка dashboard: загрузка данных, шапка, сетка категорий, настройки и операции
-    с категориями (создание, изменение, удаление, перетаскивание и изменение ширины).
+    Раскладка dashboard: загрузка данных, шапка (через LayoutHeader), сетка категорий
+    и операции с раскладкой в целом (перетаскивание категорий и изменение их ширины).
 
-    Компонент переиспользует существующие Category (одна категория) и Card (одна карточка):
-    операции с карточками и проверка статуса живут внутри них, а сюда приходит только
-    уведомление об изменениях (CardSaved/CardDeleted), чтобы поддерживать общий список в актуальном виде.
+    Сама категория (Category) отвечает за свои операции: изменение, удаление и работу
+    с карточками. Сюда приходят только уведомления об изменениях (CategorySaved/CategoryDeleted
+    и CardSaved/CardDeleted), чтобы поддерживать общие списки в актуальном состоянии.
 *@
-
-<PageTitle>@PageTitleText</PageTitle>
 
 @if (!_isLoaded)
 {
@@ -43,49 +41,17 @@
 else
 {
     <section class="dashboard-shell">
-        <header class="dashboard-header">
-            <div class="dashboard-header-brand">
-                @if (ShowLogo)
-                {
-                    <img class="dashboard-logo" src="@LogoPath" alt="" />
-                }
-                <div>
-                    <h1>@_layout.Title</h1>
-                    <p>@_layout.Description</p>
-                </div>
-            </div>
-            <div class="dashboard-header-actions">
-
-                @if (EditModeService.IsEnabled)
-                {
-                    <button type="button" class="btn btn-icon btn-sm btn-success" @onclick="OpenAddCategoryDialog" aria-label="Добавить категорию" title="Добавить категорию">
-                        <i class="fa-regular fa-layer-plus"></i>
-                    </button>
-
-                    <button type="button" class="btn btn-icon btn-sm btn-outline-secondary" @onclick="OpenSettings" aria-label="Открыть настройки" title="Настройки">
-                        <i class="fa-solid fa-gear" aria-hidden="true"></i>
-                    </button>
-                }
-
-                <button type="button"
-                        class="px-4 btn btn-icon btn-sm @(EditModeService.IsEnabled ? "btn-primary" : "btn-outline-secondary")"
-                        @onclick="ToggleEditMode"
-                        aria-pressed="@EditModeService.IsEnabled"
-                        aria-label="Переключить режим редактирования"
-                        title="@(EditModeService.IsEnabled ? "Завершить редактирование" : "Редактировать")">
-                    <i class="fa-solid @(EditModeService.IsEnabled ? "fa-check" : "fa-pen-nib")" aria-hidden="true"></i>
-                </button>
-
-            </div>
-        </header>
+        <LayoutHeader Layout="@_layout"
+                      NextCategoryOrder="@NextCategoryOrder"
+                      CategoryCreated="OnCategorySaved" />
 
         <div class="dashboard-grid" id="dashboard-grid">
             @foreach (var category in OrderedCategories)
             {
                 <Category @key="category.Id" Model="@category"
                           Cards="@GetCards(category.Id)"
-                          EditRequested="OpenEditCategoryDialog"
-                          DeleteRequested="OpenDeleteCategoryConfirm"
+                          Saved="OnCategorySaved"
+                          Deleted="OnCategoryDeleted"
                           CardSaved="OnCardSaved"
                           CardDeleted="OnCardDeleted" />
             }
@@ -110,11 +76,11 @@ else
 
     private IEnumerable<DashboardCategory> OrderedCategories => _categories.OrderBy(x => x.Order);
 
-    // Заголовок вкладки браузера повторяет заголовок в хедере, а при пустом значении — «Adashboard».
-    private string PageTitleText => string.IsNullOrWhiteSpace(_layout.Title) ? "Adashboard" : _layout.Title;
+    // Порядковый номер для новой категории: она добавляется в конец списка.
+    private int NextCategoryOrder => _categories.Count > 0 ? _categories.Max(x => x.Order) + 1 : 0;
 
     private IJSObjectReference? _module;
-    private DotNetObjectReference<DashboardView>? _dotNetRef;
+    private DotNetObjectReference<LayoutView>? _dotNetRef;
     private readonly SemaphoreSlim _reorderLock = new(1, 1);
     private bool _isLoaded;
     private bool _dragAndDropInitialized;
@@ -122,18 +88,11 @@ else
     // Текст ошибки загрузки раскладки: пока он задан, вместо дашборда показывается сообщение с кнопкой повтора.
     private string? _loadError;
 
-    // Настройки сайта пока зашиты в клиенте: их вынесение в отдельное хранилище — отдельная задача.
-    private const bool ShowLogo = true;
-    private const string DefaultThemeMode = "auto";
-
     // Файлы оформления лежат в каталоге загрузок API, а не в статике клиента. Пути к ним
     // переводим в абсолютные адреса API (ResolveUploadPath), иначе при запуске клиента
     // отдельно от сервера они запрашивались бы у клиентского dev-сервера и давали 404.
-    private const string LogoAsset = "/uploads/assets/logo.png";
     private const string LightBackgroundAsset = "/uploads/assets/bg-light.jpg";
     private const string DarkBackgroundAsset = "/uploads/assets/bg-dark.jpg";
-
-    private string LogoPath => ApiOptions.ResolveUploadPath(LogoAsset)!;
 
     protected override void OnInitialized()
     {
@@ -141,8 +100,6 @@ else
     }
 
     private void OnEditModeChanged() => InvokeAsync(StateHasChanged);
-
-    private void ToggleEditMode() => EditModeService.Toggle();
 
     // Карточки указанной категории, упорядоченные по Position.
     private IReadOnlyList<DashboardCard> GetCards(int categoryId)
@@ -154,8 +111,6 @@ else
         {
             _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/dashboard.js");
             _dotNetRef = DotNetObjectReference.Create(this);
-
-            await _module.InvokeVoidAsync("initializeTheme", DefaultThemeMode);
 
             // Фон страницы задан в CSS, но сами файлы лежат в API. Абсолютные адреса
             // передаём в модуль: CSS-переменные не умеют подставлять адрес другого origin.
@@ -181,120 +136,33 @@ else
     }
 
     // ---------------------------------------------------------------
-    // Настройки раскладки.
+    // Уведомления от Category и LayoutHeader об изменениях категорий.
+    // Изменение и удаление выполняет сама Category, создание — диалог в шапке;
+    // здесь мы лишь поддерживаем общий список категорий в актуальном состоянии.
     // ---------------------------------------------------------------
 
-    private void OpenSettings()
+    private Task OnCategorySaved(DashboardCategory category)
     {
-        var parameters = new Dictionary<string, object?>
+        // Новая категория добавляется, изменённая — заменяется по идентификатору.
+        var index = _categories.FindIndex(x => x.Id == category.Id);
+        if (index >= 0)
         {
-            [nameof(SettingsDialog.Layout)] = _layout,
-            [nameof(SettingsDialog.OnSave)] = EventCallback.Factory.Create(this, OnSettingsSavedAsync)
-        };
-
-        DialogService.Show<SettingsDialog>("Настройки", parameters, closeOnOverlayClick: false);
-    }
-
-    private async Task OnSettingsSavedAsync()
-    {
-        // Диалог уже изменил заголовок и описание раскладки: остаётся сохранить их через API.
-        await SaveLayoutInfoAsync();
-        await InvokeAsync(StateHasChanged);
-        DialogService.Close();
-    }
-
-    // ---------------------------------------------------------------
-    // Категории: создание, изменение, удаление.
-    // ---------------------------------------------------------------
-
-    private void OpenAddCategoryDialog()
-    {
-        var parameters = new Dictionary<string, object?>
-        {
-            [nameof(CategoryDialog.Category)] = new DashboardCategory { DashboardLayoutId = _layout.Id },
-            [nameof(CategoryDialog.OnSave)] = EventCallback.Factory.Create<DashboardCategory>(this, AddCategory)
-        };
-
-        DialogService.Show<CategoryDialog>("Создать категорию", parameters, closeOnOverlayClick: false);
-    }
-
-    private void OpenEditCategoryDialog(DashboardCategory category)
-    {
-        var parameters = new Dictionary<string, object?>
-        {
-            [nameof(CategoryDialog.Category)] = category,
-            [nameof(CategoryDialog.OnSave)] = EventCallback.Factory.Create<DashboardCategory>(this, SaveCategory)
-        };
-
-        DialogService.Show<CategoryDialog>("Редактировать категорию", parameters, closeOnOverlayClick: false);
-    }
-
-    private async Task AddCategory(DashboardCategory category)
-    {
-        // Новую категорию ставим в конец: порядок задаётся явно, идентификатор назначит сервер.
-        category.Order = _categories.Count > 0 ? _categories.Max(x => x.Order) + 1 : 0;
-
-        try
-        {
-            var created = await DashboardApi.CreateCategoryAsync(category);
-            _categories.Add(created);
-            await InvokeAsync(StateHasChanged);
-            DialogService.Close();
+            _categories[index] = category;
         }
-        catch (ApiException ex)
+        else
         {
-            Logger.LogWarning(ex, "Не удалось создать категорию. Код: {StatusCode}.", ex.StatusCode);
-        }
-    }
-
-    private async Task SaveCategory(DashboardCategory category)
-    {
-        try
-        {
-            await DashboardApi.UpdateCategoryAsync(category);
-            await InvokeAsync(StateHasChanged);
-            DialogService.Close();
-        }
-        catch (ApiException ex)
-        {
-            Logger.LogWarning(ex, "Не удалось изменить категорию {CategoryId}. Код: {StatusCode}.", category.Id, ex.StatusCode);
-        }
-    }
-
-    private async Task OpenDeleteCategoryConfirm(DashboardCategory category)
-    {
-        // Пустую категорию удаляем сразу: подтверждать нечего.
-        if (_cards.All(x => x.DashboardCategoryId != category.Id))
-        {
-            await DeleteCategory(category);
-            return;
+            _categories.Add(category);
         }
 
-        var parameters = new Dictionary<string, object?>
-        {
-            [nameof(ConfirmDialog.Message)] = $"Удалить категорию «{category.Title}» вместе со всеми ссылками?",
-            [nameof(ConfirmDialog.ConfirmLabel)] = "Удалить",
-            [nameof(ConfirmDialog.OnConfirm)] = EventCallback.Factory.Create(this, () => DeleteCategory(category))
-        };
-
-        DialogService.Show<ConfirmDialog>("Подтверждение удаления", parameters, closeOnOverlayClick: true);
+        return InvokeAsync(StateHasChanged);
     }
 
-    private async Task DeleteCategory(DashboardCategory category)
+    private Task OnCategoryDeleted(DashboardCategory category)
     {
-        try
-        {
-            await DashboardApi.DeleteCategoryAsync(category.Id);
-        }
-        catch (ApiException ex)
-        {
-            Logger.LogWarning(ex, "Не удалось удалить категорию {CategoryId}. Код: {StatusCode}.", category.Id, ex.StatusCode);
-            return;
-        }
-
         _cards.RemoveAll(x => x.DashboardCategoryId == category.Id);
         _categories.RemoveAll(x => x.Id == category.Id);
-        await InvokeAsync(StateHasChanged);
+
+        return InvokeAsync(StateHasChanged);
     }
 
     // ---------------------------------------------------------------
@@ -495,7 +363,7 @@ else
     }
 
     // ---------------------------------------------------------------
-    // Загрузка и сохранение данных через API.
+    // Загрузка данных через API.
     // ---------------------------------------------------------------
 
     private async Task LoadLayoutAsync()
@@ -534,27 +402,15 @@ else
     // Повторная загрузка раскладки после ошибки (кнопка «Повторить»).
     private Task RetryLoadAsync() => TryLoadAsync();
 
-    private async Task SaveLayoutInfoAsync()
-    {
-        try
-        {
-            await DashboardApi.SaveLayoutInfoAsync(_layout);
-        }
-        catch (ApiException ex)
-        {
-            // Refit выбрасывает ApiException при неуспешном ответе: оставляем понятное сообщение с кодом.
-            throw new InvalidOperationException($"Не удалось сохранить раскладку (код {(int)ex.StatusCode}).", ex);
-        }
-    }
-
     public async ValueTask DisposeAsync()
     {
         EditModeService.OnChange -= OnEditModeChanged;
 
-        // Диалоги настроек, категории, карточки и подтверждения держат колбэк на текущую
-        // раскладку: закрываем их при уходе, чтобы не вызывать метод у уже удалённого компонента.
+        // Диалоги настроек, категории, карточки и подтверждения держат колбэк на компоненты
+        // раскладки: закрываем их при уходе, чтобы не вызывать метод у уже удалённого компонента.
         if (DialogService.Current is not null &&
             (DialogService.Current.ComponentType == typeof(SettingsDialog)
+             || DialogService.Current.ComponentType == typeof(SiteSettingsDialog)
              || DialogService.Current.ComponentType == typeof(CategoryDialog)
              || DialogService.Current.ComponentType == typeof(CardDialog)
              || DialogService.Current.ComponentType == typeof(ConfirmDialog)))

@@ -8,12 +8,10 @@
 @*
     Одна категория dashboard вместе со своими ссылками.
 
-    Компонент сам управляет карточками категории: открывает диалоги создания и изменения,
-    обращается к API при удалении и сообщает родителю (DashboardView) об изменениях через
-    CardSaved/CardDeleted, чтобы общий список карточек оставался актуальным.
-
-    Операции с самой категорией (изменение/удаление) остаются за родителем: здесь только
-    поднимаются события EditRequested и DeleteRequested.
+    Компонент сам управляет категорией и её карточками: открывает диалоги создания и изменения
+    карточек, создаёт, изменяет и удаляет карточки, а также изменяет и удаляет саму категорию.
+    О результатах родителю (LayoutView) сообщают события Saved/Deleted и CardSaved/CardDeleted,
+    чтобы общие списки оставались актуальными.
 *@
 
 <section class="dashboard-category"
@@ -39,14 +37,14 @@
                 </button>
                 <button type="button"
                         class="btn btn-icon btn-sm btn-primary"
-                        @onclick="OnEdit"
+                        @onclick="OpenEditDialog"
                         aria-label="Редактировать категорию @Model.Title"
                         title="Редактировать категорию">
                     <i class="fa-solid fa-pen-nib" aria-hidden="true"></i>
                 </button>
                 <button type="button"
                         class="btn btn-icon btn-sm btn-danger"
-                        @onclick="OnDelete"
+                        @onclick="RequestDeleteAsync"
                         aria-label="Удалить категорию @Model.Title"
                         title="Удалить категорию">
                     <i class="fa-solid fa-trash" aria-hidden="true"></i>
@@ -84,13 +82,13 @@
     [Parameter, EditorRequired]
     public IReadOnlyList<DashboardCard> Cards { get; set; } = [];
 
-    /// <summary>Запрос на изменение самой категории (выполняет родитель).</summary>
+    /// <summary>Уведомление родителя о созданной или изменённой категории.</summary>
     [Parameter, EditorRequired]
-    public EventCallback<DashboardCategory> EditRequested { get; set; }
+    public EventCallback<DashboardCategory> Saved { get; set; }
 
-    /// <summary>Запрос на удаление самой категории (выполняет родитель).</summary>
+    /// <summary>Уведомление родителя об удалённой категории.</summary>
     [Parameter, EditorRequired]
-    public EventCallback<DashboardCategory> DeleteRequested { get; set; }
+    public EventCallback<DashboardCategory> Deleted { get; set; }
 
     /// <summary>Уведомление родителя о созданной или изменённой карточке.</summary>
     [Parameter, EditorRequired]
@@ -99,10 +97,6 @@
     /// <summary>Уведомление родителя об удалённой карточке.</summary>
     [Parameter, EditorRequired]
     public EventCallback<DashboardCard> CardDeleted { get; set; }
-
-    private Task OnEdit() => EditRequested.InvokeAsync(Model);
-
-    private Task OnDelete() => DeleteRequested.InvokeAsync(Model);
 
     // Ширину категории ограничиваем допустимым диапазоном сетки (1..12), даже если в данных
     // оказалось некорректное значение: иначе получилась бы нулевая ширина.
@@ -115,6 +109,63 @@
     private static int GetMediumSpan(int desktopWidth)
     {
         return Math.Clamp((int)Math.Round(desktopWidth / 2d, MidpointRounding.AwayFromZero), 1, 6);
+    }
+
+    // ---------------------------------------------------------------
+    // Сама категория: изменение и удаление.
+    // Запросы к API выполняют диалог изменения (CategoryDialog) и удаление здесь.
+    // ---------------------------------------------------------------
+
+    private void OpenEditDialog()
+    {
+        var parameters = new Dictionary<string, object?>
+        {
+            [nameof(CategoryDialog.Category)] = Model,
+            [nameof(CategoryDialog.OnSave)] = EventCallback.Factory.Create<DashboardCategory>(this, OnCategorySavedAsync)
+        };
+
+        DialogService.Show<CategoryDialog>($"Редактировать категорию: {Model.Title}", parameters, closeOnOverlayClick: false);
+    }
+
+    private async Task OnCategorySavedAsync(DashboardCategory category)
+    {
+        // Передаём категорию родителю: он обновит общий список и перерисует сетку.
+        await Saved.InvokeAsync(category);
+        DialogService.Close();
+    }
+
+    private async Task RequestDeleteAsync()
+    {
+        // Пустую категорию удаляем сразу: подтверждать нечего.
+        if (Cards.Count == 0)
+        {
+            await DeleteCategoryAsync();
+            return;
+        }
+
+        var parameters = new Dictionary<string, object?>
+        {
+            [nameof(ConfirmDialog.Message)] = $"Удалить категорию «{Model.Title}» вместе со всеми ссылками?",
+            [nameof(ConfirmDialog.ConfirmLabel)] = "Удалить",
+            [nameof(ConfirmDialog.OnConfirm)] = EventCallback.Factory.Create(this, DeleteCategoryAsync)
+        };
+
+        DialogService.Show<ConfirmDialog>("Подтверждение удаления", parameters, closeOnOverlayClick: true);
+    }
+
+    private async Task DeleteCategoryAsync()
+    {
+        try
+        {
+            await DashboardApi.DeleteCategoryAsync(Model.Id);
+        }
+        catch (ApiException ex)
+        {
+            Logger.LogWarning(ex, "Не удалось удалить категорию {CategoryId}. Код: {StatusCode}.", Model.Id, ex.StatusCode);
+            return;
+        }
+
+        await Deleted.InvokeAsync(Model);
     }
 
     // ---------------------------------------------------------------

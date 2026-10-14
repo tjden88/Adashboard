@@ -1,10 +1,9 @@
 @*
-    Диалог общих настроек dashboard.
+    Диалог настроек раскладки dashboard.
 
-    Сейчас здесь редактируются только заголовок и описание: они хранятся в раскладке
-    (DashboardLayout) и сохраняются отдельным запросом PUT /api/layout/info. Прежние
-    настройки сайта (тема, показ логотипа, интервал проверки) вынесены в отдельную
-    задачу и пока зашиты константами на клиенте, поэтому в этом диалоге их нет.
+    Здесь редактируются только заголовок и описание: они хранятся в раскладке (DashboardLayout)
+    и сохраняются отдельным запросом PUT /api/layout/info. Общие настройки сайта (тема, показ
+    логотипа, интервал проверки) живут в отдельном диалоге SiteSettingsDialog.
 *@
 
 <form class="settings-dialog" @onsubmit="Save" @onsubmit:preventDefault>
@@ -15,8 +14,8 @@
                type="text"
                maxlength="120"
                autocomplete="off"
-               value="@_title"
-               @oninput="args => _title = args.Value?.ToString() ?? string.Empty" />
+               value="@_model.Title"
+               @oninput="args => _model.Title = args.Value?.ToString() ?? string.Empty" />
     </div>
 
     <div class="settings-section">
@@ -26,8 +25,8 @@
                type="text"
                maxlength="300"
                autocomplete="off"
-               value="@_description"
-               @oninput="args => _description = args.Value?.ToString() ?? string.Empty" />
+               value="@_model.Description"
+               @oninput="args => _model.Description = args.Value?.ToString() ?? string.Empty" />
     </div>
 
     @if (_error is not null)
@@ -43,8 +42,7 @@
 </form>
 
 @code {
-    private string _title = string.Empty;
-    private string _description = string.Empty;
+    private EditModel _model = new();
     private string? _error;
     private bool _isSaving;
 
@@ -52,22 +50,22 @@
     [Parameter, EditorRequired]
     public DashboardLayout Layout { get; set; } = null!;
 
-    /// <summary>Событие сохранения: родитель сохраняет раскладку через API.</summary>
+    /// <summary>Событие сохранения: владелец раскладки сохраняет её через API.</summary>
     [Parameter, EditorRequired]
     public required EventCallback OnSave { get; set; }
 
-    protected override void OnInitialized()
+    protected override void OnInitialized() => _model = new EditModel
     {
-        _title = Layout.Title;
-        _description = Layout.Description;
-    }
+        Title = Layout.Title,
+        Description = Layout.Description
+    };
 
     private async Task Save()
     {
         _error = null;
 
         // API требует непустой заголовок: проверяем до запроса, чтобы показать понятное сообщение.
-        var title = _title.Trim();
+        var title = _model.Title.Trim();
         if (title.Length == 0)
         {
             _error = "Укажите заголовок dashboard.";
@@ -79,7 +77,7 @@
         try
         {
             Layout.Title = title;
-            Layout.Description = _description.Trim();
+            Layout.Description = _model.Description.Trim();
             await OnSave.InvokeAsync();
         }
         catch (Exception ex)
@@ -90,5 +88,13 @@
         {
             _isSaving = false;
         }
+    }
+
+    /// <summary>Набор редактируемых полей раскладки.</summary>
+    private sealed class EditModel
+    {
+        public string Title { get; set; } = string.Empty;
+
+        public string Description { get; set; } = string.Empty;
     }
 }

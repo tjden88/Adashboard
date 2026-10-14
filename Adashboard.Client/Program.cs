@@ -61,5 +61,6 @@ builder.Services.AddScoped<HealthCheckService>();
 builder.Services.AddScoped<PageTitleService>();
 builder.Services.AddScoped<DialogService>();
 builder.Services.AddScoped<EditModeService>();
+builder.Services.AddScoped<SiteSettingsService>();
 
 await builder.Build().RunAsync();

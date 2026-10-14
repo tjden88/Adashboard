@@ -13,6 +13,14 @@ function resolveTheme(mode) {
 function applyTheme(mode) {
     const resolved = resolveTheme(mode);
     document.documentElement.setAttribute("data-theme", resolved);
+
+    // Запоминаем выбранный режим, чтобы inline-скрипт в index.html применил его до отрисовки
+    // и не было вспышки светлого фона при тёмной теме.
+    try {
+        window.localStorage.setItem("adashboard-theme", mode || "auto");
+    } catch (error) {
+        // Приватный режим или отключённое хранилище: тема просто не запоминается.
+    }
 }
 
 function handleSystemThemeChange() {

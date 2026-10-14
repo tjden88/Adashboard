@@ -1,25 +1,3 @@
-.dashboard-loading {
-    display: grid;
-    place-items: center;
-    min-height: 68vh;
-    padding: 2rem 1rem;
-}
-
-/* Круговой индикатор загрузки в стиле Material Design. */
-.dashboard-loading__spinner {
-    width: 2.75rem;
-    height: 2.75rem;
-    border-radius: 50%;
-    border: 3px solid color-mix(in srgb, var(--accent) 20%, transparent);
-    border-top-color: var(--accent);
-    animation: loader-spin 0.9s linear infinite;
-}
-
-.dashboard-shell {
-    display: grid;
-    gap: 1.1rem;
-}
-
 .dashboard-header {
     display: flex;
     align-items: flex-start;
@@ -66,29 +44,4 @@ html[data-theme="light"] .dashboard-header p {
     gap: 0.4rem;
     /* Компенсирует отступ шрифта h1, чтобы кнопки стояли в строке заголовка. */
     margin-top: 0.15rem;
-}
-
-.dashboard-header-actions label {
-    color: var(--text-muted);
-    font-size: 0.84rem;
-}
-
-.dashboard-header-actions select {
-    min-width: 8rem;
-    border: 1px solid var(--surface-border);
-    border-radius: 10px;
-    padding: 0.42rem 0.65rem;
-    background: var(--surface-strong);
-    color: var(--text-main);
-}
-
-.dashboard-grid {
-    position: relative;
-    column-gap: var(--dashboard-gap);
-}
-
-@keyframes loader-spin {
-    to {
-        transform: rotate(360deg);
-    }
 }

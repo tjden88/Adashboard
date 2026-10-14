@@ -17,8 +17,8 @@
                    maxlength="120"
                    autocomplete="off"
                    placeholder="Например: Docker"
-                   value="@_title"
-                   @oninput="args => _title = args.Value?.ToString() ?? string.Empty" />
+                   value="@_model.Title"
+                   @oninput="args => _model.Title = args.Value?.ToString() ?? string.Empty" />
             <button type="button"
                     class="btn btn-outline-secondary card-dialog__fetch-title"
                     @onclick="FetchTitle"
@@ -50,8 +50,8 @@
                    maxlength="500"
                    autocomplete="off"
                    placeholder="example.com"
-                   value="@_url"
-                   @oninput="args => _url = args.Value?.ToString() ?? string.Empty" />
+                   value="@_model.Url"
+                   @oninput="args => _model.Url = args.Value?.ToString() ?? string.Empty" />
         </div>
     </div>
 
@@ -62,20 +62,20 @@
             <label class="card-dialog__radio">
                 <input type="radio"
                        name="cardIconMode"
-                       checked="@(!_useCustomImage)"
-                       @onchange="() => _useCustomImage = false" />
+                       checked="@(!_model.UseCustomImage)"
+                       @onchange="() => _model.UseCustomImage = false" />
                 <span>Встроенная иконка</span>
             </label>
             <label class="card-dialog__radio">
                 <input type="radio"
                        name="cardIconMode"
-                       checked="@_useCustomImage"
-                       @onchange="() => _useCustomImage = true" />
+                       checked="@_model.UseCustomImage"
+                       @onchange="() => _model.UseCustomImage = true" />
                 <span>Своё изображение</span>
             </label>
         </div>
 
-        @if (_useCustomImage)
+        @if (_model.UseCustomImage)
         {
             <div class="card-dialog__image">
                 <div class="card-dialog__image-preview">
@@ -115,19 +115,19 @@
         }
         else
         {
-            <IconPicker @bind-Value="_icon" />
+            <IconPicker @bind-Value="_model.Icon" />
         }
     </div>
 
     <div class="card-dialog__row">
         <div class="card-dialog__field card-dialog__field--grow">
             <label class="card-dialog__label">Цвет фона</label>
-            <ColorPicker @bind-Value="_color" AriaLabel="Цвет фона карточки" />
+            <ColorPicker @bind-Value="_model.Color" AriaLabel="Цвет фона карточки" />
         </div>
         <label class="card-dialog__toggle" title="Карточка займёт две колонки">
             <input type="checkbox"
-                   checked="@_isWide"
-                   @onchange="args => _isWide = args.Value is true" />
+                   checked="@_model.IsWide"
+                   @onchange="args => _model.IsWide = args.Value is true" />
             <span>Широкая</span>
         </label>
     </div>
@@ -141,8 +141,8 @@
                     <input type="radio"
                            name="cardStatusMode"
                            value="@option.Mode"
-                           checked="@(_statusMode == option.Mode)"
-                           @onchange="() => _statusMode = option.Mode" />
+                           checked="@(_model.StatusMode == option.Mode)"
+                           @onchange="() => _model.StatusMode = option.Mode" />
                     <span class="card-dialog__status-text">
                         <span class="card-dialog__status-title">@option.Title</span>
                         <span class="card-dialog__status-description">@option.Hint</span>
@@ -184,20 +184,11 @@
         (CardStatusMode.Success, "Успешный ответ (2xx)", "Только ответ 2xx.", "Доступен только при успешном ответе 200–299."),
     ];
 
-    private string _title = string.Empty;
-    private string _url = string.Empty;
-    private UrlScheme _scheme = UrlScheme.Https;
-    private string _color = DefaultColor;
-    private string _icon = string.Empty;
-    private CardStatusMode _statusMode = CardStatusMode.None;
-    private bool _isWide;
-    private int _categoryId;
+    private CardEditModel _model = new();
     private string? _error;
 
-    private bool _useCustomImage;
     private byte[]? _uploadedBytes;
     private string? _uploadedPreview;
-    private string? _existingImagePath;
     private string? _imageError;
     private bool _isSaving;
 
@@ -216,7 +207,7 @@
     private DotNetObjectReference<CardDialog>? _selfRef;
     private bool _clipboardInitialized;
 
-    private string SchemeLabel => _scheme switch
+    private string SchemeLabel => _model.Scheme switch
     {
         UrlScheme.Http => "http://",
         UrlScheme.Https => "https://",
@@ -226,7 +217,7 @@
     /// <summary>Источник для предпросмотра: выбранный файл, вставка из буфера или уже сохранённое изображение.</summary>
     private string? _previewSource =>
         _uploadedPreview
-        ?? ApiOptions.ResolveUploadPath(_existingImagePath);
+        ?? ApiOptions.ResolveUploadPath(_model.ExistingImagePath);
 
     /// <summary>Карточка для редактирования или <c>null</c> при создании.</summary>
     [Parameter]
@@ -248,33 +239,9 @@
 
     protected override void OnInitialized()
     {
-        if (Card is null)
-        {
-            _categoryId = CategoryId;
-            return;
-        }
-
-        _categoryId = Card.DashboardCategoryId;
-        _title = Card.Title;
-        _color = Card.BackgroundColor;
-        _statusMode = Card.StatusMode;
-        _isWide = Card.IsWide;
-
-        // Изображение-иконка: либо пользовательский файл, либо класс Font Awesome.
-        _useCustomImage = Card.IsCustomIcon;
-        if (_useCustomImage)
-        {
-            _existingImagePath = string.IsNullOrWhiteSpace(Card.IconSource) ? null : Card.IconSource;
-        }
-        else
-        {
-            _icon = Card.IconSource;
-        }
-
-        // Схема хранится отдельно от адреса; для старых данных допускаем схему внутри адреса.
-        var (embeddedScheme, url) = SplitScheme(Card.Url);
-        _scheme = embeddedScheme != UrlScheme.None ? embeddedScheme : Card.UrlScheme;
-        _url = url;
+        _model = Card is null
+            ? new CardEditModel { CategoryId = CategoryId, Position = Position }
+            : CardEditModel.FromCard(Card);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -298,7 +265,7 @@
 
     private void CycleScheme()
     {
-        _scheme = _scheme switch
+        _model.Scheme = _model.Scheme switch
         {
             UrlScheme.Http => UrlScheme.Https,
             UrlScheme.Https => UrlScheme.None,
@@ -311,7 +278,7 @@
     {
         _titleLookupError = null;
 
-        var (scheme, url) = NormalizeUrl(_scheme, _url);
+        var (scheme, url) = NormalizeUrl(_model.Scheme, _model.Url);
         if (url.Length == 0)
         {
             _titleLookupError = "Введите ссылку.";
@@ -336,7 +303,7 @@
             }
             else
             {
-                _title = title;
+                _model.Title = title;
             }
         }
         catch (OperationCanceledException)
@@ -408,7 +375,7 @@
             {
                 _uploadedBytes = bytes;
                 _uploadedPreview = dataUrl;
-                _useCustomImage = true;
+                _model.UseCustomImage = true;
                 _imageError = null;
             }
         }
@@ -424,11 +391,11 @@
     {
         _uploadedBytes = null;
         _uploadedPreview = null;
-        _existingImagePath = null;
+        _model.ExistingImagePath = null;
         _imageError = null;
 
         // «Очистить» возвращает карточку к встроенной иконке.
-        _useCustomImage = false;
+        _model.UseCustomImage = false;
     }
 
     private async Task Save()
@@ -436,10 +403,10 @@
         _error = null;
         _imageError = null;
 
-        var title = _title.Trim();
-        var color = _color.Trim();
-        var icon = _icon.Trim();
-        var (scheme, url) = NormalizeUrl(_scheme, _url);
+        var title = _model.Title.Trim();
+        var color = _model.Color.Trim();
+        var icon = _model.Icon.Trim();
+        var (scheme, url) = NormalizeUrl(_model.Scheme, _model.Url);
 
         if (url.Length == 0)
         {
@@ -470,9 +437,9 @@
         }
 
         // Пользовательская иконка без нового файла и без ранее сохранённого изображения не имеет смысла.
-        if (_useCustomImage
+        if (_model.UseCustomImage
             && _uploadedBytes is null
-            && string.IsNullOrWhiteSpace(_existingImagePath))
+            && string.IsNullOrWhiteSpace(_model.ExistingImagePath))
         {
             _imageError = "Выберите изображение.";
             return;
@@ -485,8 +452,8 @@
         {
             var card = Card ?? new DashboardCard
             {
-                DashboardCategoryId = _categoryId,
-                Position = Position
+                DashboardCategoryId = _model.CategoryId,
+                Position = _model.Position
             };
 
             // Повторное сохранение после частичного сбоя: карточка уже создана, работаем с её Id.
@@ -499,13 +466,13 @@
             card.Url = url;
             card.UrlScheme = scheme;
             card.BackgroundColor = color;
-            card.StatusMode = _statusMode;
-            card.IsWide = _isWide;
+            card.StatusMode = _model.StatusMode;
+            card.IsWide = _model.IsWide;
 
-            if (_useCustomImage)
+            if (_model.UseCustomImage)
             {
                 card.IsCustomIcon = true;
-                card.IconSource = _existingImagePath ?? string.Empty;
+                card.IconSource = _model.ExistingImagePath ?? string.Empty;
             }
             else
             {
@@ -525,13 +492,13 @@
             // Новое изображение можно загрузить только для существующей карточки: API принимает
             // бинарные данные и само удаляет предыдущий файл. При отказе от пользовательской
             // иконки файл стирает уже обновление карточки на сервере.
-            if (_useCustomImage && _uploadedBytes is not null)
+            if (_model.UseCustomImage && _uploadedBytes is not null)
             {
                 card.IconSource = await UploadIconAsync(card.Id, _uploadedBytes);
             }
 
             // При создании без пользовательской иконки запись сохранять повторно не нужно.
-            if (!isNew || _useCustomImage)
+            if (!isNew || _model.UseCustomImage)
             {
                 await DashboardApi.UpdateCardAsync(card);
             }
@@ -739,5 +706,62 @@
         }
 
         _selfRef?.Dispose();
+    }
+
+    /// <summary>Набор редактируемых полей карточки.</summary>
+    private sealed class CardEditModel
+    {
+        public int CategoryId { get; set; }
+
+        public int Position { get; set; }
+
+        public string Title { get; set; } = string.Empty;
+
+        public string Url { get; set; } = string.Empty;
+
+        public UrlScheme Scheme { get; set; } = UrlScheme.Https;
+
+        public string Color { get; set; } = DefaultColor;
+
+        public string Icon { get; set; } = string.Empty;
+
+        public CardStatusMode StatusMode { get; set; } = CardStatusMode.None;
+
+        public bool IsWide { get; set; }
+
+        public bool UseCustomImage { get; set; }
+
+        /// <summary>Ранее сохранённый путь к изображению-иконке (если пользовательская иконка уже есть).</summary>
+        public string? ExistingImagePath { get; set; }
+
+        public static CardEditModel FromCard(DashboardCard card)
+        {
+            // Схема хранится отдельно от адреса; для старых данных допускаем схему внутри адреса.
+            var (embeddedScheme, url) = SplitScheme(card.Url);
+            var model = new CardEditModel
+            {
+                CategoryId = card.DashboardCategoryId,
+                Position = card.Position,
+                Title = card.Title,
+                Url = url,
+                Scheme = embeddedScheme != UrlScheme.None ? embeddedScheme : card.UrlScheme,
+                Color = card.BackgroundColor,
+                StatusMode = card.StatusMode,
+                IsWide = card.IsWide,
+                UseCustomImage = card.IsCustomIcon
+            };
+
+            // Изображение-иконка: либо пользовательский файл, либо класс Font Awesome.
+            if (model.UseCustomImage)
+            {
+                model.ExistingImagePath = string.IsNullOrWhiteSpace(card.IconSource) ? null : card.IconSource;
+            }
+            else
+            {
+                model.Icon = card.IconSource;
+            }
+
+            return model;
+        }
     }
 }
