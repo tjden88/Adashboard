@@ -61,6 +61,8 @@
 .card-icon i {
     font-size: min(80cqw, 80cqh);
     line-height: 1;
+    transform-origin: center;
+    transition: transform 0.18s ease;
 }
 
 .card-icon__image {
@@ -73,6 +75,46 @@
     height: auto;
     object-fit: contain;
     border-radius: 6px;
+    transform-origin: center;
+    transition: transform 0.18s ease;
+}
+
+/* При наведении (и при фокусе с клавиатуры) иконка карточки слегка увеличивается.
+   В режиме редактирования увеличение отключено: там при наведении показывается оверлей
+   редактирования, и иконка не должна «прыгать». */
+html:not(.dashboard-edit-mode) .dashboard-card:hover .card-icon i,
+html:not(.dashboard-edit-mode) .dashboard-card:focus-visible .card-icon i,
+html:not(.dashboard-edit-mode) .dashboard-card:hover .card-icon__image,
+html:not(.dashboard-edit-mode) .dashboard-card:focus-visible .card-icon__image {
+    transform: scale(1.12);
+}
+
+/* Полупрозрачный оверлей редактирования: затемнение карточки и иконка карандаша.
+   По умолчанию скрыт; показывается только в режиме редактирования при наведении
+   или фокусе. pointer-events: none, чтобы клик по-прежнему доходил до карточки. */
+.card-edit-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    background: rgba(15, 15, 25, 0.45);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease;
+}
+
+html.dashboard-edit-mode .dashboard-card:hover .card-edit-overlay,
+html.dashboard-edit-mode .dashboard-card:focus-visible .card-edit-overlay {
+    opacity: 1;
+}
+
+.card-edit-overlay i {
+    /* Размер иконки считаем от ширины одной колонки карточки (как и у основной иконки),
+       чтобы на широких карточках она не раздувалась. */
+    font-size: calc((100cqw - (var(--card-span-current) - 1) * var(--cards-gap, 0.55rem)) / var(--card-span-current) * 0.42);
+    line-height: 1;
+    color: #ffffff;
 }
 
 /* Пока изображение показано, встроенная иконка скрыта и появляется только как запасной вариант,
