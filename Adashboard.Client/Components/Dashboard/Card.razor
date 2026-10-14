@@ -29,9 +29,6 @@
     <div class="card-icon" aria-hidden="true">
         @if (Model.IsCustomIcon && !string.IsNullOrWhiteSpace(Model.IconSource))
         {
-            @* Своё изображение приоритетнее встроенной иконки. Иконка-заглушка остаётся
-               запасным вариантом: CSS прячет её, пока картинка показана, а при ошибке
-               загрузки onerror скрывает изображение и открывает иконку. *@
             <img class="card-icon__image"
                  src="@ApiOptions.ResolveUploadPath(Model.IconSource)"
                  alt=""
@@ -59,22 +56,12 @@
 </a>
 
 @code {
-    // Значение интервала проверки по умолчанию: используется, если в настройках сайта задано
-    // некорректное (неположительное) число.
-    private const int DefaultHealthCheckIntervalSeconds = 30;
 
     /// <summary>
     /// Как часто повторять проверку статуса. Интервал берётся из настроек сайта, поэтому его
     /// изменение вступает в силу без перезагрузки страницы.
     /// </summary>
-    private int HealthCheckIntervalSeconds
-    {
-        get
-        {
-            var configured = SettingsService.Current.HealthCheckIntervalSeconds;
-            return configured > 0 ? configured : DefaultHealthCheckIntervalSeconds;
-        }
-    }
+    private int HealthCheckIntervalSeconds => SettingsService.Current.HealthCheckIntervalSeconds;
 
     /// <summary>
     /// Результат последней проверки доступности: состояние и пояснение от API.
@@ -109,19 +96,13 @@
     public EventCallback<DashboardCard> EditRequested { get; set; }
 
     // Куда ведёт карточка: схема из модели прибавляется к адресу.
-    private string Href => UrlSchemePrefix(Model.UrlScheme) + Model.Url;
+    private string Href => Model.UrlScheme.ToSchemeText() + Model.Url;
 
     // Если пользовательское изображение не задано, показываем встроенную иконку Font Awesome.
     private string IconClass => string.IsNullOrWhiteSpace(Model.IconSource)
         ? "fa-solid fa-link"
         : Model.IconSource;
 
-    private static string UrlSchemePrefix(UrlScheme scheme) => scheme switch
-    {
-        UrlScheme.Http => "http://",
-        UrlScheme.Https => "https://",
-        _ => string.Empty
-    };
 
     private string StatusClass => _health.State switch
     {
@@ -254,7 +235,7 @@
             if (result.CardGone)
             {
                 Logger.LogDebug("Проверки статуса карточки {CardId} остановлены: карточка удалена на сервере.", Model.Id);
-                _healthCts.Cancel();
+                await _healthCts.CancelAsync();
                 return;
             }
 
@@ -273,7 +254,7 @@
     public async ValueTask DisposeAsync()
     {
         SettingsService.OnChange -= OnSettingsChanged;
-        _healthCts.Cancel();
+        await _healthCts.CancelAsync();
 
         if (_healthLoop is not null)
         {

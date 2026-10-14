@@ -5,18 +5,8 @@
 @inject SiteSettingsService SettingsService
 @inject DialogService DialogService
 @inject DashboardApiOptions ApiOptions
-@inject IDashboardApi DashboardApi
 @inject IJSRuntime JS
-@inject ILogger<PageHeader> Logger
 
-@*
-    Шапка dashboard: логотип, заголовок и описание страницы и кнопки управления.
-
-    Компонент владеет настройками сайта: загружает их через SiteSettingsService, применяет тему
-    оформления и показывает логотип по настройке ShowLogo. Он же переключает режим редактирования,
-    открывает настройки сайта и добавление новой страницы. Настройки и удаление текущей страницы
-    и создание категорий живут на самой странице (PageView), потому что относятся к её содержимому.
-*@
 
 <PageTitle>@PageTitleText</PageTitle>
 
