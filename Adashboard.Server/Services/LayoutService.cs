@@ -255,6 +255,10 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger,
             return false;
         }
 
+        // Проверим иконку
+        if(!card.IsCustomIcon)
+            iconService.Delete(card.Id);
+
         await db.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Карточка {CardId} обновлена.", card.Id);

@@ -86,7 +86,7 @@ public class CardsController(
     }
 
     /// <summary>
-    /// Сохраняет изображение, загруженное с устройства, и возвращает путь к нему.
+    /// Сохраняет или обновляет кастомное изображение для карточки, и возвращает путь к нему.
     /// </summary>
     /// <param name="cardId">Идентификатор карточки, для которой сохраняется изображение.</param>
     /// <param name="data">Бинарные данные изображения.</param>
@@ -94,96 +94,36 @@ public class CardsController(
     [HttpPost("{cardId}/image", Name = "UploadImage")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Upload(
-        int cardId,
-        [FromBody] byte[]? data,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> UploadImage(int cardId, [FromBody] byte[]? data, CancellationToken cancellationToken)
     {
         if (cardId <= 0)
         {
             logger.LogWarning("Загрузка изображения отклонена: некорректный идентификатор карточки {CardId}.", cardId);
-            return BadRequest(new { error = "Некорректный идентификатор карточки." });
+            return BadRequest( "Некорректный идентификатор карточки.");
         }
 
         if (data is null || data.Length == 0)
         {
             logger.LogWarning("Загрузка изображения карточки {CardId} отклонена: файл не передан.", cardId);
-            return BadRequest(new { error = "Файл изображения не передан." });
+            return BadRequest("Файл изображения не передан.");
         }
 
         if (data.Length > ImageIconService.MaxImageBytes)
         {
             logger.LogWarning("Загрузка изображения карточки {CardId} отклонена: размер {Size} байт превышает лимит.", cardId, data.Length);
-            return BadRequest(new { error = "Изображение превышает максимальный размер 2 МБ." });
+            return BadRequest("Изображение превышает максимальный размер 2 МБ.");
         }
 
         try
         {
-
             var imagePath = await imageIconService.SaveFromBytesAsync(cardId, data, cancellationToken);
-            return Ok(new { imagePath });
+            return Ok(imagePath);
         }
         catch (InvalidOperationException ex)
         {
             logger.LogWarning("Загрузка изображения карточки {CardId} отклонена: {Reason}", cardId, ex.Message);
-            return BadRequest(new { error = ex.Message });
+            return BadRequest(ex.Message);
         }
     }
 
-    /// <summary>
-    /// Скачивает изображение по ссылке и сохраняет его для карточки.
-    /// </summary>
-    /// <param name="cardId">Идентификатор карточки, для которой сохраняется изображение.</param>
-    /// <param name="url">Ссылка на изображение (параметр строки запроса <c>?url=...</c>).</param>
-    /// <param name="cancellationToken">Токен отмены операции.</param>
-    [HttpPost("{cardId}/image/from-url", Name = "UploadImageFromUrl")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> UploadFromUrl(
-        int cardId,
-        [FromQuery] string? url,
-        CancellationToken cancellationToken)
-    {
-        if (cardId <= 0)
-        {
-            logger.LogWarning("Загрузка изображения отклонена: некорректный идентификатор карточки {CardId}.", cardId);
-            return BadRequest(new { error = "Некорректный идентификатор карточки." });
-        }
-
-        if (string.IsNullOrWhiteSpace(url))
-        {
-            logger.LogWarning("Загрузка изображения карточки {CardId} отклонена: ссылка не указана.", cardId);
-            return BadRequest(new { error = "Укажите ссылку на изображение." });
-        }
-
-        try
-        {
-            var imagePath = await imageIconService.SaveFromUrlAsync(cardId, url, cancellationToken);
-            return Ok(new { imagePath });
-        }
-        catch (InvalidOperationException ex)
-        {
-            logger.LogWarning("Загрузка изображения карточки {CardId} по ссылке отклонена: {Reason}", cardId, ex.Message);
-            return BadRequest(new { error = ex.Message });
-        }
-    }
-
-    /// <summary>
-    /// Удаляет все сохранённые изображения карточки.
-    /// </summary>
-    /// <param name="cardId">Идентификатор карточки.</param>
-    [HttpDelete("{cardId}/image", Name = "DeleteImage")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public IActionResult DeleteImage(int cardId)
-    {
-        if (cardId <= 0)
-        {
-            logger.LogWarning("Удаление изображения отклонено: некорректный идентификатор карточки {CardId}.", cardId);
-            return BadRequest(new { error = "Некорректный идентификатор карточки." });
-        }
-
-        imageIconService.Delete(cardId);
-        return NoContent();
-    }
 }

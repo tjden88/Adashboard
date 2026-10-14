@@ -21,10 +21,7 @@ namespace Adashboard.Server.Services;
 /// запроса и проверка сигнатуры растрового изображения (защита от сохранения SVG/HTML).
 /// </para>
 /// </remarks>
-public sealed class ImageIconService(
-    HttpClient client,
-    DashboardPaths paths,
-    ILogger<ImageIconService> logger)
+public sealed class ImageIconService(DashboardPaths paths, ILogger<ImageIconService> logger)
 {
     /// <summary>
     /// Максимальный размер принимаемого изображения в байтах.
@@ -34,51 +31,6 @@ public sealed class ImageIconService(
     private const string FolderRelativePath = "uploads/card-icons";
 
     private readonly string _folder = Path.Combine(paths.UploadsPath, "card-icons");
-
-    /// <summary>
-    /// Скачивает изображение по указанному URL и сохраняет его для карточки.
-    /// </summary>
-    /// <param name="cardId">Идентификатор карточки.</param>
-    /// <param name="url">Абсолютная HTTP(S)-ссылка на изображение.</param>
-    /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns>Относительный путь к сохранённому изображению.</returns>
-    public async Task<string> SaveFromUrlAsync(int cardId, string url, CancellationToken cancellationToken = default)
-    {
-        logger.LogDebug("Начата загрузка изображения карточки {CardId} по ссылке.", cardId);
-
-        if (cardId <= 0)
-        {
-            throw new InvalidOperationException("Некорректный идентификатор карточки.");
-        }
-
-        if (!Uri.TryCreate(url?.Trim(), UriKind.Absolute, out var uri)
-            || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
-        {
-            logger.LogWarning("Ссылка на изображение карточки {CardId} отклонена: некорректный адрес.", cardId);
-            throw new InvalidOperationException("Укажите корректную HTTP(S)-ссылку на изображение.");
-        }
-
-        using var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-        if (!response.IsSuccessStatusCode)
-        {
-            logger.LogWarning("Загрузка изображения карточки {CardId} завершилась неудачно. Код: {StatusCode}.", cardId, (int)response.StatusCode);
-            throw new InvalidOperationException("Не удалось загрузить изображение по указанной ссылке.");
-        }
-
-        var content = await ReadLimitedAsync(cardId, response.Content, cancellationToken);
-        var extension = DetectExtension(content);
-
-        if (extension is null)
-        {
-            logger.LogWarning("Ссылка на изображение карточки {CardId} ведёт не на растровое изображение.", cardId);
-            throw new InvalidOperationException("Ссылка ведёт не на поддерживаемое растровое изображение.");
-        }
-
-        var path = await WriteImageAsync(cardId, content, extension, cancellationToken);
-
-        logger.LogInformation("Изображение карточки {CardId} сохранено: {Path}.", cardId, path);
-        return path;
-    }
 
     /// <summary>
     /// Сохраняет переданные байты изображения для карточки (загрузка с устройства или из буфера).
@@ -123,9 +75,7 @@ public sealed class ImageIconService(
     public void Delete(int cardId)
     {
         if (cardId <= 0)
-        {
             return;
-        }
 
         try
         {
@@ -194,29 +144,6 @@ public sealed class ImageIconService(
         }
     }
 
-    /// <summary>
-    /// Читает ответ с ограничением размера, чтобы не вычитывать в память большой файл.
-    /// </summary>
-    private async Task<byte[]> ReadLimitedAsync(int cardId, HttpContent content, CancellationToken cancellationToken)
-    {
-        await using var stream = await content.ReadAsStreamAsync(cancellationToken);
-        using var buffer = new MemoryStream();
-        var chunk = new byte[81920];
-
-        int read;
-        while ((read = await stream.ReadAsync(chunk, cancellationToken)) > 0)
-        {
-            if (buffer.Length + read > MaxImageBytes)
-            {
-                logger.LogWarning("Изображение карточки {CardId} отклонено: превышен максимальный размер.", cardId);
-                throw new InvalidOperationException("Изображение превышает максимальный размер 2 МБ.");
-            }
-
-            buffer.Write(chunk, 0, read);
-        }
-
-        return buffer.ToArray();
-    }
 
     /// <summary>
     /// Определяет расширение изображения по сигнатуре файла.

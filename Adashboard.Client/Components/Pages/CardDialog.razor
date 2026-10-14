@@ -560,8 +560,7 @@
             }
             else if (!_useCustomImage && !isNew)
             {
-                // Возврат к встроенной иконке: сохранённый файл больше не нужен.
-                await TryDeleteCardImageAsync(card.Id);
+                card.IsCustomIcon = false;
             }
 
             // При создании без пользовательской иконки запись сохранять повторно не нужно.
@@ -709,20 +708,6 @@
         return null;
     }
 
-    /// <summary>
-    /// Удаляет изображение карточки, не прерывая сохранение раскладки при ошибке удаления.
-    /// </summary>
-    private async Task TryDeleteCardImageAsync(int cardId)
-    {
-        try
-        {
-            await DashboardApi.DeleteImageAsync(cardId);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogWarning(ex, "Не удалось удалить изображение карточки {CardId} через API.", cardId);
-        }
-    }
 
     /// <summary>
     /// Выделяет схему из адреса, если она там уже указана.
