@@ -4,16 +4,132 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Базовый адрес: все относительные ссылки (в том числе на _framework) считаются от корня. -->
     <base href="/" />
     <title>Adashboard</title>
+
+    <!--
+        Тема применяется до отрисовки, чтобы не было вспышки светлого фона при тёмной теме.
+        Выбранный режим хранится в localStorage (его пишет js/dashboard.js), а значение "auto"
+        или его отсутствие означает тему из системных настроек.
+    -->
+    <script>
+        (function () {
+            var mode = null;
+            try {
+                mode = window.localStorage.getItem("adashboard-theme");
+            } catch (error) {
+                // Хранилище недоступно — применим тему по системным настройкам.
+            }
+
+            var isDark = mode === "dark"
+                || ((mode === null || mode === "auto")
+                    && window.matchMedia("(prefers-color-scheme: dark)").matches);
+
+            document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light");
+        })();
+    </script>
+
+    <link rel="stylesheet" href="lib/fonts/fonts.css" />
+    <link rel="stylesheet" href="lib/fa/css/fa.all.min.css" />
+    <link rel="stylesheet" href="lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="lib/coloris/coloris.min.css" />
+    <link rel="stylesheet" href="app.css" />
+    <!-- Сгенерированный бандл изолированных стилей (.razor.css) всех компонентов. -->
+    <link rel="stylesheet" href="Adashboard.Client.styles.css" />
+
+    <link rel="icon" href="favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link rel="manifest" href="site.webmanifest" />
+
+    <!--
+        Индикатор загрузки: виден ровно до старта приложения и особенно полезен при
+        медленном соединении. Его разметка лежит в #app, который заменит Blazor.
+    -->
+    <style>
+        .boot-loader {
+            position: fixed;
+            inset: 0;
+            display: grid;
+            align-content: center;
+            justify-items: center;
+            gap: 1rem;
+            padding: 1.5rem;
+            text-align: center;
+            color: var(--text-main, #1f1f2b);
+        }
+
+        .boot-loader__spinner {
+            width: 2.75rem;
+            height: 2.75rem;
+            border: 3px solid rgba(249, 115, 22, 0.2);
+            border-top-color: var(--accent, #f97316);
+            border-radius: 50%;
+            animation: boot-loader-spin 0.9s linear infinite;
+        }
+
+        .boot-loader__text {
+            margin: 0;
+            font-weight: 600;
+        }
+
+        /* Подсказка проявляется, только если загрузка затянулась (медленная сеть). */
+        .boot-loader__hint {
+            margin: 0;
+            max-width: 22rem;
+            font-size: 0.9rem;
+            color: var(--text-muted, #5a5b73);
+            opacity: 0;
+            animation: boot-loader-hint 0.6s ease 5s forwards;
+        }
+
+        @keyframes boot-loader-spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes boot-loader-hint {
+            to {
+                opacity: 1;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            /* Оставляем статичное кольцо без вращения. */
+            .boot-loader__spinner {
+                animation: none;
+            }
+        }
+    </style>
 </head>
 
 <body>
     <div id="app">
-        <p>Загрузка…</p>
+        <div class="boot-loader" role="status" aria-live="polite">
+            <span class="boot-loader__spinner" aria-hidden="true"></span>
+            <p class="boot-loader__text">Загрузка…</p>
+            <!-- Подсказку прячем от скринридеров: это чисто визуальная деталь. -->
+            <p class="boot-loader__hint" aria-hidden="true">Соединение медленное. Продолжаем загрузку, это может занять немного времени.</p>
+        </div>
     </div>
 
+    <script src="lib/coloris/coloris.min.js"></script>
+    <!-- Запускает загрузку .NET WebAssembly и старт приложения. -->
     <script src="_framework/blazor.webassembly.js"></script>
+    <!--
+        Регистрируем service worker: после первой загрузки он отдаёт файлы приложения
+        из кэша, поэтому повторные открытия не ждут сеть. updateViaCache:'none' мешает
+        браузеру закэшировать сам скрипт, чтобы обновления версий применялись надёжно.
+    -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' });
+        }
+    </script>
 </body>
 
 </html>

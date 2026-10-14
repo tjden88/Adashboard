@@ -1,10 +1,16 @@
 @inherits LayoutComponentBase
 
 @*
-    Заготовка основного layout. Каркас разметки и тему собирает часть `layout-shell`
-    скилла frontend-rewrite (см. .opencode/skills/frontend-rewrite/SKILL.md).
+    Основной layout приложения. Здесь только каркас: содержимое страницы (шапка, сетка
+    dashboard) добавляют части header и page-view, а окна диалогов подключает часть dialogs.
 *@
 
 <main class="main-shell">
     @Body
 </main>
+
+<div id="blazor-error-ui" data-nosnippet>
+    Произошла непредвиденная ошибка.
+    <a href="." class="reload">Перезагрузить</a>
+    <span class="dismiss">🗙</span>
+</div>
