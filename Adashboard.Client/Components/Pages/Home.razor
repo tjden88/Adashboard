@@ -1,8 +1,65 @@
 @page "/"
+@page "/{**PagePath}"
 
 @*
-    Главная страница dashboard. Пока содержит только шапку: маршруты по пути страницы,
-    загрузку данных и сетку категорий добавит следующая часть page-routing.
+    Точка маршрута dashboard: любой путь открывается здесь. Из адреса берётся путь, по нему
+    PageState загружает страницу, а шапка и представление читают общие данные.
+
+    Состояния загрузки, ошибки и «страница не найдена» относятся к самой маршрутизации,
+    поэтому показаны здесь, а не в PageView.
 *@
 
-<Header />
+<PageTitle>@PageTitleText</PageTitle>
+
+@if (PageState.IsLoading)
+{
+    <div class="page-status" role="status" aria-live="polite" aria-label="Загрузка страницы">
+        <span class="page-status__spinner" aria-hidden="true"></span>
+    </div>
+}
+else if (PageState.Error is not null)
+{
+    <section class="page-status" role="alert">
+        <h1 class="page-status__title">Не удалось открыть страницу</h1>
+        <p class="page-status__text page-status__text--error">@PageState.Error</p>
+        <button type="button" class="btn btn-primary" @onclick="ReloadAsync">
+            <i class="fa-solid fa-rotate-right" aria-hidden="true"></i> Повторить
+        </button>
+    </section>
+}
+else if (PageState.IsNotFound)
+{
+    <section class="page-status" role="alert">
+        <p class="page-status__code" aria-hidden="true">404</p>
+        <h1 class="page-status__title">Страница не найдена</h1>
+        <p class="page-status__text">Такой страницы на dashboard нет. Проверьте адрес или вернитесь на основную страницу.</p>
+        <a class="btn btn-primary" href="/">
+            <i class="fa-solid fa-house" aria-hidden="true"></i> На главную
+        </a>
+    </section>
+}
+else
+{
+    <Header />
+    <PageView />
+}
+
+@code {
+    /// <summary>
+    /// Путь страницы из адреса. <c>null</c> или пустая строка — основная страница «/».
+    /// </summary>
+    [Parameter]
+    public string? PagePath { get; set; }
+
+    [CascadingParameter]
+    private PageState PageState { get; set; } = null!;
+
+    // Заголовок вкладки: у найденной страницы — её заголовок (с fallback из PageState),
+    // а при «не найдена» — отдельная подпись.
+    private string PageTitleText => PageState.IsNotFound ? "Страница не найдена" : PageState.DisplayTitle;
+
+    // Загрузку по пути выполняет PageState: повторный вызов с тем же путём он пропускает сам.
+    protected override Task OnParametersSetAsync() => PageState.LoadAsync(PagePath);
+
+    private Task ReloadAsync() => PageState.ReloadAsync();
+}

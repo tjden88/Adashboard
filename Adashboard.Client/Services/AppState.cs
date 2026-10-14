@@ -61,9 +61,5 @@ public class AppState
     /// <summary>
     /// Рассылает подписчикам каскадного значения уведомление об изменении состояния.
     /// </summary>
-    /// <remarks>
-    /// <c>NotifyChangedAsync</c> только ставит уведомление в очередь рендерера и возвращает
-    /// управление сразу, поэтому в синхронном методе его результат можно не ожидать.
-    /// </remarks>
     private void NotifyChanged() => _ = _source.NotifyChangedAsync();
 }

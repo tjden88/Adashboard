@@ -1,22 +1,11 @@
-@using Adashboard.Client.Services
-
-@*
-    Шапка dashboard. Живёт внутри Home.razor (а не в layout): её содержимое относится
-    к конкретной странице dashboard.
-
-    Состояние приложения приходит каскадом из DI (см. Program.cs).
-
-    Заголовок и описание пока заданы в разметке: реальные данные страницы подключит часть
-    page-view, настройки сайта (логотип) — часть theme/site-settings-dialog.
-*@
-
-<PageTitle>Adashboard</PageTitle>
-
 <header class="dashboard-header">
     <div class="dashboard-header-brand">
         <div>
-            <h1>Adashboard</h1>
-            <p>Настраиваемая стартовая страница с виджетами и ссылками.</p>
+            <h1>@PageState.DisplayTitle</h1>
+            @if (!string.IsNullOrWhiteSpace(PageState.Page.Description))
+            {
+                <p>@PageState.Page.Description</p>
+            }
         </div>
     </div>
     <div class="dashboard-header-actions">
@@ -47,6 +36,9 @@
 @code {
     [CascadingParameter]
     private AppState AppState { get; set; } = null!;
+
+    [CascadingParameter]
+    private PageState PageState { get; set; } = null!;
 
     // Кнопки диалогов пока ничего не делают: сами диалоги появятся в частях dialogs,
     // page-dialog и site-settings-dialog. Разметку и видимость оставляем как в шапке референса.

@@ -1,0 +1,11 @@
+.dashboard-shell {
+    display: grid;
+    gap: 1.1rem;
+}
+
+/* Сетка категорий. Расстояния колонок берём из общей переменной: из неё же считается
+   высота карточки (см. app.css). */
+.dashboard-grid {
+    position: relative;
+    column-gap: var(--dashboard-gap);
+}
