@@ -18,7 +18,7 @@ public class CategoriesController(
     /// </summary>
     /// <param name="category">Тело запроса с данными категории.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    [HttpPost]
+    [HttpPost(Name = "CreateCategory")]
     [ProducesResponseType<DashboardCategory>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<DashboardCategory>> Create(
@@ -45,7 +45,7 @@ public class CategoriesController(
     /// </summary>
     /// <param name="category">Тело запроса с новыми данными категории.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    [HttpPut]
+    [HttpPut(Name = "UpdateCategory")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -68,7 +68,7 @@ public class CategoriesController(
     /// </summary>
     /// <param name="id">Идентификатор категории.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    [HttpDelete("{id:int}")]
+    [HttpDelete("{id:int}", Name = "DeleteCategory")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)

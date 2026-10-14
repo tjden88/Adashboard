@@ -1,3 +1,4 @@
+using Adashboard.Domain.ReadModels;
 using Adashboard.Server.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -21,8 +22,8 @@ public class ProbeController(
     /// </summary>
     /// <param name="cardId">Идентификатор карточки.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    [HttpGet("health/{cardId:int}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [HttpGet("health/{cardId:int}", Name = "CheckHealth")]
+    [ProducesResponseType<HealthCheckResult>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetHealth(int cardId, CancellationToken cancellationToken)
@@ -48,8 +49,8 @@ public class ProbeController(
     /// </summary>
     /// <param name="url">Абсолютная HTTP(S)-ссылка на страницу.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    [HttpGet("title")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [HttpGet("title", Name = "GetTitle")]
+    [ProducesResponseType<string>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> GetTitle([FromQuery] string? url, CancellationToken cancellationToken)
     {
@@ -62,7 +63,7 @@ public class ProbeController(
         try
         {
             var title = await probeService.GetTitleAsync(url, cancellationToken);
-            return Ok(new { title });
+            return Ok(title);
         }
         catch (InvalidOperationException ex)
         {

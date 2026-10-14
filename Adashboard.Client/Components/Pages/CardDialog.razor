@@ -629,20 +629,19 @@
     /// Загружает изображение-иконку для уже сохранённой карточки и возвращает путь к нему.
     /// </summary>
     /// <remarks>
-    /// Файл отправляется как multipart-форма, ссылка — как JSON-тело. Поток выбранного файла
+    /// Файл отправляется как бинарные данные, ссылка — как JSON-тело. Поток выбранного файла
     /// должен жить до конца запроса, поэтому создаётся здесь и не закрывается раньше времени.
     /// </remarks>
     private async Task<string> UploadIconAsync(int cardId)
     {
         if (_uploadedBytes is not null)
         {
-            using var stream = new MemoryStream(_uploadedBytes);
-            var file = new StreamPart(stream, $"card-{cardId}", "application/octet-stream");
-            var response = await DashboardApi.UploadImageAsync(cardId, file);
+            var response = await DashboardApi.UploadImageAsync(cardId, _uploadedBytes);
             return await ReadImagePathAsync(response);
         }
 
-        var urlResponse = await DashboardApi.UploadImageFromUrlAsync(cardId, new { url = _imageUrl.Trim() });
+        var urlResponse = await DashboardApi.UploadImageFromUrlAsync(
+            cardId, _imageUrl.Trim());
         return await ReadImagePathAsync(urlResponse);
     }
 

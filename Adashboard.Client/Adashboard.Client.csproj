@@ -48,12 +48,28 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.12" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.12" PrivateAssets="all" />
     <!--
-      Refit описывает REST-клиент декларативно, атрибутами на интерфейсе (см. Services/IDashboardApi.cs).
-      Refit.HttpClientFactory добавляет AddRefitClient, чтобы клиент создавался через IHttpClientFactory
-      с настроенным базовым адресом API.
+      Refit описывает REST-клиент декларативно, атрибутами на интерфейсе
+      (см. Services/IDashboardApi.Manual.cs).
+      Refit.HttpClientFactory добавляет AddRefitGeneratedClient, чтобы клиент создавался
+      через IHttpClientFactory с настроенным базовым адресом API.
     -->
     <PackageReference Include="Refit" Version="16.3.0" />
     <PackageReference Include="Refit.HttpClientFactory" Version="16.3.0" />
+    <!--
+      Refitter.MSBuild вызывает Refitter перед компиляцией: по настройкам из
+      dashboard-api.refitter и по спецификации openapi/Adashboard.Server.json
+      он заново генерирует интерфейс IDashboardApi. Так правки в API сервера
+      сами доезжают до клиента — синхронизировать эндпоинты руками не нужно.
+    -->
+    <PackageReference Include="Refitter.MSBuild" Version="2.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Каталог Generated заполняет Refitter и сам же добавляет файлы в компиляцию.
+      Из стандартной маски его исключаем, иначе файл попал бы в сборку дважды.
+    -->
+    <Compile Remove="Generated\**" />
   </ItemGroup>
 
   <ItemGroup>

@@ -16,7 +16,7 @@ public class SettingsController(
     /// <summary>
     /// Возвращает текущие настройки dashboard.
     /// </summary>
-    [HttpGet]
+    [HttpGet(Name = "GetSettings")]
     [ProducesResponseType<SiteSettings>(StatusCodes.Status200OK)]
     public async Task<ActionResult<SiteSettings>> Get(CancellationToken cancellationToken)
     {
@@ -29,7 +29,7 @@ public class SettingsController(
     /// </summary>
     /// <param name="settings">Тело запроса с новыми настройками.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    [HttpPut]
+    [HttpPut(Name = "SaveSettings")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Put(

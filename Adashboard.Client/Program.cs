@@ -25,7 +25,9 @@ var apiBaseUrl = string.IsNullOrWhiteSpace(configuredApiBaseUrl)
 builder.Services.AddSingleton(new DashboardApiOptions(apiBaseUrl));
 
 // Refit-клиент к API dashboard: контракт описан атрибутами в IDashboardApi,
-// а реализацию Refit генерирует во время сборки. Регистрируем именно generated-клиент
+// а реализацию Refit генерирует во время сборки. Сам интерфейс тоже генерируется —
+// Refitter собирает его из OpenAPI-документа сервера (см. dashboard-api.refitter).
+// Регистрируем именно generated-клиент
 // (AddRefitGeneratedClient), а не AddRefitClient: второй работает через reflection-билдер
 // из отдельного пакета Refit.Reflection, который несовместим с обрезкой IL (PublishTrimmed).
 //

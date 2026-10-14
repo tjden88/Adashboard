@@ -40,14 +40,49 @@
     <PackageReference Include="Scalar.AspNetCore" Version="2.18.0" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <!--
+      Каталог опубликованной копии OpenAPI-документа. Сам документ генерируется в obj при
+      сборке сервера, а здесь лежит его копия, которая хранится в репозитории.
+      Она нужна потому, что клиент Adashboard.Client собирается раньше сервера и берёт
+      спецификацию именно отсюда (см. Adashboard.Client/*.refitter).
+      Каталог лежит в корне решения: документ — общий артефакт двух проектов.
+    -->
+    <OpenApiPublishedDirectory>$(MSBuildProjectDirectory)\..\openapi</OpenApiPublishedDirectory>
+  </PropertyGroup>
+
+  <!--
+    После генерации OpenAPI-документа обновляем его копию в репозитории и сообщаем, если контракт
+    изменился. Сравнивать приходится именно содержимое: документ пересобирается и при сборках без
+    правок API (например, после изменений в клиенте), а копирование по времени файлов тогда
+    срабатывало бы вхолостую и предупреждение было бы ложным.
+  -->
+  <Target Name="PublishOpenApiDocument" AfterTargets="GenerateOpenApiDocuments" Condition="Exists('$(_OpenApiDocumentsCache)')">
+    <ReadLinesFromFile File="$(_OpenApiDocumentsCache)">
+      <Output TaskParameter="Lines" ItemName="_OpenApiGeneratedDocuments" />
+    </ReadLinesFromFile>
+
+    <PropertyGroup>
+      <_OpenApiGeneratedFile>@(_OpenApiGeneratedDocuments)</_OpenApiGeneratedFile>
+      <_OpenApiPublishedFile>$(OpenApiPublishedDirectory)\$([System.IO.Path]::GetFileName('$(_OpenApiGeneratedFile)'))</_OpenApiPublishedFile>
+      <_OpenApiGeneratedText Condition="Exists('$(_OpenApiGeneratedFile)')">$([System.IO.File]::ReadAllText('$(_OpenApiGeneratedFile)'))</_OpenApiGeneratedText>
+      <_OpenApiPublishedText Condition="Exists('$(_OpenApiPublishedFile)')">$([System.IO.File]::ReadAllText('$(_OpenApiPublishedFile)'))</_OpenApiPublishedText>
+      <_OpenApiChanged Condition="'$(_OpenApiGeneratedText)' != '$(_OpenApiPublishedText)'">true</_OpenApiChanged>
+    </PropertyGroup>
+
+    <Copy Condition="'$(_OpenApiChanged)' == 'true'" SourceFiles="@(_OpenApiGeneratedDocuments)" DestinationFolder="$(OpenApiPublishedDirectory)" />
+
+    <Warning Condition="'$(_OpenApiChanged)' == 'true'" Text="Описание API изменилось — пересоберите решение, чтобы Refitter обновил клиентский интерфейс IDashboardApi." />
+  </Target>
+
   <ItemGroup>
     <!--
       Ссылка на WASM-клиент переводит API в режим хоста: статика клиента подключается
       как static web assets и раздаётся тем же сервером (один origin).
     -->
+    <ProjectReference Include="..\Adashboard.Client\Adashboard.Client.csproj" />
     <ProjectReference Include="..\Adashboard.Domain\Adashboard.Domain.csproj" />
     <ProjectReference Include="..\Adashboard.Data\Adashboard.Data.csproj" />
-    <ProjectReference Include="..\Adashboard.Client\Adashboard.Client.csproj" />
   </ItemGroup>
 
 </Project>

@@ -12,7 +12,7 @@ public class HealthController : ControllerBase
     /// <summary>
     /// Возвращает статус работоспособности API.
     /// </summary>
-    [HttpGet]
+    [HttpGet(Name = "GetHealth")]
     public IActionResult Get()
     {
         return Ok(new { status = "ok" });

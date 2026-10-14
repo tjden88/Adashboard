@@ -17,7 +17,9 @@ public class LayoutController(
     /// <summary>
     /// Возвращает основную раскладку dashboard вместе с категориями и карточками.
     /// </summary>
-    [HttpGet]
+    // Name задаёт operationId в OpenAPI-документе, а из него Refitter строит имя метода
+    // в клиентском интерфейсе IDashboardApi (см. Adashboard.Client/dashboard-api.refitter).
+    [HttpGet(Name = "GetLayout")]
     [ProducesResponseType<DashboardLayoutReadModel>(StatusCodes.Status200OK)]
     public async Task<ActionResult<DashboardLayoutReadModel>> Get(CancellationToken cancellationToken)
     {
@@ -30,7 +32,7 @@ public class LayoutController(
     /// </summary>
     /// <param name="info">Тело запроса с новыми заголовком и описанием.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    [HttpPut("info")]
+    [HttpPut("info", Name = "SaveLayoutInfo")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

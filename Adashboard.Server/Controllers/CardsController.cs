@@ -19,7 +19,7 @@ public class CardsController(
     /// </summary>
     /// <param name="card">Тело запроса с данными карточки (включая <c>DashboardCategoryId</c>).</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    [HttpPost]
+    [HttpPost(Name = "CreateCard")]
     [ProducesResponseType<DashboardCard>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -54,7 +54,7 @@ public class CardsController(
     /// <param name="id">Идентификатор карточки.</param>
     /// <param name="card">Тело запроса с новыми данными карточки.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    [HttpPut("{id:int}")]
+    [HttpPut("{id:int}", Name = "UpdateCard")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -78,7 +78,7 @@ public class CardsController(
     /// </summary>
     /// <param name="id">Идентификатор карточки.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    [HttpDelete("{id:int}")]
+    [HttpDelete("{id:int}", Name = "DeleteCard")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
@@ -91,14 +91,14 @@ public class CardsController(
     /// Сохраняет изображение, загруженное с устройства, и возвращает путь к нему.
     /// </summary>
     /// <param name="cardId">Идентификатор карточки, для которой сохраняется изображение.</param>
-    /// <param name="file">Загруженный файл изображения (multipart/form-data, поле <c>file</c>).</param>
+    /// <param name="data">Бинарные данные изображения.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    [HttpPost("{cardId}/image")]
+    [HttpPost("{cardId}/image", Name = "UploadImage")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Upload(
         int cardId,
-        [FromForm] IFormFile? file,
+        [FromBody] byte[]? data,
         CancellationToken cancellationToken)
     {
         if (cardId <= 0)
@@ -107,25 +107,22 @@ public class CardsController(
             return BadRequest(new { error = "Некорректный идентификатор карточки." });
         }
 
-        if (file is null || file.Length == 0)
+        if (data is null || data.Length == 0)
         {
             logger.LogWarning("Загрузка изображения карточки {CardId} отклонена: файл не передан.", cardId);
             return BadRequest(new { error = "Файл изображения не передан." });
         }
 
-        if (file.Length > ImageIconService.MaxImageBytes)
+        if (data.Length > ImageIconService.MaxImageBytes)
         {
-            logger.LogWarning("Загрузка изображения карточки {CardId} отклонена: размер {Size} байт превышает лимит.", cardId, file.Length);
+            logger.LogWarning("Загрузка изображения карточки {CardId} отклонена: размер {Size} байт превышает лимит.", cardId, data.Length);
             return BadRequest(new { error = "Изображение превышает максимальный размер 2 МБ." });
         }
 
         try
         {
-            await using var stream = file.OpenReadStream();
-            using var buffer = new MemoryStream();
-            await stream.CopyToAsync(buffer, cancellationToken);
 
-            var imagePath = await imageIconService.SaveFromBytesAsync(cardId, buffer.ToArray(), cancellationToken);
+            var imagePath = await imageIconService.SaveFromBytesAsync(cardId, data, cancellationToken);
             return Ok(new { imagePath });
         }
         catch (InvalidOperationException ex)
@@ -139,14 +136,14 @@ public class CardsController(
     /// Скачивает изображение по ссылке и сохраняет его для карточки.
     /// </summary>
     /// <param name="cardId">Идентификатор карточки, для которой сохраняется изображение.</param>
-    /// <param name="request">Тело запроса со ссылкой на изображение.</param>
+    /// <param name="url">Ссылка на изображение (параметр строки запроса <c>?url=...</c>).</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    [HttpPost("{cardId}/image/from-url")]
+    [HttpPost("{cardId}/image/from-url", Name = "UploadImageFromUrl")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> UploadFromUrl(
         int cardId,
-        [FromBody] CardImageUrlRequest? request,
+        [FromQuery] string? url,
         CancellationToken cancellationToken)
     {
         if (cardId <= 0)
@@ -155,7 +152,7 @@ public class CardsController(
             return BadRequest(new { error = "Некорректный идентификатор карточки." });
         }
 
-        if (request is null || string.IsNullOrWhiteSpace(request.Url))
+        if (string.IsNullOrWhiteSpace(url))
         {
             logger.LogWarning("Загрузка изображения карточки {CardId} отклонена: ссылка не указана.", cardId);
             return BadRequest(new { error = "Укажите ссылку на изображение." });
@@ -163,7 +160,7 @@ public class CardsController(
 
         try
         {
-            var imagePath = await imageIconService.SaveFromUrlAsync(cardId, request.Url, cancellationToken);
+            var imagePath = await imageIconService.SaveFromUrlAsync(cardId, url, cancellationToken);
             return Ok(new { imagePath });
         }
         catch (InvalidOperationException ex)
@@ -177,7 +174,7 @@ public class CardsController(
     /// Удаляет все сохранённые изображения карточки.
     /// </summary>
     /// <param name="cardId">Идентификатор карточки.</param>
-    [HttpDelete("{cardId}/image")]
+    [HttpDelete("{cardId}/image", Name = "DeleteImage")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public IActionResult DeleteImage(int cardId)
@@ -192,9 +189,3 @@ public class CardsController(
         return NoContent();
     }
 }
-
-/// <summary>
-/// Тело запроса загрузки изображения карточки по ссылке.
-/// </summary>
-/// <param name="Url">Абсолютная HTTP(S)-ссылка на изображение.</param>
-public sealed record CardImageUrlRequest(string? Url);

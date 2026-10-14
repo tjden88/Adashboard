@@ -32,8 +32,7 @@ public sealed class PageTitleService(
 
         try
         {
-            var response = await dashboardApi.GetTitleAsync(url, cancellationToken);
-            var title = response?.Title;
+            var title = await dashboardApi.GetTitleAsync(url, cancellationToken);
 
             if (string.IsNullOrWhiteSpace(title))
             {
