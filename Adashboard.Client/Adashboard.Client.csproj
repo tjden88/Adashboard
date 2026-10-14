@@ -45,8 +45,8 @@
 
   <ItemGroup>
     <!-- Библиотеки Blazor WebAssembly: клиентский рантайм и dev-сервер для локального запуска. -->
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.12" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.12" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.13" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.13" PrivateAssets="all" />
     <!--
       Refit описывает REST-клиент декларативно, атрибутами на интерфейсе
       (см. Services/IDashboardApi.Manual.cs).

@@ -14,9 +14,7 @@ namespace Adashboard.Server.Services;
 /// Маппинг «сущность ↔ контрактная модель» выполняет Mapster по правилам из
 /// <see cref="Adashboard.Server.Mapping.MapperConfig"/>.
 /// </remarks>
-public sealed class SiteSettingsService(
-    DashboardDb db,
-    ILogger<SiteSettingsService> logger)
+public sealed class SiteSettingsService(DashboardDb db, ILogger<SiteSettingsService> logger)
 {
     /// <summary>
     /// Возвращает текущие настройки dashboard.

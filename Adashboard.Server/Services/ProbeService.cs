@@ -26,10 +26,7 @@ namespace Adashboard.Server.Services;
 /// вычитываемого тела.
 /// </para>
 /// </remarks>
-public sealed class ProbeService(
-    DashboardDb db,
-    HttpClient client,
-    ILogger<ProbeService> logger)
+public sealed class ProbeService(DashboardDb db, HttpClient client, ILogger<ProbeService> logger)
 {
     private const int MaxHtmlBytes = 256 * 1024;
     private const int MaxTitleLength = 120;

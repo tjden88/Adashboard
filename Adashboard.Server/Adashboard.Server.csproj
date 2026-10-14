@@ -13,15 +13,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.12" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.13" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
     <!--
       Инструменты генерации OpenAPI-документа на этапе сборки (а не только в рантайме).
       Пакет подключает MSBuild-цель, которая запускает собранное приложение в режиме
       генерации и сохраняет openapi.json. Документ — источник истины для Refit-клиента,
       который по нему генерирует Refitter в проекте Adashboard.Client.
     -->
-    <PackageReference Include="Microsoft.Extensions.ApiDescription.Server" Version="10.0.12">
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Server" Version="10.0.13">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
@@ -30,14 +30,15 @@
       Кроме того, пакет нужен инструментам EF Core: миграции лежат в Adashboard.Data, но design-time
       запускается из проекта-хоста (startup), поэтому пакет обязателен и здесь.
     -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.13" />
     <!-- Mapster — маппинг entity ↔ контрактная модель во время выполнения (без кодогенерации). -->
     <PackageReference Include="Mapster" Version="10.0.13" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.18.0" />
+    <PackageReference Include="WPR.Operations" Version="1.0.2" />
   </ItemGroup>
 
   <PropertyGroup>

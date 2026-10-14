@@ -3,6 +3,7 @@ namespace Adashboard.Server.Services;
 /// <summary>
 /// Результат изменяющей операции над страницей dashboard.
 /// </summary>
+[Obsolete]
 public enum PageMutationResult
 {
     /// <summary>Операция выполнена.</summary>
