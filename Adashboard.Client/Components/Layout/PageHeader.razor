@@ -1,6 +1,5 @@
 @using Adashboard.Client.Components.Pages
 @using Adashboard.Client.Services
-@using Refit
 @implements IAsyncDisposable
 @inject EditModeService EditModeService
 @inject SiteSettingsService SettingsService
@@ -35,12 +34,14 @@
     <div class="dashboard-header-actions">
         @if (EditModeService.IsEnabled)
         {
-            <button type="button" class="btn btn-icon btn-sm btn-success" @onclick="OpenAddPageDialog" aria-label="Добавить страницу" title="Добавить страницу">
+            <button type="button" class="btn btn-sm btn-success" @onclick="OpenAddPageDialog" aria-label="Добавить страницу" title="Добавить страницу">
                 <i class="fa-solid fa-file-circle-plus" aria-hidden="true"></i>
+                <span class="header-button-label">Добавить страницу</span>
             </button>
 
-            <button type="button" class="btn btn-icon btn-sm btn-outline-secondary" @onclick="OpenSiteSettings" aria-label="Настройки сайта" title="Настройки сайта">
+            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="OpenSiteSettings" aria-label="Настройки сайта" title="Настройки сайта">
                 <i class="fa-solid fa-sliders" aria-hidden="true"></i>
+                <span class="header-button-label">Настройки</span>
             </button>
         }
 
@@ -178,7 +179,7 @@
             [nameof(SiteSettingsDialog.OnSave)] = EventCallback.Factory.Create<SiteSettings>(this, SaveSiteSettingsAsync)
         };
 
-        DialogService.Show<SiteSettingsDialog>("Настройки сайта", parameters, closeOnOverlayClick: false);
+        DialogService.Show<SiteSettingsDialog>("Настройки", parameters, closeOnOverlayClick: false);
     }
 
     private async Task SaveSiteSettingsAsync(SiteSettings settings)

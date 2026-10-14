@@ -1,5 +1,4 @@
 @using Adashboard.Client.Services
-@using Adashboard.Domain.Reference
 @using Refit
 @inject IDashboardApi DashboardApi
 @inject ILogger<PageDialog> Logger
@@ -20,7 +19,7 @@
                type="text"
                maxlength="120"
                autocomplete="off"
-               placeholder="Например: Домашний сервер"
+               placeholder="Отображается в заголовке"
                value="@_model.Title"
                @oninput="OnTitleInput" />
     </div>
@@ -32,6 +31,7 @@
                type="text"
                maxlength="300"
                autocomplete="off"
+               placeholder="Подзаголовок"
                value="@_model.Description"
                @oninput="args => _model.Description = args.Value?.ToString() ?? string.Empty" />
     </div>
@@ -43,7 +43,7 @@
                type="text"
                maxlength="120"
                autocomplete="off"
-               placeholder="domashniy-server"
+               placeholder="path-to-page"
                disabled="@IsMainPage"
                value="@_model.Path"
                @oninput="OnPathInput" />

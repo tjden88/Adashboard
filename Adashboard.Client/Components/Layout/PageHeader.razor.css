@@ -45,3 +45,16 @@ html[data-theme="light"] .dashboard-header p {
     /* Компенсирует отступ шрифта h1, чтобы кнопки стояли в строке заголовка. */
     margin-top: 0.15rem;
 }
+
+/* Подписи у кнопок шапки не переносим: кнопка должна оставаться одной строкой. */
+.dashboard-header-actions .header-button-label {
+    white-space: nowrap;
+}
+
+/* На мобильной ширине подписи прячем — в шапке остаются только иконки,
+   чтобы кнопки не разъезжались и не вытесняли заголовок страницы. */
+@media (max-width: 640px) {
+    .dashboard-header-actions .header-button-label {
+        display: none;
+    }
+}
