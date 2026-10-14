@@ -1,3 +1,4 @@
+using System.Net;
 using Adashboard.Domain.Enums;
 using Refit;
 
@@ -29,6 +30,17 @@ public sealed record ServiceHealthResult(ServiceHealthState State, string? Messa
     /// Нейтральный результат по умолчанию: состояние неизвестно, пояснения нет.
     /// </summary>
     public static ServiceHealthResult Unknown { get; } = new(ServiceHealthState.Unknown, null);
+
+    /// <summary>
+    /// Результат для карточки, которой больше нет на сервере: проверять её не нужно.
+    /// </summary>
+    public static ServiceHealthResult Gone { get; } = new(ServiceHealthState.Unknown, "Карточка удалена.") { CardGone = true };
+
+    /// <summary>
+    /// Признак того, что карточка отсутствует на сервере (удалена). Такой результат означает,
+    /// что периодические проверки для неё нужно прекратить.
+    /// </summary>
+    public bool CardGone { get; init; }
 }
 
 /// <summary>
@@ -85,6 +97,12 @@ public sealed class HealthCheckService(
         {
             // Отмена всего цикла проверок: пробрасываем, чтобы корректно завершить работу.
             throw;
+        }
+        catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+            // Карточки на сервере больше нет (например, её удалили в другой вкладке): проверять нечего.
+            logger.LogWarning("Карточка {CardId} не найдена на сервере. Проверки для неё прекращены.", cardId);
+            return ServiceHealthResult.Gone;
         }
         catch (ApiException ex)
         {
