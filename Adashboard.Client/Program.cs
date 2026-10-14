@@ -24,7 +24,10 @@ var refitSettings = new RefitSettings
 builder.Services.AddTransient<NetworkErrorHandler>();
 
 // Прикладные сервисы клиента.
-builder.Services.AddScoped<EditModeService>();
+// Состояние приложения отдаём как корневое каскадное значение: любой компонент получает его
+// через [CascadingParameter], а об изменениях подписчиков уведомляет источник каскада.
+builder.Services.AddScoped<AppState>();
+builder.Services.AddCascadingValue(sp => sp.GetRequiredService<AppState>().Source);
 
 builder.Services
     .AddRefitGeneratedClient<IDashboardApi>(refitSettings)

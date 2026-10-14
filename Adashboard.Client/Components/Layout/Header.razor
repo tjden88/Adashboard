@@ -1,9 +1,10 @@
 @using Adashboard.Client.Services
-@inject EditModeService EditModeService
 
 @*
     Шапка dashboard. Живёт внутри Home.razor (а не в layout): её содержимое относится
     к конкретной странице dashboard.
+
+    Состояние приложения приходит каскадом из DI (см. Program.cs).
 
     Заголовок и описание пока заданы в разметке: реальные данные страницы подключит часть
     page-view, настройки сайта (логотип) — часть theme/site-settings-dialog.
@@ -19,7 +20,7 @@
         </div>
     </div>
     <div class="dashboard-header-actions">
-        @if (EditModeService.IsEnabled)
+        @if (AppState.IsEditMode)
         {
             <button type="button" class="btn btn-sm btn-success" @onclick="OpenAddPageDialog" aria-label="Добавить страницу" title="Добавить страницу">
                 <i class="fa-solid fa-file-circle-plus" aria-hidden="true"></i>
@@ -33,17 +34,20 @@
         }
 
         <button type="button"
-                class="px-4 btn btn-icon btn-sm @(EditModeService.IsEnabled ? "btn-primary" : "btn-outline-secondary")"
+                class="px-4 btn btn-icon btn-sm @(AppState.IsEditMode ? "btn-primary" : "btn-outline-secondary")"
                 @onclick="ToggleEditMode"
-                aria-pressed="@(EditModeService.IsEnabled ? "true" : "false")"
+                aria-pressed="@(AppState.IsEditMode ? "true" : "false")"
                 aria-label="Переключить режим редактирования"
-                title="@(EditModeService.IsEnabled ? "Завершить редактирование" : "Редактировать")">
-            <i class="fa-solid @(EditModeService.IsEnabled ? "fa-check" : "fa-pen-nib")" aria-hidden="true"></i>
+                title="@(AppState.IsEditMode ? "Завершить редактирование" : "Редактировать")">
+            <i class="fa-solid @(AppState.IsEditMode ? "fa-check" : "fa-pen-nib")" aria-hidden="true"></i>
         </button>
     </div>
 </header>
 
 @code {
+    [CascadingParameter]
+    private AppState AppState { get; set; } = null!;
+
     // Кнопки диалогов пока ничего не делают: сами диалоги появятся в частях dialogs,
     // page-dialog и site-settings-dialog. Разметку и видимость оставляем как в шапке референса.
     private void OpenAddPageDialog()
@@ -54,5 +58,5 @@
     {
     }
 
-    private void ToggleEditMode() => EditModeService.Toggle();
+    private void ToggleEditMode() => AppState.ToggleEditMode();
 }

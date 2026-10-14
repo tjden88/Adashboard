@@ -1,8 +1,7 @@
 @inherits LayoutComponentBase
-@inject EditModeService EditModeService
-@implements IDisposable
 
-<main class="main-shell @(EditModeService.IsEnabled ? "dashboard-edit-mode" : null)">
+
+<main class="main-shell @(AppState.IsEditMode ? "dashboard-edit-mode" : null)">
     <article class="content">
         @Body
     </article>
@@ -15,15 +14,6 @@
 </div>
 
 @code {
-    protected override void OnInitialized()
-    {
-        EditModeService.OnChange += OnEditModeChanged;
-    }
-
-    private void OnEditModeChanged() => InvokeAsync(StateHasChanged);
-
-    public void Dispose()
-    {
-        EditModeService.OnChange -= OnEditModeChanged;
-    }
+    [CascadingParameter]
+    private AppState AppState { get; set; } = null!;
 }
