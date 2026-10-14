@@ -3,6 +3,7 @@ using Adashboard.Data.Entities;
 using Adashboard.Domain.Contracts;
 using Mapster;
 using Microsoft.EntityFrameworkCore;
+using WPR.Operations;
 
 namespace Adashboard.Server.Services;
 
@@ -44,9 +45,18 @@ public sealed class SiteSettingsService(DashboardDb db, ILogger<SiteSettingsServ
     /// </summary>
     /// <param name="settings">Новые значения настроек.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    public async Task UpdateAsync(SiteSettings settings, CancellationToken cancellationToken = default)
+    /// <returns>Результат операции: успех либо ошибка «некорректный интервал проверки статуса».</returns>
+    public async Task<OperationResult<Unit, ServiceError>> UpdateAsync(
+        SiteSettings settings,
+        CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Начато обновление настроек dashboard.");
+
+        if (settings.HealthCheckIntervalSeconds < 0)
+        {
+            logger.LogWarning("Обновление настроек отклонено: некорректный интервал проверки статуса.");
+            return ServiceError.Validation("Интервал проверки статуса должен быть больше либо равен нулю.").AsFailure();
+        }
 
         var entity = await db.SiteSettings.FirstOrDefaultAsync(x => x.Id == 1, cancellationToken);
         if (entity is null)
@@ -64,5 +74,6 @@ public sealed class SiteSettingsService(DashboardDb db, ILogger<SiteSettingsServ
         await db.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Настройки dashboard обновлены.");
+        return Unit.Value;
     }
 }

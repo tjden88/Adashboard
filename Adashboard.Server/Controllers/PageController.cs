@@ -38,14 +38,8 @@ public class PageController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<DashboardPageReadModel>> GetPage(int id, CancellationToken cancellationToken)
     {
-        var page = await pageService.GetPageAsync(id, cancellationToken);
-
-        if (page is null)
-        {
-            return NotFound(new { error = "Страница не найдена." });
-        }
-
-        return Ok(page);
+        var result = await pageService.GetPageAsync(id, cancellationToken);
+        return result.ToActionResult(page => Ok(page));
     }
 
     /// <summary>
@@ -72,13 +66,8 @@ public class PageController(
             return BadRequest(new { error = "Укажите корректный путь страницы (латиница, цифры и дефис)." });
         }
 
-        var created = await pageService.CreatePageAsync(page, cancellationToken);
-        if (created is null)
-        {
-            return BadRequest(new { error = "Страница с таким путём уже существует." });
-        }
-
-        return Created($"/api/pages/{created.Id}", created);
+        var result = await pageService.CreatePageAsync(page, cancellationToken);
+        return result.ToActionResult(created => Created($"/api/pages/{created.Id}", created));
     }
 
     /// <summary>
@@ -107,13 +96,7 @@ public class PageController(
         }
 
         var result = await pageService.UpdatePageInfoAsync(info, cancellationToken);
-        return result switch
-        {
-            PageMutationResult.Success => NoContent(),
-            PageMutationResult.NotFound => NotFound(new { error = "Страница не найдена." }),
-            PageMutationResult.PathTaken => BadRequest(new { error = "Страница с таким путём уже существует." }),
-            _ => BadRequest(new { error = "Путь основной страницы изменить нельзя." })
-        };
+        return result.ToActionResult();
     }
 
     /// <summary>
@@ -129,11 +112,6 @@ public class PageController(
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
         var result = await pageService.DeletePageAsync(id, cancellationToken);
-        return result switch
-        {
-            PageMutationResult.Success => NoContent(),
-            PageMutationResult.NotFound => NotFound(new { error = "Страница не найдена." }),
-            _ => BadRequest(new { error = "Основную страницу удалить нельзя." })
-        };
+        return result.ToActionResult();
     }
 }

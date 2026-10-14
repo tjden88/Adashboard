@@ -35,13 +35,7 @@ public class ProbeController(
         }
 
         var result = await probeService.CheckCardAsync(cardId, cancellationToken);
-        if (result is null)
-        {
-            logger.LogWarning("Проверка доступности отклонена: карточка {CardId} не найдена.", cardId);
-            return NotFound(new { error = "Карточка не найдена." });
-        }
-
-        return Ok(new { status = result.Status, message = result.Message });
+        return result.ToActionResult(check => Ok(new { status = check.Status, message = check.Message }));
     }
 
     /// <summary>
@@ -60,15 +54,7 @@ public class ProbeController(
             return BadRequest(new { error = "Укажите ссылку на страницу." });
         }
 
-        try
-        {
-            var title = await probeService.GetTitleAsync(url, cancellationToken);
-            return Ok(title);
-        }
-        catch (InvalidOperationException ex)
-        {
-            logger.LogWarning("Получение заголовка отклонено: {Reason}", ex.Message);
-            return BadRequest(new { error = ex.Message });
-        }
+        var result = await probeService.GetTitleAsync(url, cancellationToken);
+        return result.ToActionResult(title => Ok(title));
     }
 }

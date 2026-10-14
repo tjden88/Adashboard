@@ -4,6 +4,7 @@ using Adashboard.Domain.Contracts;
 using Adashboard.Domain.ReadModels;
 using Mapster;
 using Microsoft.EntityFrameworkCore;
+using WPR.Operations;
 
 namespace Adashboard.Server.Services;
 
@@ -16,6 +17,8 @@ namespace Adashboard.Server.Services;
 /// Маппинг «сущность ↔ контрактная модель» выполняет Mapster по правилам из
 /// <see cref="Adashboard.Server.Mapping.MapperConfig"/>.
 /// Основная страница имеет пустой путь; её нельзя удалить и нельзя изменить её путь.
+/// Ожидаемые ошибки не выбрасываются, а возвращаются результатом операции
+/// (<c>OperationResult</c> из WPR.Operations), который контроллер переводит в HTTP-ответ.
 /// </remarks>
 public sealed class PageService(DashboardDb db, ILogger<PageService> logger, ImageIconService iconService)
 {
@@ -42,8 +45,10 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
     /// </summary>
     /// <param name="id">Идентификатор страницы.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns>Read-модель страницы либо <c>null</c>, если страница не найдена.</returns>
-    public async Task<DashboardPageReadModel?> GetPageAsync(int id, CancellationToken cancellationToken = default)
+    /// <returns>Read-модель страницы либо ошибка «страница не найдена».</returns>
+    public async Task<OperationResult<DashboardPageReadModel, ServiceError>> GetPageAsync(
+        int id,
+        CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Начата загрузка страницы dashboard с ID {PageId} из базы данных.", id);
 
@@ -57,7 +62,7 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
         if (entity is null)
         {
             logger.LogWarning("Страница dashboard с ID {PageId} не найдена в базе данных.", id);
-            return null;
+            return ServiceError.NotFound("Страница не найдена.").AsFailure<DashboardPageReadModel>();
         }
 
         var readModel = new DashboardPageReadModel
@@ -81,8 +86,10 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
     /// </summary>
     /// <param name="page">Контрактная модель создаваемой страницы. Путь обязателен и уникален.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns>Созданная страница с назначенным идентификатором либо <c>null</c>, если путь уже занят.</returns>
-    public async Task<DashboardPage?> CreatePageAsync(DashboardPage page, CancellationToken cancellationToken = default)
+    /// <returns>Созданная страница с назначенным идентификатором либо ошибка «путь уже занят».</returns>
+    public async Task<OperationResult<DashboardPage, ServiceError>> CreatePageAsync(
+        DashboardPage page,
+        CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Начато создание страницы dashboard {Title}.", page.Title);
 
@@ -91,7 +98,7 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
         if (await db.Pages.AnyAsync(x => x.Path == path, cancellationToken))
         {
             logger.LogWarning("Создание страницы отклонено: путь {Path} уже занят.", path);
-            return null;
+            return ServiceError.Validation("Страница с таким путём уже существует.").AsFailure<DashboardPage>();
         }
 
         var entity = page.Adapt<DashboardPageEntity>();
@@ -110,8 +117,10 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
     /// </summary>
     /// <param name="page">Плоская модель страницы с новыми значениями; <c>Id</c> задаёт изменяемую страницу.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns>Результат операции: успех, страница не найдена, путь занят или путь основной страницы зарезервирован.</returns>
-    public async Task<PageMutationResult> UpdatePageInfoAsync(DashboardPage page, CancellationToken cancellationToken = default)
+    /// <returns>Результат операции: успех либо ошибка «не найдена», «путь занят» или «путь основной страницы зарезервирован».</returns>
+    public async Task<OperationResult<Unit, ServiceError>> UpdatePageInfoAsync(
+        DashboardPage page,
+        CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Начато изменение информационной части страницы dashboard {PageId}.", page.Id);
 
@@ -119,7 +128,7 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
         if (entity is null)
         {
             logger.LogWarning("Изменение страницы отклонено: страница dashboard с id {PageId} не найдена.", page.Id);
-            return PageMutationResult.NotFound;
+            return ServiceError.NotFound("Страница не найдена.").AsFailure();
         }
 
         var path = page.Path.Trim();
@@ -129,14 +138,14 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
             if (entity.Path.Length == 0 || path.Length == 0)
             {
                 logger.LogWarning("Изменение страницы {PageId} отклонено: путь основной страницы зарезервирован.", page.Id);
-                return PageMutationResult.MainPageProtected;
+                return ServiceError.Validation("Путь основной страницы изменить нельзя.").AsFailure();
             }
 
             var pathTaken = await db.Pages.AnyAsync(x => x.Id != page.Id && x.Path == path, cancellationToken);
             if (pathTaken)
             {
                 logger.LogWarning("Изменение страницы {PageId} отклонено: путь {Path} уже занят.", page.Id, path);
-                return PageMutationResult.PathTaken;
+                return ServiceError.Validation("Страница с таким путём уже существует.").AsFailure();
             }
         }
 
@@ -145,7 +154,7 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
         await db.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Информационная часть страницы dashboard {PageId} обновлена.", page.Id);
-        return PageMutationResult.Success;
+        return Unit.Value;
     }
 
     /// <summary>
@@ -153,8 +162,10 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
     /// </summary>
     /// <param name="id">Идентификатор страницы.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns>Результат операции.</returns>
-    public async Task<PageMutationResult> DeletePageAsync(int id, CancellationToken cancellationToken = default)
+    /// <returns>Результат операции: успех либо ошибка «не найдена» или «основную страницу удалить нельзя».</returns>
+    public async Task<OperationResult<Unit, ServiceError>> DeletePageAsync(
+        int id,
+        CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Начато удаление страницы dashboard {PageId}.", id);
 
@@ -162,13 +173,13 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
         if (entity is null)
         {
             logger.LogWarning("Удаление страницы {PageId} отклонено: страница не найдена.", id);
-            return PageMutationResult.NotFound;
+            return ServiceError.NotFound("Страница не найдена.").AsFailure();
         }
 
         if (entity.Path.Length == 0)
         {
             logger.LogWarning("Удаление страницы {PageId} отклонено: основную страницу удалить нельзя.", id);
-            return PageMutationResult.MainPageProtected;
+            return ServiceError.Validation("Основную страницу удалить нельзя.").AsFailure();
         }
 
         // Собираем карточки с кастомными изображениями, чтобы удалить их файлы после удаления страницы.
@@ -182,7 +193,7 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
         if (await db.SaveChangesAsync(cancellationToken) == 0)
         {
             logger.LogWarning("Удаление страницы {PageId} отклонено базой данных.", id);
-            return PageMutationResult.NotFound;
+            return ServiceError.NotFound("Страница не найдена.").AsFailure();
         }
 
         foreach (var cardId in cardsWithCustomImagesIds)
@@ -191,7 +202,7 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
         }
 
         logger.LogInformation("Страница dashboard {PageId} удалена.", id);
-        return PageMutationResult.Success;
+        return Unit.Value;
     }
 
     /// <summary>
@@ -199,8 +210,10 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
     /// </summary>
     /// <param name="category">Контрактная модель создаваемой категории.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns>Созданная категория с назначенным идентификатором.</returns>
-    public async Task<DashboardCategory?> CreateCategoryAsync(DashboardCategory category, CancellationToken cancellationToken = default)
+    /// <returns>Созданная категория с назначенным идентификатором либо ошибка «страница не найдена».</returns>
+    public async Task<OperationResult<DashboardCategory, ServiceError>> CreateCategoryAsync(
+        DashboardCategory category,
+        CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Начато создание категории {Title}.", category.Title);
 
@@ -209,7 +222,7 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
         if (!pageExists)
         {
             logger.LogWarning("Создание категории отклонено: страница dashboard с id {PageId} не найдена.", category.DashboardPageId);
-            return null;
+            return ServiceError.Validation("Страница не найдена.").AsFailure<DashboardCategory>();
         }
 
         var entity = category.Adapt<DashboardCategoryEntity>();
@@ -228,8 +241,10 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
     /// </summary>
     /// <param name="category">Новые значения полей категории.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns><c>true</c>, если категория найдена и обновлена; иначе <c>false</c>.</returns>
-    public async Task<bool> UpdateCategoryAsync(DashboardCategory category, CancellationToken cancellationToken = default)
+    /// <returns>Результат операции: успех либо ошибка «категория не найдена» или «страница не найдена».</returns>
+    public async Task<OperationResult<Unit, ServiceError>> UpdateCategoryAsync(
+        DashboardCategory category,
+        CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Начато изменение категории {CategoryId}.", category.Id);
 
@@ -237,7 +252,7 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
         if (entity is null)
         {
             logger.LogWarning("Изменение категории {CategoryId} отклонено: категория не найдена.", category.Id);
-            return false;
+            return ServiceError.NotFound("Категория не найдена.").AsFailure();
         }
 
         category.Adapt(entity);
@@ -248,13 +263,13 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
         if (!pageExists)
         {
             logger.LogWarning("Изменение категории {CategoryId} отклонено: страница {PageId} не найдена.", category.Id, entity.DashboardPageId);
-            return false;
+            return ServiceError.NotFound("Страница не найдена.").AsFailure();
         }
 
         await db.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Категория {CategoryId} обновлена.", category.Id);
-        return true;
+        return Unit.Value;
     }
 
     /// <summary>
@@ -262,8 +277,10 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
     /// </summary>
     /// <param name="id">Идентификатор категории.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns><c>true</c>, если категория найдена и удалена; иначе <c>false</c>.</returns>
-    public async Task<bool> DeleteCategoryAsync(int id, CancellationToken cancellationToken = default)
+    /// <returns>Результат операции: успех либо ошибка «категория не найдена».</returns>
+    public async Task<OperationResult<Unit, ServiceError>> DeleteCategoryAsync(
+        int id,
+        CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Начато удаление категории {CategoryId}.", id);
 
@@ -271,22 +288,22 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
         if (entity is null)
         {
             logger.LogWarning("Удаление категории {CategoryId} отклонено: категория не найдена.", id);
-            return false;
+            return ServiceError.NotFound("Категория не найдена.").AsFailure();
         }
 
         // Получаем идентификаторы карточек с кастомными изображениями, чтобы удалить их файлы после удаления категории.
         var cardsWithCustomImagesIds = await db.Cards
             .Where(c => c.DashboardCategoryId == id && c.IsCustomIcon)
-            .Select(c=>c.Id)
+            .Select(c => c.Id)
             .ToListAsync(cancellationToken);
 
 
         // Карточки категории удаляются каскадно на уровне БД (обязательная связь).
         db.Categories.Remove(entity);
-        if(await db.SaveChangesAsync(cancellationToken) == 0)
+        if (await db.SaveChangesAsync(cancellationToken) == 0)
         {
             logger.LogWarning("Удаление категории {CategoryId} отклонено базой данных.", id);
-            return false;
+            return ServiceError.NotFound("Категория не найдена.").AsFailure();
         }
 
         // Удаляем файлы кастомных изображений карточек после успешного удаления категории и её карточек.
@@ -296,7 +313,7 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
         }
 
         logger.LogInformation("Категория {CategoryId} удалена.", id);
-        return true;
+        return Unit.Value;
     }
 
     /// <summary>
@@ -304,8 +321,10 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
     /// </summary>
     /// <param name="card">Контрактная модель создаваемой карточки.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns>Созданная карточка с назначенным идентификатором либо <c>null</c>, если категория не найдена.</returns>
-    public async Task<DashboardCard?> CreateCardAsync(DashboardCard card, CancellationToken cancellationToken = default)
+    /// <returns>Созданная карточка с назначенным идентификатором либо ошибка «категория не найдена».</returns>
+    public async Task<OperationResult<DashboardCard, ServiceError>> CreateCardAsync(
+        DashboardCard card,
+        CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Начато создание карточки {Title} в категории {CategoryId}.", card.Title, card.DashboardCategoryId);
 
@@ -319,7 +338,7 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
         if (category is null)
         {
             logger.LogWarning("Создание карточки отклонено: категория {CategoryId} не найдена.", card.DashboardCategoryId);
-            return null;
+            return ServiceError.NotFound("Категория не найдена.").AsFailure<DashboardCard>();
         }
 
         var entity = card.Adapt<DashboardCardEntity>();
@@ -338,8 +357,10 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
     /// </summary>
     /// <param name="card">Новые значения полей карточки.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns><c>true</c>, если карточка найдена и обновлена; иначе <c>false</c>.</returns>
-    public async Task<bool> UpdateCardAsync(DashboardCard card, CancellationToken cancellationToken = default)
+    /// <returns>Результат операции: успех либо ошибка «карточка не найдена» или «категория не найдена».</returns>
+    public async Task<OperationResult<Unit, ServiceError>> UpdateCardAsync(
+        DashboardCard card,
+        CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Начато изменение карточки {CardId}.", card.Id);
 
@@ -347,7 +368,7 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
         if (entity is null)
         {
             logger.LogWarning("Изменение карточки {CardId} отклонено: карточка не найдена.", card.Id);
-            return false;
+            return ServiceError.NotFound("Карточка не найдена.").AsFailure();
         }
 
         card.Adapt(entity);
@@ -358,17 +379,17 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
         if (!categoryExists)
         {
             logger.LogWarning("Изменение карточки {CardId} отклонено: категория {CategoryId} не найдена.", card.Id, entity.DashboardCategoryId);
-            return false;
+            return ServiceError.NotFound("Категория не найдена.").AsFailure();
         }
 
         // Проверим иконку
-        if(!card.IsCustomIcon)
+        if (!card.IsCustomIcon)
             iconService.Delete(card.Id);
 
         await db.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Карточка {CardId} обновлена.", card.Id);
-        return true;
+        return Unit.Value;
     }
 
     /// <summary>
@@ -376,8 +397,10 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
     /// </summary>
     /// <param name="id">Идентификатор карточки.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns><c>true</c>, если карточка найдена и удалена; иначе <c>false</c>.</returns>
-    public async Task<bool> DeleteCardAsync(int id, CancellationToken cancellationToken = default)
+    /// <returns>Результат операции: успех либо ошибка «карточка не найдена».</returns>
+    public async Task<OperationResult<Unit, ServiceError>> DeleteCardAsync(
+        int id,
+        CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Начато удаление карточки {CardId}.", id);
 
@@ -385,7 +408,7 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
         if (entity is null)
         {
             logger.LogWarning("Удаление карточки {CardId} отклонено: карточка не найдена.", id);
-            return false;
+            return ServiceError.NotFound("Карточка не найдена.").AsFailure();
         }
 
         db.Cards.Remove(entity);
@@ -395,6 +418,6 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
         if (entity.IsCustomIcon) iconService.Delete(id);
 
         logger.LogInformation("Карточка {CardId} удалена.", id);
-        return true;
+        return Unit.Value;
     }
 }

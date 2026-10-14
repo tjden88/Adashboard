@@ -39,7 +39,7 @@
                class="form-control"
                type="number"
                min="0"
-               max="3600"
+               max="@DomainConstants.HealthCheckIntervalMaxSeconds"
                step="1"
                value="@_model.HealthCheckIntervalSeconds"
                @oninput="OnIntervalInput" />
@@ -84,7 +84,7 @@
     {
         if (int.TryParse(args.Value?.ToString(), out var interval))
         {
-            _model.HealthCheckIntervalSeconds = Math.Clamp(interval, 0, 3600);
+            _model.HealthCheckIntervalSeconds = Math.Clamp(interval, 0, DomainConstants.HealthCheckIntervalMaxSeconds);
         }
     }
 
@@ -121,7 +121,7 @@
 
         public bool ShowLogo { get; set; } = true;
 
-        public int HealthCheckIntervalSeconds { get; set; } = 30;
+        public int HealthCheckIntervalSeconds { get; set; } = DomainConstants.DefaultHealthCheckIntervalSeconds;
 
         public static EditModel FromSettings(SiteSettings settings) => new()
         {

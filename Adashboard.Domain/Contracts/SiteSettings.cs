@@ -1,4 +1,5 @@
 using Adashboard.Domain.Enums;
+using Adashboard.Domain.Reference;
 
 namespace Adashboard.Domain.Contracts;
 
@@ -17,5 +18,5 @@ public sealed class SiteSettings
     public bool ShowLogo { get; set; } = true;
 
     /// <summary>Интервал проверки статуса карточек в секундах.</summary>
-    public int HealthCheckIntervalSeconds { get; set; } = 30;
+    public int HealthCheckIntervalSeconds { get; set; } = DomainConstants.DefaultHealthCheckIntervalSeconds;
 }

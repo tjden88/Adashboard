@@ -39,13 +39,8 @@ public class CardsController(
             return BadRequest(new { error = "Укажите категорию карточки." });
         }
 
-        var created = await pageService.CreateCardAsync(card, cancellationToken);
-        if (created is null)
-        {
-            return NotFound(new { error = "Категория не найдена." });
-        }
-
-        return Created($"/api/cards/{created.Id}", created);
+        var result = await pageService.CreateCardAsync(card, cancellationToken);
+        return result.ToActionResult(created => Created($"/api/cards/{created.Id}", created));
     }
 
     /// <summary>
@@ -67,8 +62,8 @@ public class CardsController(
             return BadRequest(new { error = "Тело запроса с карточкой обязательно." });
         }
 
-        var updated = await pageService.UpdateCardAsync(card, cancellationToken);
-        return updated ? NoContent() : NotFound(new { error = "Карточка не найдена." });
+        var result = await pageService.UpdateCardAsync(card, cancellationToken);
+        return result.ToActionResult();
     }
 
     /// <summary>
@@ -81,8 +76,8 @@ public class CardsController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
-        var deleted = await pageService.DeleteCardAsync(id, cancellationToken);
-        return deleted ? NoContent() : NotFound(new { error = "Карточка не найдена." });
+        var result = await pageService.DeleteCardAsync(id, cancellationToken);
+        return result.ToActionResult();
     }
 
     /// <summary>
@@ -91,39 +86,24 @@ public class CardsController(
     /// <param name="cardId">Идентификатор карточки, для которой сохраняется изображение.</param>
     /// <param name="data">Бинарные данные изображения.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
+    /// <remarks>
+    /// В отличие от остальных эндпоинтов, ответ об ошибке — просто текст (без обёртки <c>{ error }</c>):
+    /// клиент читает тело как строку с путём или сообщением.
+    /// </remarks>
     [HttpPost("{cardId}/image", Name = "UploadImage")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> UploadImage(int cardId, [FromBody] byte[]? data, CancellationToken cancellationToken)
     {
-        if (cardId <= 0)
-        {
-            logger.LogWarning("Загрузка изображения отклонена: некорректный идентификатор карточки {CardId}.", cardId);
-            return BadRequest( "Некорректный идентификатор карточки.");
-        }
-
         if (data is null || data.Length == 0)
         {
             logger.LogWarning("Загрузка изображения карточки {CardId} отклонена: файл не передан.", cardId);
             return BadRequest("Файл изображения не передан.");
         }
 
-        if (data.Length > ImageIconService.MaxImageBytes)
-        {
-            logger.LogWarning("Загрузка изображения карточки {CardId} отклонена: размер {Size} байт превышает лимит.", cardId, data.Length);
-            return BadRequest("Изображение превышает максимальный размер 2 МБ.");
-        }
-
-        try
-        {
-            var imagePath = await imageIconService.SaveFromBytesAsync(cardId, data, cancellationToken);
-            return Ok(imagePath);
-        }
-        catch (InvalidOperationException ex)
-        {
-            logger.LogWarning("Загрузка изображения карточки {CardId} отклонена: {Reason}", cardId, ex.Message);
-            return BadRequest(ex.Message);
-        }
+        var result = await imageIconService.SaveFromBytesAsync(cardId, data, cancellationToken);
+        return result.TryGetValue(out var imagePath)
+            ? Ok(imagePath)
+            : BadRequest(result.Error.Message);
     }
-
 }

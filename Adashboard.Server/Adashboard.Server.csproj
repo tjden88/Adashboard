@@ -38,7 +38,7 @@
     <!-- Mapster — маппинг entity ↔ контрактная модель во время выполнения (без кодогенерации). -->
     <PackageReference Include="Mapster" Version="10.0.13" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.18.0" />
-    <PackageReference Include="WPR.Operations" Version="1.0.2" />
+    <PackageReference Include="WPR.Operations" Version="1.1.0" />
   </ItemGroup>
 
   <PropertyGroup>

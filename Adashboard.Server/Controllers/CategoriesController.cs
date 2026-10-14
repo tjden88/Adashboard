@@ -31,13 +31,8 @@ public class CategoriesController(
             return BadRequest(new { error = "Укажите название категории." });
         }
 
-        var created = await pageService.CreateCategoryAsync(category, cancellationToken);
-        if (created is null)
-        {
-            return BadRequest();
-        }
-
-        return Created($"/api/categories/{created.Id}", created);
+        var result = await pageService.CreateCategoryAsync(category, cancellationToken);
+        return result.ToActionResult(created => Created($"/api/categories/{created.Id}", created));
     }
 
     /// <summary>
@@ -59,8 +54,8 @@ public class CategoriesController(
             return BadRequest(new { error = "Укажите название категории." });
         }
 
-        var updated = await pageService.UpdateCategoryAsync(category, cancellationToken);
-        return updated ? NoContent() : NotFound();
+        var result = await pageService.UpdateCategoryAsync(category, cancellationToken);
+        return result.ToActionResult();
     }
 
     /// <summary>
@@ -73,7 +68,7 @@ public class CategoriesController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
-        var deleted = await pageService.DeleteCategoryAsync(id, cancellationToken);
-        return deleted ? NoContent() : NotFound();
+        var result = await pageService.DeleteCategoryAsync(id, cancellationToken);
+        return result.ToActionResult();
     }
 }

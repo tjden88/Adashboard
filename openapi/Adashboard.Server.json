@@ -1194,7 +1194,7 @@
             "format": "int32"
           },
           "title": {
-            "maxLength": 30,
+            "maxLength": 120,
             "type": "string"
           },
           "url": {

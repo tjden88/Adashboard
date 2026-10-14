@@ -14,7 +14,7 @@
             <input id="cardTitle"
                    class="form-control"
                    type="text"
-                   maxlength="120"
+                   maxlength="@DomainConstants.CardTitleMaxLength"
                    autocomplete="off"
                    placeholder="Например: Docker"
                    value="@_model.Title"
@@ -47,7 +47,7 @@
             <input id="cardUrl"
                    class="form-control card-dialog__url-input"
                    type="text"
-                   maxlength="500"
+                   maxlength="@DomainConstants.CardUrlMaxLength"
                    autocomplete="off"
                    placeholder="example.com"
                    value="@_model.Url"
@@ -172,8 +172,8 @@
 </form>
 
 @code {
-    private const string DefaultColor = "#1e40af";
-    private const string DefaultIcon = "fa-solid fa-link";
+    private const string DefaultColor = DomainConstants.DefaultCardBackgroundColor;
+    private const string DefaultIcon = DomainConstants.DefaultCardIcon;
 
     // Варианты проверки статуса, отображаемые в диалоге.
     private static readonly (CardStatusMode Mode, string Title, string Hint, string Description)[] StatusModeOptions =
@@ -191,8 +191,6 @@
     private string? _uploadedPreview;
     private string? _imageError;
     private bool _isSaving;
-
-    private const int MaxImageBytes = 2 * 1024 * 1024;
 
     // Идентификатор, назначенный сервером при создании карточки. Нужен, если создание
     // уже прошло, но следующий шаг (загрузка иконки) не удался: при повторе карточку
@@ -328,15 +326,15 @@
         _imageError = null;
         var file = args.File;
 
-        if (file.Size > MaxImageBytes)
+        if (file.Size > DomainConstants.MaxImageBytes)
         {
-            _imageError = "Файл превышает максимальный размер 2 МБ.";
+            _imageError = $"Файл превышает максимальный размер {DomainConstants.MaxImageMegabytes} МБ.";
             return;
         }
 
         try
         {
-            await using var stream = file.OpenReadStream(MaxImageBytes);
+            await using var stream = file.OpenReadStream(DomainConstants.MaxImageBytes);
             using var buffer = new MemoryStream();
             await stream.CopyToAsync(buffer);
 
@@ -367,9 +365,9 @@
         try
         {
             var bytes = Convert.FromBase64String(dataUrl[(commaIndex + 1)..]);
-            if (bytes.Length == 0 || bytes.LongLength > MaxImageBytes)
+            if (bytes.Length == 0 || bytes.LongLength > DomainConstants.MaxImageBytes)
             {
-                _imageError = "Изображение превышает максимальный размер 2 МБ.";
+                _imageError = $"Изображение превышает максимальный размер {DomainConstants.MaxImageMegabytes} МБ.";
             }
             else
             {

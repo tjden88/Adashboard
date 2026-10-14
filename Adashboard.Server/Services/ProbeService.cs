@@ -5,7 +5,9 @@ using Adashboard.Data;
 using Adashboard.Domain.Enums;
 using Adashboard.Domain.Extensions;
 using Adashboard.Domain.ReadModels;
+using Adashboard.Domain.Reference;
 using Microsoft.EntityFrameworkCore;
+using WPR.Operations;
 
 namespace Adashboard.Server.Services;
 
@@ -29,7 +31,6 @@ namespace Adashboard.Server.Services;
 public sealed class ProbeService(DashboardDb db, HttpClient client, ILogger<ProbeService> logger)
 {
     private const int MaxHtmlBytes = 256 * 1024;
-    private const int MaxTitleLength = 120;
 
     private static readonly TimeSpan HealthRequestTimeout = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan TitleRequestTimeout = TimeSpan.FromSeconds(8);
@@ -46,8 +47,10 @@ public sealed class ProbeService(DashboardDb db, HttpClient client, ILogger<Prob
     /// </summary>
     /// <param name="cardId">Идентификатор карточки.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns>Результат проверки или <c>null</c>, если карточка не найдена.</returns>
-    public async Task<HealthCheckResult?> CheckCardAsync(int cardId, CancellationToken cancellationToken = default)
+    /// <returns>Результат проверки либо ошибка «карточка не найдена».</returns>
+    public async Task<OperationResult<HealthCheckResult, ServiceError>> CheckCardAsync(
+        int cardId,
+        CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Начата проверка доступности карточки {CardId}.", cardId);
 
@@ -58,7 +61,7 @@ public sealed class ProbeService(DashboardDb db, HttpClient client, ILogger<Prob
         if (card is null)
         {
             logger.LogWarning("Проверка доступности карточки {CardId} пропущена: карточка не найдена.", cardId);
-            return null;
+            return ServiceError.NotFound("Карточка не найдена.").AsFailure<HealthCheckResult>();
         }
 
         // Режим «Не проверять»: запрос не делаем, сообщаем клиенту нейтральное состояние.
@@ -134,13 +137,15 @@ public sealed class ProbeService(DashboardDb db, HttpClient client, ILogger<Prob
     /// </summary>
     /// <param name="url">Абсолютная HTTP(S)-ссылка на страницу.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns>Заголовок страницы или <c>null</c>, если он не найден либо страница недоступна.</returns>
-    public async Task<string?> GetTitleAsync(string url, CancellationToken cancellationToken = default)
+    /// <returns>Заголовок страницы, <c>null</c> если он не найден либо страница недоступна, или ошибка некорректной ссылки.</returns>
+    public async Task<OperationResult<string?, ServiceError>> GetTitleAsync(
+        string url,
+        CancellationToken cancellationToken = default)
     {
         if (!TryBuildAbsoluteUri(url, out var uri))
         {
             logger.LogWarning("Получение заголовка отклонено: адрес не является абсолютным HTTP(S)-адресом.");
-            throw new InvalidOperationException("Укажите корректную HTTP(S)-ссылку.");
+            return ServiceError.Validation("Укажите корректную HTTP(S)-ссылку.").AsFailure<string?>();
         }
 
         logger.LogDebug("Начато получение заголовка страницы на хосте {Host}.", uri.Host);
@@ -270,7 +275,7 @@ public sealed class ProbeService(DashboardDb db, HttpClient client, ILogger<Prob
             return null;
         }
 
-        return title.Length > MaxTitleLength ? title[..MaxTitleLength] : title;
+        return title.Length > DomainConstants.CardTitleMaxLength ? title[..DomainConstants.CardTitleMaxLength] : title;
     }
 
     /// <summary>
