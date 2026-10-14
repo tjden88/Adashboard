@@ -16,6 +16,11 @@
     /* Шаг колонок сетки dashboard: расстояние между колонками (категориями) сетки.
        Из него же считается высота карточки, поэтому значение вынесено в общую переменную. */
     --dashboard-gap: 1rem;
+    /* Фоновые изображения страницы. Значения по умолчанию рассчитаны на режим одного
+       origin (клиент раздаёт API). Если клиент запущен отдельно от сервера, эти переменные
+       перезаписывает js/dashboard.js на абсолютные адреса API — см. setBackgroundImages. */
+    --dashboard-background-light: url("/uploads/assets/bg-light.jpg");
+    --dashboard-background-dark: url("/uploads/assets/bg-dark.jpg");
 }
 
 html[data-theme="dark"] {
@@ -46,7 +51,7 @@ html {
 
 body {
     background-color: var(--bg-main);
-    background-image: url("/uploads/assets/bg-light.jpg");
+    background-image: var(--dashboard-background-light);
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -54,7 +59,7 @@ body {
 }
 
 html[data-theme="dark"] body {
-    background-image: url("/uploads/assets/bg-dark.jpg");
+    background-image: var(--dashboard-background-dark);
 }
 
 * {

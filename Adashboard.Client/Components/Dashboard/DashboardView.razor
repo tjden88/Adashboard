@@ -5,6 +5,7 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject IDashboardApi DashboardApi
+@inject DashboardApiOptions ApiOptions
 @inject DialogService DialogService
 @inject EditModeService EditModeService
 @inject ILogger<DashboardView> Logger
@@ -46,7 +47,7 @@ else
             <div class="dashboard-header-brand">
                 @if (ShowLogo)
                 {
-                    <img class="dashboard-logo" src="/uploads/assets/logo.png" alt="" />
+                    <img class="dashboard-logo" src="@LogoPath" alt="" />
                 }
                 <div>
                     <h1>@_layout.Title</h1>
@@ -125,6 +126,15 @@ else
     private const bool ShowLogo = true;
     private const string DefaultThemeMode = "auto";
 
+    // Файлы оформления лежат в каталоге загрузок API, а не в статике клиента. Пути к ним
+    // переводим в абсолютные адреса API (ResolveUploadPath), иначе при запуске клиента
+    // отдельно от сервера они запрашивались бы у клиентского dev-сервера и давали 404.
+    private const string LogoAsset = "/uploads/assets/logo.png";
+    private const string LightBackgroundAsset = "/uploads/assets/bg-light.jpg";
+    private const string DarkBackgroundAsset = "/uploads/assets/bg-dark.jpg";
+
+    private string LogoPath => ApiOptions.ResolveUploadPath(LogoAsset)!;
+
     protected override void OnInitialized()
     {
         EditModeService.OnChange += OnEditModeChanged;
@@ -146,6 +156,13 @@ else
             _dotNetRef = DotNetObjectReference.Create(this);
 
             await _module.InvokeVoidAsync("initializeTheme", DefaultThemeMode);
+
+            // Фон страницы задан в CSS, но сами файлы лежат в API. Абсолютные адреса
+            // передаём в модуль: CSS-переменные не умеют подставлять адрес другого origin.
+            await _module.InvokeVoidAsync(
+                "setBackgroundImages",
+                ApiOptions.ResolveUploadPath(LightBackgroundAsset),
+                ApiOptions.ResolveUploadPath(DarkBackgroundAsset));
 
             await TryLoadAsync();
             return;

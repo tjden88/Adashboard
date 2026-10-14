@@ -15,9 +15,19 @@ builder.RootComponents.Add<Routes>("#app");
 // HeadOutlet позволяет компонентам управлять <head> (например, <PageTitle>).
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-// Базовый адрес API берём из конфигурации клиента (wwwroot/appsettings.json). Если там пусто,
-// используем адрес текущего хоста: когда клиент раздаёт API, это тот же origin, и запросы
-// автоматически идут на него (не нужно зашивать хост и порт).
+// Базовый адрес API берём из конфигурации клиента. Правило простое: явно заданный
+// ApiBaseUrl важнее адреса текущего хоста.
+//
+//   * wwwroot/appsettings.json — базовое значение (пусто): когда клиент раздаёт сам API,
+//     запросы идут на тот же origin, и хост с портом зашивать не нужно;
+//   * wwwroot/appsettings.Development.json — только для разработки: задаёт адрес API
+//     (http://localhost:5024), чтобы клиент можно было запустить отдельно от сервера
+//     своим dev-сервером (dotnet run в Adashboard.Client, логи — в своём окне) и он
+//     всё равно нашёл API. В опубликованном приложении окружение Production, поэтому
+//     этот файл не применяется и продолжает работать режим одного origin.
+//
+// Какой из файлов читать, решает окружение, пришедшее от хоста (браузер получает его
+// заголовком blazor-environment): dev-сервер клиента отдаёт Development.
 var configuredApiBaseUrl = builder.Configuration["ApiBaseUrl"];
 var apiBaseUrl = string.IsNullOrWhiteSpace(configuredApiBaseUrl)
     ? builder.HostEnvironment.BaseAddress

@@ -36,6 +36,22 @@ export function setThemeMode(mode) {
     applyTheme(mode);
 }
 
+// Подставляет абсолютные адреса фоновых изображений, полученных из API.
+// CSS-переменные не могут собрать адрес чужого origin из строки, поэтому значения
+// приходят из C# (см. DashboardApiOptions.ResolveUploadPath) и задаются как есть.
+// Пока функция не вызвана, в CSS остаются значения по умолчанию для режима одного origin.
+export function setBackgroundImages(lightUrl, darkUrl) {
+    const style = document.documentElement.style;
+
+    if (lightUrl) {
+        style.setProperty("--dashboard-background-light", `url("${lightUrl}")`);
+    }
+
+    if (darkUrl) {
+        style.setProperty("--dashboard-background-dark", `url("${darkUrl}")`);
+    }
+}
+
 // Раскладка категорий и собственный drag-and-drop на Pointer Events.
 // Категории позиционируются абсолютно (masonry-алгоритм), порядок списков во время
 // перетаскивания меняет только Blazor — это исключает рассинхрон DOM.
