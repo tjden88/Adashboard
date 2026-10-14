@@ -197,7 +197,8 @@ function layout() {
     }
 
     // Во время перетаскивания позиции задаёт превью/placeholder, а не общий layout.
-    if (dragState && dragState.active) {
+    // При изменении ширины категории раскладку, наоборот, нужно пересчитывать.
+    if (dragState && dragState.active && dragState.kind !== "resize") {
         return;
     }
 
@@ -476,6 +477,120 @@ function endSession() {
     dragState = null;
 }
 
+// ---------------------------------------------------------------------------
+// Изменение ширины категории перетаскиванием маркера у правого края.
+// Ширина задаётся в колонках сетки и округляется до целого числа колонок.
+// ---------------------------------------------------------------------------
+
+function startResizeSession(category, event) {
+    dragState = {
+        kind: "resize",
+        item: category,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        active: false,
+        categoryId: parseId(category.dataset.categoryId),
+        startSpan: readSpan(category),
+        currentSpan: null
+    };
+
+    document.addEventListener("pointermove", onPointerMove, true);
+    document.addEventListener("pointerup", onPointerUp, true);
+    document.addEventListener("pointercancel", onPointerCancel, true);
+}
+
+function handleResizeMove(event) {
+    const state = dragState;
+
+    // Резиз начинается только после заметного смещения — случайный клик ничего не меняет.
+    if (!state.active) {
+        if (Math.abs(event.clientX - state.startX) < DRAG_THRESHOLD_PX) {
+            return;
+        }
+
+        state.active = true;
+        state.currentSpan = state.startSpan;
+        suppressClick = true;
+        document.body.classList.add("category-resizing");
+    }
+
+    event.preventDefault();
+    updateResize(event);
+}
+
+function updateResize(event) {
+    const grid = getGrid();
+    if (!grid) {
+        return;
+    }
+
+    const columns = getColumnCount();
+    const gap = getColumnGap(grid);
+    const columnWidth = (grid.clientWidth - (columns - 1) * gap) / columns;
+    const pitch = columnWidth + gap;
+
+    const delta = event.clientX - dragState.startX;
+    const span = Math.min(Math.max(Math.round(dragState.startSpan + delta / pitch), 1), columns);
+
+    dragState.currentSpan = span;
+    setCategorySpan(dragState.item, span);
+    scheduleLayout();
+}
+
+// Меняем переменные только текущего брейкпоинта: сразу после сохранения Blazor перерисует
+// категорию и выставит значения для всех брейкпоинтов из модели.
+function setCategorySpan(element, span) {
+    const spanVariable = getSpanVariable();
+    element.style.setProperty(spanVariable, span);
+    element.style.setProperty(spanVariable.replace("--span-", "--cards-"), span);
+}
+
+// Обратное преобразование количества колонок текущего брейкпоинта в сохраняемую ширину
+// категории (она задаётся в колонках desktop-сетки из 12 колонок).
+function categorySpanToWidth(span) {
+    const width = getColumnCount() === 6 ? span * 2 : span;
+    return Math.min(Math.max(width, 1), 12);
+}
+
+function finishResize() {
+    const state = dragState;
+
+    if (!state.active) {
+        endSession();
+        return;
+    }
+
+    const span = state.currentSpan ?? state.startSpan;
+    const width = categorySpanToWidth(span);
+    const changed = span !== state.startSpan && state.categoryId !== null;
+
+    document.body.classList.remove("category-resizing");
+    endSession();
+    scheduleLayout();
+
+    setTimeout(() => {
+        suppressClick = false;
+    }, 0);
+
+    if (changed && dotNetRef) {
+        enqueueSync(() => dotNetRef.invokeMethodAsync("OnCategoryResized", state.categoryId, width));
+    }
+}
+
+function cancelResize() {
+    const state = dragState;
+
+    if (state) {
+        // Изменение не сохранено — возвращаем исходную ширину.
+        setCategorySpan(state.item, state.startSpan);
+        document.body.classList.remove("category-resizing");
+    }
+
+    endSession();
+    scheduleLayout();
+}
+
 function onPointerDown(event) {
     if (event.button !== 0 || syncInProgress || dragState) {
         return;
@@ -488,6 +603,15 @@ function onPointerDown(event) {
 
     if (!(event.target instanceof Element)) {
         return;
+    }
+
+    const resizeHandle = event.target.closest(".category-resize-handle");
+    if (resizeHandle) {
+        const category = resizeHandle.closest(".dashboard-category");
+        if (category) {
+            startResizeSession(category, event);
+            return;
+        }
     }
 
     const handle = event.target.closest(".drag-handle");
@@ -692,6 +816,11 @@ function onPointerMove(event) {
         return;
     }
 
+    if (dragState.kind === "resize") {
+        handleResizeMove(event);
+        return;
+    }
+
     if (!dragState.active) {
         const dx = event.clientX - dragState.startX;
         const dy = event.clientY - dragState.startY;
@@ -713,6 +842,11 @@ function onPointerUp(event) {
         return;
     }
 
+    if (dragState.kind === "resize") {
+        finishResize();
+        return;
+    }
+
     if (dragState.active) {
         finishDrag();
     } else {
@@ -722,6 +856,11 @@ function onPointerUp(event) {
 
 function onPointerCancel(event) {
     if (!dragState || event.pointerId !== dragState.pointerId) {
+        return;
+    }
+
+    if (dragState.kind === "resize") {
+        cancelResize();
         return;
     }
 
@@ -746,6 +885,11 @@ function onDragStart(event) {
 
 function onKeyDown(event) {
     if (event.key === "Escape" && dragState) {
+        if (dragState.kind === "resize") {
+            cancelResize();
+            return;
+        }
+
         cleanup();
         endSession();
         scheduleLayout();
@@ -862,6 +1006,7 @@ export function disposeDragAndDrop() {
     cleanup();
     endSession();
     finalizeCategoryDrop();
+    document.body.classList.remove("category-resizing");
 
     dotNetRef = null;
     syncQueue = [];

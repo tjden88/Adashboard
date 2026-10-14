@@ -250,6 +250,12 @@ body.dnd-active {
     cursor: grabbing;
 }
 
+/* Во время изменения ширины категории перетаскиванием маркера. */
+body.category-resizing {
+    user-select: none;
+    cursor: ew-resize;
+}
+
 @media (max-width: 900px) {
     .dnd-placeholder-card {
         grid-column: span var(--card-span-mobile, 1);

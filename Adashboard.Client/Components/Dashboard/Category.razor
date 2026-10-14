@@ -3,49 +3,59 @@
 <section class="dashboard-category"
          data-category-id="@Model.Id"
          style="--span-desktop:@DesktopWidth; --span-medium:@MediumWidth; --span-mobile:@MobileWidth; --cards-desktop:@DesktopWidth; --cards-medium:@MediumWidth; --cards-mobile:@MobileWidth;">
-    <header class="category-header">
-        <div class="category-title-wrap">
-            <span class="drag-handle" title="Перетащить категорию" aria-hidden="true">
-                <i class="fa-solid fa-grip-vertical"></i>
-            </span>
-            <h2>@Model.Title</h2>
-        </div>
-        <div class="category-actions">
-            <button type="button"
-                    class="btn btn-icon btn-sm btn-success"
-                    @onclick="OnAddCard"
-                    aria-label="Добавить ссылку в категорию @Model.Title"
-                    title="Добавить ссылку">
-                <i class="fa-solid fa-plus" aria-hidden="true"></i>
-            </button>
-            <button type="button"
-                    class="btn btn-icon btn-sm btn-primary"
-                    @onclick="OnEdit"
-                    aria-label="Редактировать категорию @Model.Title"
-                    title="Редактировать категорию">
-                <i class="fa-solid fa-pen-nib" aria-hidden="true"></i>
-            </button>
-            <button type="button"
-                    class="btn btn-icon btn-sm btn-danger"
-                    @onclick="OnDelete"
-                    aria-label="Удалить категорию @Model.Title"
-                    title="Удалить категорию">
-                <i class="fa-solid fa-trash" aria-hidden="true"></i>
-            </button>
-        </div>
-    </header>
+    @* Визуальная часть панели (рамка, фон, отступы) вынесена во вложенный блок: маркер
+       изменения ширины лежит снаружи и не обрезается её overflow. *@
+    <div class="category-frame">
+        <header class="category-header">
+            <div class="category-title-wrap">
+                <span class="drag-handle" title="Перетащить категорию" aria-hidden="true">
+                    <i class="fa-solid fa-grip-vertical"></i>
+                </span>
+                <h2>@Model.Title</h2>
+            </div>
+            <div class="category-actions">
+                <button type="button"
+                        class="btn btn-icon btn-sm btn-success"
+                        @onclick="OnAddCard"
+                        aria-label="Добавить ссылку в категорию @Model.Title"
+                        title="Добавить ссылку">
+                    <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                </button>
+                <button type="button"
+                        class="btn btn-icon btn-sm btn-primary"
+                        @onclick="OnEdit"
+                        aria-label="Редактировать категорию @Model.Title"
+                        title="Редактировать категорию">
+                    <i class="fa-solid fa-pen-nib" aria-hidden="true"></i>
+                </button>
+                <button type="button"
+                        class="btn btn-icon btn-sm btn-danger"
+                        @onclick="OnDelete"
+                        aria-label="Удалить категорию @Model.Title"
+                        title="Удалить категорию">
+                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                </button>
+            </div>
+        </header>
 
-    <div class="category-cards" data-category-id="@Model.Id">
-        @foreach (var card in Cards.OrderBy(x => x.Position))
-        {
-            <Card @key="card.Id" Model="@card"
-                  DesktopColumns="@DesktopWidth"
-                  MediumColumns="@MediumWidth"
-                  MobileColumns="@MobileWidth"
-                  Health="@(HealthLookup?.Invoke(card) ?? ServiceHealthResult.Unknown)"
-                  EditRequested="CardEditRequested" />
-        }
+        <div class="category-cards" data-category-id="@Model.Id">
+            @foreach (var card in Cards.OrderBy(x => x.Position))
+            {
+                <Card @key="card.Id" Model="@card"
+                      DesktopColumns="@DesktopWidth"
+                      MediumColumns="@MediumWidth"
+                      MobileColumns="@MobileWidth"
+                      Health="@(HealthLookup?.Invoke(card) ?? ServiceHealthResult.Unknown)"
+                      EditRequested="CardEditRequested" />
+            }
+        </div>
     </div>
+
+    @* Маркер изменения ширины категории: тянем мышью вправо/влево. Виден только в режиме
+       редактирования (управляется CSS по классу html.dashboard-edit-mode). *@
+    <span class="category-resize-handle" title="Изменить ширину категории" aria-hidden="true">
+        <i class="fa-solid fa-ellipsis-vertical"></i>
+    </span>
 </section>
 
 @code {

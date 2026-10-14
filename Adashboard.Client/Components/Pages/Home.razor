@@ -555,6 +555,48 @@ else
         await InvokeAsync(StateHasChanged);
     }
 
+    /// <summary>
+    /// Применяет новую ширину категории, полученную от перетаскивания маркера в клиенте.
+    /// </summary>
+    [JSInvokable]
+    public async Task OnCategoryResized(int categoryId, int width)
+    {
+        var category = _categories.FirstOrDefault(x => x.Id == categoryId);
+        if (category is null)
+        {
+            return;
+        }
+
+        var clampedWidth = Math.Clamp(width, 1, 12);
+        if (category.Width == clampedWidth)
+        {
+            return;
+        }
+
+        await _reorderLock.WaitAsync();
+        try
+        {
+            category.Width = clampedWidth;
+
+            try
+            {
+                await DashboardApi.UpdateCategoryAsync(category.Id, category);
+            }
+            catch (ApiException ex)
+            {
+                // Ошибку только логируем: ширину в памяти оставляем изменённой, чтобы состояние
+                // интерфейса совпадало с показанным пользователю (как и при сортировке).
+                Logger.LogWarning(ex, "Не удалось сохранить ширину категории {CategoryId}. Код: {StatusCode}.", category.Id, ex.StatusCode);
+            }
+        }
+        finally
+        {
+            _reorderLock.Release();
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
     [JSInvokable]
     public async Task OnCardsReordered(int sourceCategoryId, int targetCategoryId, int[] sourceCardIds, int[] targetCardIds)
     {
