@@ -1,5 +1,4 @@
 @using Adashboard.Client.Services
-@using Adashboard.Domain.Models
 @inject EditModeService EditModeService
 @inject DashboardApiOptions ApiOptions
 
@@ -13,13 +12,13 @@
    style="--card-bg:@Model.BackgroundColor; --card-icon-color:@Model.GetIconColor(); --card-text-color:@Model.GetTextColor(); --card-span-desktop:@CardSpanDesktop; --card-span-medium:@CardSpanMedium; --card-span-mobile:@CardSpanMobile;">
     <span class="card-title">@Model.Title</span>
     <div class="card-icon" aria-hidden="true">
-        @if (Model.CardImage.IsCustom && !string.IsNullOrWhiteSpace(Model.CardImage.IconSource))
+        @if (Model.IsCustomIcon && !string.IsNullOrWhiteSpace(Model.IconSource))
         {
             @* Своё изображение приоритетнее встроенной иконки. Иконка-заглушка остаётся
                запасным вариантом: CSS прячет её, пока картинка показана, а при ошибке
                загрузки onerror скрывает изображение и открывает иконку. *@
             <img class="card-icon__image"
-                 src="@ApiOptions.ResolveUploadPath(Model.CardImage.IconSource)"
+                 src="@ApiOptions.ResolveUploadPath(Model.IconSource)"
                  alt=""
                  loading="lazy"
                  onload="this.hidden = false"
@@ -63,9 +62,9 @@
     private string Href => UrlSchemePrefix(Model.UrlScheme) + Model.Url;
 
     // Если пользовательское изображение не задано, показываем встроенную иконку Font Awesome.
-    private string IconClass => string.IsNullOrWhiteSpace(Model.CardImage.IconSource)
+    private string IconClass => string.IsNullOrWhiteSpace(Model.IconSource)
         ? "fa-solid fa-link"
-        : Model.CardImage.IconSource;
+        : Model.IconSource;
 
     private static string UrlSchemePrefix(UrlScheme scheme) => scheme switch
     {

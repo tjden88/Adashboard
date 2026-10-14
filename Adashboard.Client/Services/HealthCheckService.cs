@@ -1,3 +1,4 @@
+using Adashboard.Domain.Enums;
 using Refit;
 
 namespace Adashboard.Client.Services;
@@ -37,7 +38,7 @@ public sealed record ServiceHealthResult(ServiceHealthState State, string? Messa
 /// Проверку выполняет Adashboard.Server: браузер не может обращаться к целевым сервисам напрямую
 /// из-за политики CORS (см. <c>ProbeService</c> в API). Клиент только запрашивает результат.
 /// Вся сетевая работа (поиск карточки, запрос к её сервису, оценка режима <c>StatusMode</c>)
-/// живёт в Adashboard.Server; клиент лишь переводит строковый статус ответа в <see cref="ServiceHealthState"/>.
+/// живёт в Adashboard.Server; клиент лишь переводит состояние сервиса из ответа в <see cref="ServiceHealthState"/>.
 /// </remarks>
 public sealed class HealthCheckService(
     IDashboardApi dashboardApi,
@@ -63,7 +64,7 @@ public sealed class HealthCheckService(
                 return ServiceHealthResult.Unknown;
             }
 
-            return new ServiceHealthResult(ParseState(response.Status), response.Message);
+            return new ServiceHealthResult(MapState(response.Status), response.Message);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -86,12 +87,12 @@ public sealed class HealthCheckService(
     }
 
     /// <summary>
-    /// Переводит строковый статус ответа API в состояние индикатора.
+    /// Переводит состояние сервиса из ответа API в состояние индикатора на клиенте.
     /// </summary>
-    private static ServiceHealthState ParseState(string? status) => status switch
+    private static ServiceHealthState MapState(HealthStatus status) => status switch
     {
-        "online" => ServiceHealthState.Online,
-        "offline" => ServiceHealthState.Offline,
+        HealthStatus.Online => ServiceHealthState.Online,
+        HealthStatus.Offline => ServiceHealthState.Offline,
         _ => ServiceHealthState.Unknown
     };
 }

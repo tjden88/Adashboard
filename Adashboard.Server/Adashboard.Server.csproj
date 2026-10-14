@@ -37,6 +37,7 @@
     -->
     <ProjectReference Include="..\Adashboard.Domain\Adashboard.Domain.csproj" />
     <ProjectReference Include="..\Adashboard.Data\Adashboard.Data.csproj" />
+    <ProjectReference Include="..\Adashboard.Client\Adashboard.Client.csproj" />
   </ItemGroup>
 
 </Project>

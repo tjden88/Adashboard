@@ -1,11 +1,10 @@
-@using Adashboard.Domain.Models
 @*
     Диалог общих настроек dashboard.
 
     Сейчас здесь редактируются только заголовок и описание: они хранятся в раскладке
-    (DashboardLayout) и сохраняются через API вместе с ней. Прежние настройки сайта
-    (тема, показ логотипа, интервал проверки) вынесены в отдельную задачу и пока
-    зашиты константами на клиенте, поэтому в этом диалоге их нет.
+    (DashboardLayout) и сохраняются отдельным запросом PUT /api/layout/info. Прежние
+    настройки сайта (тема, показ логотипа, интервал проверки) вынесены в отдельную
+    задачу и пока зашиты константами на клиенте, поэтому в этом диалоге их нет.
 *@
 
 <form class="settings-dialog" @onsubmit="Save" @onsubmit:preventDefault>
@@ -31,9 +30,14 @@
                @oninput="args => _description = args.Value?.ToString() ?? string.Empty" />
     </div>
 
+    @if (_error is not null)
+    {
+        <p class="text-danger" role="alert">@_error</p>
+    }
+
     <div class="settings-dialog__actions">
-        <button type="submit" class="btn btn-primary">
-            <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>Сохранить
+        <button type="submit" class="btn btn-primary" disabled="@_isSaving">
+            <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>@(_isSaving ? "Сохранение..." : "Сохранить")
         </button>
     </div>
 </form>
@@ -41,6 +45,8 @@
 @code {
     private string _title = string.Empty;
     private string _description = string.Empty;
+    private string? _error;
+    private bool _isSaving;
 
     /// <summary>Раскладка, заголовок и описание которой редактируются.</summary>
     [Parameter, EditorRequired]
@@ -58,9 +64,31 @@
 
     private async Task Save()
     {
-        // Пустые значения сохраняем как есть: пользователь может намеренно очистить их.
-        Layout.Title = _title.Trim();
-        Layout.Description = _description.Trim();
-        await OnSave.InvokeAsync();
+        _error = null;
+
+        // API требует непустой заголовок: проверяем до запроса, чтобы показать понятное сообщение.
+        var title = _title.Trim();
+        if (title.Length == 0)
+        {
+            _error = "Укажите заголовок dashboard.";
+            return;
+        }
+
+        _isSaving = true;
+
+        try
+        {
+            Layout.Title = title;
+            Layout.Description = _description.Trim();
+            await OnSave.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isSaving = false;
+        }
     }
 }

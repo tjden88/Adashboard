@@ -10,15 +10,27 @@
 @using Refit
 @using System.Collections.Concurrent
 @using Adashboard.Client.Services
-@using Adashboard.Domain.Models
 
 <PageTitle>@PageTitleText</PageTitle>
 
 @if (!_isLoaded)
 {
-    <div class="dashboard-loading" role="status" aria-live="polite" aria-label="Загрузка dashboard">
-        <span class="dashboard-loading__spinner" aria-hidden="true"></span>
-    </div>
+    if (_loadError is null)
+    {
+        <div class="dashboard-loading" role="status" aria-live="polite" aria-label="Загрузка dashboard">
+            <span class="dashboard-loading__spinner" aria-hidden="true"></span>
+        </div>
+    }
+    else
+    {
+        @* Понятное состояние ошибки с возможностью повторить загрузку. *@
+        <div class="dashboard-loading" role="alert">
+            <p class="text-danger">@_loadError</p>
+            <button type="button" class="btn btn-primary" @onclick="RetryLoadAsync">
+                <i class="fa-solid fa-rotate-right" aria-hidden="true"></i> Повторить
+            </button>
+        </div>
+    }
 }
 else
 {
@@ -60,9 +72,10 @@ else
         </header>
 
         <div class="dashboard-grid" id="dashboard-grid">
-            @foreach (var category in _categories)
+            @foreach (var category in OrderedCategories)
             {
                 <Category @key="category.Id" Model="@category"
+                          Cards="@GetCards(category.Id)"
                           EditRequested="category => OpenEditCategoryDialog(category)"
                           AddCardRequested="category => OpenAddCardDialog(category)"
                           DeleteRequested="category => OpenDeleteCategoryConfirm(category)"
@@ -74,12 +87,19 @@ else
 }
 
 @code {
+    // Информационная часть раскладки (заголовок и описание). Хранится отдельно от категорий
+    // и карточек: их API отдаёт плоскими списками (см. DashboardLayoutReadModel).
     private DashboardLayout _layout = new()
     {
         Id = 1
     };
 
-    private IEnumerable<DashboardCategory> _categories => _layout.Categories.OrderBy(x => x.Order);
+    // Плоские списки, полученные из read-модели. Карточки хранят ссылку на категорию
+    // через DashboardCategoryId, поэтому отдельная вложенная структура не нужна.
+    private readonly List<DashboardCategory> _categories = [];
+    private readonly List<DashboardCard> _cards = [];
+
+    private IEnumerable<DashboardCategory> OrderedCategories => _categories.OrderBy(x => x.Order);
 
     // Заголовок вкладки браузера повторяет заголовок в хедере, а при пустом значении — «Adashboard».
     private string PageTitleText => string.IsNullOrWhiteSpace(_layout.Title) ? "Adashboard" : _layout.Title;
@@ -93,6 +113,9 @@ else
     private Task? _healthLoop;
     private bool _isLoaded;
     private bool _dragAndDropInitialized;
+
+    // Текст ошибки загрузки раскладки: пока он задан, вместо дашборда показывается сообщение с кнопкой повтора.
+    private string? _loadError;
 
     // Настройки сайта пока зашиты в клиенте: их вынесение в отдельное хранилище — отдельная задача.
     private const bool ShowLogo = true;
@@ -110,6 +133,10 @@ else
     private void OnEditModeChanged() => InvokeAsync(StateHasChanged);
 
     private void ToggleEditMode() => EditModeService.Toggle();
+
+    // Карточки указанной категории, упорядоченные по Position.
+    private IReadOnlyList<DashboardCard> GetCards(int categoryId)
+        => _cards.Where(x => x.DashboardCategoryId == categoryId).OrderBy(x => x.Position).ToList();
 
     private ServiceHealthResult GetHealthResult(DashboardCard card)
         => _health.TryGetValue(card.Id, out var result) ? result : ServiceHealthResult.Unknown;
@@ -163,8 +190,7 @@ else
 
     private async Task CheckAllCardsAsync(CancellationToken cancellationToken)
     {
-        var cards = _layout.Categories
-            .SelectMany(x => x.Cards)
+        var cards = _cards
             .Where(x => x.StatusMode != CardStatusMode.None)
             .ToList();
 
@@ -247,14 +273,9 @@ else
             _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/dashboard.js");
             _dotNetRef = DotNetObjectReference.Create(this);
 
-            await LoadLayoutAsync();
             await _module.InvokeVoidAsync("initializeTheme", DefaultThemeMode);
 
-            NormalizeLayout();
-
-            _isLoaded = true;
-            StateHasChanged();
-            await StartHealthLoopAsync();
+            await TryLoadAsync();
             return;
         }
 
@@ -270,6 +291,10 @@ else
         }
     }
 
+    // ---------------------------------------------------------------
+    // Настройки раскладки.
+    // ---------------------------------------------------------------
+
     private void OpenSettings()
     {
         var parameters = new Dictionary<string, object?>
@@ -283,11 +308,15 @@ else
 
     private async Task OnSettingsSavedAsync()
     {
-        // Диалог уже изменил заголовок и описание раскладки: остаётся сохранить их.
-        await SaveLayoutAsync();
+        // Диалог уже изменил заголовок и описание раскладки: остаётся сохранить их через API.
+        await SaveLayoutInfoAsync();
         await InvokeAsync(StateHasChanged);
         DialogService.Close();
     }
+
+    // ---------------------------------------------------------------
+    // Категории: создание, изменение, удаление.
+    // ---------------------------------------------------------------
 
     private void OpenAddCategoryDialog()
     {
@@ -312,29 +341,40 @@ else
 
     private async Task AddCategory(DashboardCategory category)
     {
-        // Id больше, чем у всех существующих: раскладка сохраняется целиком, поэтому
-        // идентификатор стабильно переживает перезапись.
-        category.Id = _layout.Categories.Count > 0 ? _layout.Categories.Max(x => x.Id) + 1 : 1;
-        category.DashboardLayoutId = _layout.Id;
-        category.Order = _layout.Categories.Count > 0 ? _layout.Categories.Max(x => x.Order) + 1 : 0;
-        _layout.Categories.Add(category);
+        // Новую категорию ставим в конец: порядок задаётся явно, идентификатор назначит сервер.
+        category.Order = _categories.Count > 0 ? _categories.Max(x => x.Order) + 1 : 0;
 
-        await SaveLayoutAsync();
-        await InvokeAsync(StateHasChanged);
-        DialogService.Close();
+        try
+        {
+            var created = await DashboardApi.CreateCategoryAsync(category);
+            _categories.Add(created);
+            await InvokeAsync(StateHasChanged);
+            DialogService.Close();
+        }
+        catch (ApiException ex)
+        {
+            Logger.LogWarning(ex, "Не удалось создать категорию. Код: {StatusCode}.", ex.StatusCode);
+        }
     }
 
     private async Task SaveCategory(DashboardCategory category)
     {
-        await SaveLayoutAsync();
-        await InvokeAsync(StateHasChanged);
-        DialogService.Close();
+        try
+        {
+            await DashboardApi.UpdateCategoryAsync(category.Id, category);
+            await InvokeAsync(StateHasChanged);
+            DialogService.Close();
+        }
+        catch (ApiException ex)
+        {
+            Logger.LogWarning(ex, "Не удалось изменить категорию {CategoryId}. Код: {StatusCode}.", category.Id, ex.StatusCode);
+        }
     }
 
     private async Task OpenDeleteCategoryConfirm(DashboardCategory category)
     {
         // Пустую категорию удаляем сразу: подтверждать нечего.
-        if (category.Cards.Count == 0)
+        if (!_cards.Any(x => x.DashboardCategoryId == category.Id))
         {
             await DeleteCategory(category);
             return;
@@ -352,38 +392,41 @@ else
 
     private async Task DeleteCategory(DashboardCategory category)
     {
-        // Вместе с категорией удаляем файлы пользовательских иконок всех её карточек.
-        foreach (var card in category.Cards)
+        // Вместе с категорией удаляем файлы пользовательских иконок всех её карточек:
+        // сервер чистит только записи БД, файлы изображений лежат отдельно.
+        foreach (var card in _cards.Where(x => x.DashboardCategoryId == category.Id).ToList())
         {
             await TryDeleteCardImageAsync(card.Id);
         }
 
-        _layout.Categories.Remove(category);
-
-        var ordered = _layout.Categories.OrderBy(x => x.Order).ToList();
-        for (var i = 0; i < ordered.Count; i++)
+        try
         {
-            ordered[i].Order = i;
+            await DashboardApi.DeleteCategoryAsync(category.Id);
+        }
+        catch (ApiException ex)
+        {
+            Logger.LogWarning(ex, "Не удалось удалить категорию {CategoryId}. Код: {StatusCode}.", category.Id, ex.StatusCode);
+            return;
         }
 
-        await SaveLayoutAsync();
+        _cards.RemoveAll(x => x.DashboardCategoryId == category.Id);
+        _categories.RemoveAll(x => x.Id == category.Id);
         await InvokeAsync(StateHasChanged);
     }
 
+    // ---------------------------------------------------------------
+    // Карточки: создание, изменение, удаление.
+    // Сохранение карточки (включая изображение-иконку) выполняет сам диалог:
+    // он знает, какую иконку выбрал пользователь. Здесь мы лишь обновляем список.
+    // ---------------------------------------------------------------
+
     private void OpenAddCardDialog(DashboardCategory category)
     {
-        // Идентификатор резервируется заранее: он нужен для имени файла пользовательской иконки.
-        var nextCardId = _layout.Categories
-            .SelectMany(x => x.Cards)
-            .Select(x => x.Id)
-            .DefaultIfEmpty(0)
-            .Max() + 1;
-
         var parameters = new Dictionary<string, object?>
         {
             [nameof(CardDialog.CategoryId)] = category.Id,
-            [nameof(CardDialog.CardId)] = nextCardId,
-            [nameof(CardDialog.OnSave)] = EventCallback.Factory.Create<DashboardCard>(this, AddCard)
+            [nameof(CardDialog.Position)] = NextCardPosition(category.Id),
+            [nameof(CardDialog.OnSave)] = EventCallback.Factory.Create<DashboardCard>(this, UpsertCard)
         };
 
         DialogService.Show<CardDialog>("Добавить карточку", parameters, closeOnOverlayClick: false);
@@ -394,50 +437,32 @@ else
         var parameters = new Dictionary<string, object?>
         {
             [nameof(CardDialog.Card)] = card,
-            [nameof(CardDialog.OnSave)] = EventCallback.Factory.Create<DashboardCard>(this, SaveCard),
+            [nameof(CardDialog.OnSave)] = EventCallback.Factory.Create<DashboardCard>(this, UpsertCard),
             [nameof(CardDialog.OnDelete)] = EventCallback.Factory.Create<DashboardCard>(this, OpenDeleteCardConfirm)
         };
 
         DialogService.Show<CardDialog>($"Редактировать карточку: {card.Title}", parameters, closeOnOverlayClick: false);
     }
 
-    private async Task AddCard(DashboardCard card)
+    private async Task UpsertCard(DashboardCard card)
     {
-        var category = _layout.Categories.FirstOrDefault(x => x.Id == card.DashboardCategoryId);
-        if (category is null)
+        // Диалог уже сохранил карточку на сервере: добавим новую или заменим изменённую в списке.
+        var index = _cards.FindIndex(x => x.Id == card.Id);
+        if (index >= 0)
         {
-            DialogService.Close();
-            return;
+            _cards[index] = card;
+        }
+        else
+        {
+            _cards.Add(card);
         }
 
-        // Id больше, чем у всех существующих: раскладка сохраняется целиком, поэтому
-        // идентификатор стабильно переживает перезапись. Диалог уже мог зарезервировать
-        // id под файл иконки — тогда используем его.
-        if (card.Id <= 0)
-        {
-            card.Id = _layout.Categories.SelectMany(x => x.Cards).Select(x => x.Id).DefaultIfEmpty(0).Max() + 1;
-        }
-
-        card.Position = category.Cards.Count > 0 ? category.Cards.Max(x => x.Position) + 1 : 0;
-        category.Cards.Add(card);
         _health.TryRemove(card.Id, out _);
 
-        await SaveLayoutAsync();
         await InvokeAsync(StateHasChanged);
         DialogService.Close();
 
-        // Не ждём очередного цикла: проверяем новую карточку сразу.
-        _ = CheckCardNowAsync(card);
-    }
-
-    private async Task SaveCard(DashboardCard card)
-    {
-        _health.TryRemove(card.Id, out _);
-        await SaveLayoutAsync();
-        await InvokeAsync(StateHasChanged);
-        DialogService.Close();
-
-        // Не ждём очередного цикла: проверяем изменённую карточку сразу.
+        // Не ждём очередного цикла: проверяем карточку сразу.
         _ = CheckCardNowAsync(card);
     }
 
@@ -458,18 +483,31 @@ else
     private async Task DeleteCard(DashboardCard card)
     {
         await TryDeleteCardImageAsync(card.Id);
-        _health.TryRemove(card.Id, out _);
 
-        var category = _layout.Categories.FirstOrDefault(x => x.Id == card.DashboardCategoryId);
-        if (category is not null)
+        try
         {
-            category.Cards.Remove(card);
-            AssignCardOrder(category);
+            await DashboardApi.DeleteCardAsync(card.Id);
+        }
+        catch (ApiException ex)
+        {
+            Logger.LogWarning(ex, "Не удалось удалить карточку {CardId}. Код: {StatusCode}.", card.Id, ex.StatusCode);
+            return;
         }
 
-        await SaveLayoutAsync();
+        _cards.RemoveAll(x => x.Id == card.Id);
+        _health.TryRemove(card.Id, out _);
         await InvokeAsync(StateHasChanged);
     }
+
+    private int NextCardPosition(int categoryId)
+    {
+        var positions = _cards.Where(x => x.DashboardCategoryId == categoryId).Select(x => x.Position).ToList();
+        return positions.Count > 0 ? positions.Max() + 1 : 0;
+    }
+
+    // ---------------------------------------------------------------
+    // Переупорядочивание перетаскиванием (drag & drop).
+    // -----------------------------------------------------------------
 
     [JSInvokable]
     public async Task OnCategoriesReordered(int[] orderedCategoryIds)
@@ -483,27 +521,31 @@ else
         try
         {
             var order = 0;
+            var changed = new List<DashboardCategory>();
+
             foreach (var id in orderedCategoryIds)
             {
-                var category = _layout.Categories.FirstOrDefault(x => x.Id == id);
+                var category = _categories.FirstOrDefault(x => x.Id == id);
                 if (category is not null)
                 {
                     category.Order = order;
+                    changed.Add(category);
                     order++;
                 }
             }
 
             // Категории, которых нет в присланном списке, уходят в конец, сохраняя относительный порядок.
-            foreach (var category in _layout.Categories.OrderBy(x => x.Order))
+            foreach (var category in _categories.OrderBy(x => x.Order))
             {
                 if (Array.IndexOf(orderedCategoryIds, category.Id) < 0)
                 {
                     category.Order = order;
+                    changed.Add(category);
                     order++;
                 }
             }
 
-            await SaveLayoutAsync();
+            await PersistCategoryOrderAsync(changed);
         }
         finally
         {
@@ -519,41 +561,18 @@ else
         await _reorderLock.WaitAsync();
         try
         {
-            var source = _layout.Categories.FirstOrDefault(x => x.Id == sourceCategoryId);
-            var target = _layout.Categories.FirstOrDefault(x => x.Id == targetCategoryId);
-            if (source is null || target is null)
+            var cardsById = _cards.ToDictionary(x => x.Id, x => x);
+            var changed = new List<DashboardCard>();
+
+            // Список из DOM авторитетный: он полностью определяет состав и порядок карточек.
+            ApplyCardOrder(sourceCategoryId, sourceCardIds, cardsById, changed);
+
+            if (sourceCategoryId != targetCategoryId)
             {
-                return;
+                ApplyCardOrder(targetCategoryId, targetCardIds, cardsById, changed);
             }
 
-            var cardsById = _layout.Categories
-                .SelectMany(x => x.Cards)
-                .ToDictionary(x => x.Id, x => x);
-
-            // Список из DOM всегда авторитетный и пересобирается целиком: иначе перенесённая
-            // карточка осталась бы сразу в двух категориях и дала дубликат ключа при сохранении.
-            source.Cards = ResolveCards(sourceCardIds, cardsById);
-            foreach (var card in source.Cards)
-            {
-                card.DashboardCategoryId = source.Id;
-            }
-
-            if (!ReferenceEquals(source, target))
-            {
-                target.Cards = ResolveCards(targetCardIds, cardsById);
-                foreach (var card in target.Cards)
-                {
-                    card.DashboardCategoryId = target.Id;
-                }
-            }
-
-            AssignCardOrder(source);
-            if (!ReferenceEquals(source, target))
-            {
-                AssignCardOrder(target);
-            }
-
-            await SaveLayoutAsync();
+            await PersistCardChangesAsync(changed);
         }
         finally
         {
@@ -563,133 +582,114 @@ else
         await InvokeAsync(StateHasChanged);
     }
 
-    private static void AssignCardOrder(DashboardCategory category)
+    private static void ApplyCardOrder(
+        int categoryId,
+        int[] orderedIds,
+        IReadOnlyDictionary<int, DashboardCard> cardsById,
+        List<DashboardCard> changed)
     {
-        var cards = category.Cards.ToList();
-        for (var i = 0; i < cards.Count; i++)
+        for (var i = 0; i < orderedIds.Length; i++)
         {
-            cards[i].Position = i;
+            if (!cardsById.TryGetValue(orderedIds[i], out var card))
+            {
+                continue;
+            }
+
+            card.DashboardCategoryId = categoryId;
+            card.Position = i;
+
+            if (!changed.Contains(card))
+            {
+                changed.Add(card);
+            }
         }
     }
 
-    private static List<DashboardCard> ResolveCards(int[] orderedIds, IReadOnlyDictionary<int, DashboardCard> cardsById)
+    private async Task PersistCategoryOrderAsync(IEnumerable<DashboardCategory> categories)
     {
-        var ordered = new List<DashboardCard>(orderedIds.Length);
-
-        foreach (var id in orderedIds)
-        {
-            if (cardsById.TryGetValue(id, out var card))
-            {
-                ordered.Add(card);
-            }
-        }
-
-        return ordered;
-    }
-
-    private void NormalizeLayout()
-    {
-        var categories = _layout.Categories.ToList();
-
-        for (var categoryIndex = 0; categoryIndex < categories.Count; categoryIndex++)
-        {
-            var category = categories[categoryIndex];
-
-            category.DashboardLayoutId = _layout.Id;
-            category.Width = Math.Clamp(category.Width, 1, 12);
-
-            if (category.Order < 0)
-            {
-                category.Order = categoryIndex;
-            }
-
-            var cards = category.Cards.ToList();
-            for (var cardIndex = 0; cardIndex < cards.Count; cardIndex++)
-            {
-                var card = cards[cardIndex];
-                card.DashboardCategoryId = category.Id;
-
-                if (string.IsNullOrWhiteSpace(card.BackgroundColor))
-                {
-                    card.BackgroundColor = ResolveDefaultBackgroundColor(card.CardImage.IconSource);
-                }
-
-                if (card.Position < 0)
-                {
-                    card.Position = cardIndex;
-                }
-            }
-        }
-
-        if (categories.All(x => x.Order == 0))
-        {
-            for (var i = 0; i < categories.Count; i++)
-            {
-                categories[i].Order = i;
-            }
-        }
-
         foreach (var category in categories)
         {
-            var cards = category.Cards.ToList();
-            if (cards.Count > 0 && cards.All(x => x.Position == 0))
+            try
             {
-                for (var i = 0; i < cards.Count; i++)
-                {
-                    cards[i].Position = i;
-                }
+                await DashboardApi.UpdateCategoryAsync(category.Id, category);
+            }
+            catch (ApiException ex)
+            {
+                Logger.LogWarning(ex, "Не удалось сохранить порядок категории {CategoryId}. Код: {StatusCode}.", category.Id, ex.StatusCode);
             }
         }
     }
 
-    private static string ResolveDefaultBackgroundColor(string iconSource)
+    private async Task PersistCardChangesAsync(IEnumerable<DashboardCard> cards)
     {
-        if (iconSource.Contains("database", StringComparison.OrdinalIgnoreCase))
+        foreach (var card in cards)
         {
-            return "#b91c1c";
+            try
+            {
+                await DashboardApi.UpdateCardAsync(card.Id, card);
+            }
+            catch (ApiException ex)
+            {
+                Logger.LogWarning(ex, "Не удалось сохранить карточку {CardId}. Код: {StatusCode}.", card.Id, ex.StatusCode);
+            }
         }
-
-        if (iconSource.Contains("chart", StringComparison.OrdinalIgnoreCase))
-        {
-            return "#ea580c";
-        }
-
-        if (iconSource.Contains("docker", StringComparison.OrdinalIgnoreCase))
-        {
-            return "#0369a1";
-        }
-
-        if (iconSource.Contains("heart", StringComparison.OrdinalIgnoreCase))
-        {
-            return "#15803d";
-        }
-
-        return "#1e40af";
     }
+
+    // ---------------------------------------------------------------
+    // Загрузка и сохранение данных через API.
+    // ---------------------------------------------------------------
 
     private async Task LoadLayoutAsync()
     {
-        // Refit сам десериализует JSON-ответ в DashboardLayout. null означает,
-        // что API вернуло пустое тело — тогда используем раскладку по умолчанию.
-        _layout = await DashboardApi.GetLayoutAsync() ?? new DashboardLayout { Id = 1 };
+        // Read-модель отдаёт раскладку и плоские списки категорий и карточек.
+        var readModel = await DashboardApi.GetLayoutAsync();
+
+        _layout = readModel?.Layout ?? new DashboardLayout { Id = 1 };
+
+        _categories.Clear();
+        _categories.AddRange(readModel?.Categories ?? []);
+
+        _cards.Clear();
+        _cards.AddRange(readModel?.Cards ?? []);
     }
 
-    private async Task SaveLayoutAsync()
+    // Загружает раскладку, обрабатывая состояния загрузки, ошибки и повтора.
+    private async Task TryLoadAsync()
     {
-        NormalizeLayout();
         try
         {
-            await DashboardApi.SaveLayoutAsync(_layout);
+            await LoadLayoutAsync();
+            _loadError = null;
+            _isLoaded = true;
+
+            StateHasChanged();
+            await StartHealthLoopAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Не удалось загрузить раскладку dashboard.");
+            _loadError = "Не удалось загрузить раскладку. Проверьте соединение с сервером и попробуйте снова.";
+            StateHasChanged();
+        }
+    }
+
+    // Повторная загрузка раскладки после ошибки (кнопка «Повторить»).
+    private Task RetryLoadAsync() => TryLoadAsync();
+
+    private async Task SaveLayoutInfoAsync()
+    {
+        try
+        {
+            await DashboardApi.SaveLayoutInfoAsync(_layout);
         }
         catch (ApiException ex)
         {
-            // Refit выбрасывает ApiException при неуспешном ответе. Оставляем понятное
-            // сообщение с кодом ошибки, как делал прежний HTTP-сервис.
+            // Refit выбрасывает ApiException при неуспешном ответе: оставляем понятное сообщение с кодом.
             throw new InvalidOperationException($"Не удалось сохранить раскладку (код {(int)ex.StatusCode}).", ex);
         }
     }
 
-    // Удаление файла иконки не должно срывать сохранение раскладки: ошибку только логируем.
+    // Удаление файла иконки не должно срывать другие операции: ошибку только логируем.
     private async Task TryDeleteCardImageAsync(int cardId)
     {
         try

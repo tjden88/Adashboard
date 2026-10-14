@@ -1,5 +1,4 @@
 @using Adashboard.Client.Services
-@using Adashboard.Domain.Models
 
 <section class="dashboard-category"
          data-category-id="@Model.Id"
@@ -37,7 +36,7 @@
     </header>
 
     <div class="category-cards" data-category-id="@Model.Id">
-        @foreach (var card in Model.Cards.OrderBy(x => x.Position))
+        @foreach (var card in Cards.OrderBy(x => x.Position))
         {
             <Card @key="card.Id" Model="@card"
                   DesktopColumns="@DesktopWidth"
@@ -52,6 +51,13 @@
 @code {
     [Parameter, EditorRequired]
     public DashboardCategory Model { get; set; } = null!;
+
+    /// <summary>
+    /// Карточки категории. Read-модель API отдаёт их плоским списком, поэтому карточки
+    /// передаются отдельным параметром, а не живут внутри модели категории.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<DashboardCard> Cards { get; set; } = [];
 
     [Parameter, EditorRequired]
     public EventCallback<DashboardCategory> EditRequested { get; set; }
@@ -77,7 +83,9 @@
 
     private Task OnDelete() => DeleteRequested.InvokeAsync(Model);
 
-    private int DesktopWidth => Model.Width;
+    // Ширину категории ограничиваем допустимым диапазоном сетки (1..12), даже если в данных
+    // оказалось некорректное значение: иначе получилась бы нулевая ширина.
+    private int DesktopWidth => Math.Clamp(Model.Width, 1, 12);
 
     private int MediumWidth => GetMediumSpan(DesktopWidth);
 

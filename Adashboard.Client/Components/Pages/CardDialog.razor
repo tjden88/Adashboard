@@ -1,7 +1,6 @@
 @using Refit
 @using System.Text.Json
 @using Adashboard.Client.Services
-@using Adashboard.Domain.Models
 @implements IAsyncDisposable
 @inject IDashboardApi DashboardApi
 @inject PageTitleService PageTitleService
@@ -213,6 +212,11 @@
     private string? _imageError;
     private bool _isSaving;
 
+    // Идентификатор, назначенный сервером при создании карточки. Нужен, если создание
+    // уже прошло, но следующий шаг (загрузка иконки) не удался: при повторе карточку
+    // обновляем, а не создаём заново.
+    private int? _createdCardId;
+
     private bool _isFetchingTitle;
     private string? _titleLookupError;
     private readonly CancellationTokenSource _titleLookupCts = new();
@@ -242,9 +246,9 @@
     [Parameter]
     public int CategoryId { get; set; }
 
-    /// <summary>Идентификатор, зарезервированный для новой карточки (используется для имени файла иконки).</summary>
+    /// <summary>Позиция новой карточки в категории (используется только при создании).</summary>
     [Parameter]
-    public int CardId { get; set; }
+    public int Position { get; set; }
 
     [Parameter, EditorRequired]
     public required EventCallback<DashboardCard> OnSave { get; set; }
@@ -267,14 +271,14 @@
         _isWide = Card.IsWide;
 
         // Изображение-иконка: либо пользовательский файл, либо класс Font Awesome.
-        _useCustomImage = Card.CardImage.IsCustom;
+        _useCustomImage = Card.IsCustomIcon;
         if (_useCustomImage)
         {
-            _existingImagePath = string.IsNullOrWhiteSpace(Card.CardImage.IconSource) ? null : Card.CardImage.IconSource;
+            _existingImagePath = string.IsNullOrWhiteSpace(Card.IconSource) ? null : Card.IconSource;
         }
         else
         {
-            _icon = Card.CardImage.IconSource;
+            _icon = Card.IconSource;
         }
 
         // Схема хранится отдельно от адреса; для старых данных допускаем схему внутри адреса.
@@ -492,104 +496,154 @@
             icon = DefaultIcon;
         }
 
-        var cardId = Card?.Id ?? CardId;
-        var imagePath = _existingImagePath ?? string.Empty;
-
-        if (_useCustomImage)
+        // Пользовательская иконка без файла, ссылки и ранее сохранённого пути не имеет смысла.
+        if (_useCustomImage
+            && _uploadedBytes is null
+            && string.IsNullOrWhiteSpace(_imageUrl)
+            && string.IsNullOrWhiteSpace(_existingImagePath))
         {
-            if (cardId <= 0)
-            {
-                _error = "Не удалось определить карточку для сохранения изображения.";
-                return;
-            }
-
-            _isSaving = true;
-            await InvokeAsync(StateHasChanged);
-            try
-            {
-                if (_uploadedBytes is not null)
-                {
-                    // Refit отправляет файл как multipart-форму. StreamPart оборачивает поток,
-                    // который должен жить до конца запроса, поэтому создаём его здесь и дожидаемся ответа.
-                    using var stream = new MemoryStream(_uploadedBytes);
-                    var file = new StreamPart(stream, $"card-{cardId}", "application/octet-stream");
-                    var response = await DashboardApi.UploadImageAsync(cardId, file);
-                    imagePath = await ReadImagePathAsync(response);
-                }
-                else if (!string.IsNullOrWhiteSpace(_imageUrl))
-                {
-                    var response = await DashboardApi.UploadImageFromUrlAsync(cardId, new { url = _imageUrl.Trim() });
-                    imagePath = await ReadImagePathAsync(response);
-                }
-                else if (string.IsNullOrWhiteSpace(imagePath))
-                {
-                    _imageError = "Укажите ссылку или выберите изображение.";
-                    return;
-                }
-            }
-            catch (InvalidOperationException ex)
-            {
-                _imageError = ex.Message;
-                return;
-            }
-            catch (Exception)
-            {
-                _imageError = "Не удалось сохранить изображение.";
-                return;
-            }
-            finally
-            {
-                _isSaving = false;
-            }
-        }
-        else
-        {
-            // Возврат к встроенной иконке: сохранённый файл больше не нужен.
-            if (cardId > 0)
-            {
-                await TryDeleteCardImageAsync(cardId);
-            }
-
-            imagePath = string.Empty;
-        }
-
-        // Собранная модель иконки: либо пользовательское изображение, либо класс Font Awesome.
-        var cardImage = new CardImage
-        {
-            IsCustom = _useCustomImage,
-            IconSource = _useCustomImage ? imagePath : icon
-        };
-
-        if (Card is null)
-        {
-            // Создание: id зарезервирован родителем, он же назначит порядок.
-            await OnSave.InvokeAsync(new DashboardCard
-            {
-                Id = cardId,
-                DashboardCategoryId = _categoryId,
-                Title = title,
-                Url = url,
-                UrlScheme = scheme,
-                CardImage = cardImage,
-                BackgroundColor = color,
-                StatusMode = _statusMode,
-                IsWide = _isWide
-            });
+            _imageError = "Укажите ссылку или выберите изображение.";
             return;
         }
 
-        Card.IsWide = _isWide;
-        Card.Title = title;
-        Card.Url = url;
-        Card.UrlScheme = scheme;
+        _isSaving = true;
+        await InvokeAsync(StateHasChanged);
 
-        // Меняем существующую модель иконки, а не заменяем её: так сохраняется её идентификатор.
-        Card.CardImage.IsCustom = cardImage.IsCustom;
-        Card.CardImage.IconSource = cardImage.IconSource;
+        try
+        {
+            var card = Card ?? new DashboardCard
+            {
+                DashboardCategoryId = _categoryId,
+                Position = Position
+            };
 
-        Card.BackgroundColor = color;
-        Card.StatusMode = _statusMode;
-        await OnSave.InvokeAsync(Card);
+            // Повторное сохранение после частичного сбоя: карточка уже создана, работаем с её Id.
+            if (Card is null && _createdCardId is > 0)
+            {
+                card.Id = _createdCardId.Value;
+            }
+
+            card.Title = title;
+            card.Url = url;
+            card.UrlScheme = scheme;
+            card.BackgroundColor = color;
+            card.StatusMode = _statusMode;
+            card.IsWide = _isWide;
+
+            if (_useCustomImage)
+            {
+                card.IsCustomIcon = true;
+                card.IconSource = _existingImagePath ?? string.Empty;
+            }
+            else
+            {
+                card.IsCustomIcon = false;
+                card.IconSource = icon;
+            }
+
+            // Новую карточку сначала создаём: только после этого сервер назначит Id,
+            // а он нужен для загрузки файла изображения-иконки.
+            var isNew = card.Id <= 0;
+            if (isNew)
+            {
+                card = await DashboardApi.CreateCardAsync(card);
+                _createdCardId = card.Id;
+            }
+
+            if (_useCustomImage && (_uploadedBytes is not null || !string.IsNullOrWhiteSpace(_imageUrl)))
+            {
+                // Загружаем новое изображение и запоминаем путь, который вернул API.
+                card.IconSource = await UploadIconAsync(card.Id);
+                card.IsCustomIcon = true;
+            }
+            else if (!_useCustomImage && !isNew)
+            {
+                // Возврат к встроенной иконке: сохранённый файл больше не нужен.
+                await TryDeleteCardImageAsync(card.Id);
+            }
+
+            // При создании без пользовательской иконки запись сохранять повторно не нужно.
+            if (!isNew || _useCustomImage)
+            {
+                await DashboardApi.UpdateCardAsync(card.Id, card);
+            }
+
+            _createdCardId = null;
+            await OnSave.InvokeAsync(card);
+        }
+        catch (InvalidOperationException ex)
+        {
+            await RollbackCreatedCardAsync();
+            _error = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            // Если карточку успели создать, а следующий шаг не удался — откатываем её,
+            // чтобы не осталась «фантомная» запись, невидимая в интерфейсе.
+            await RollbackCreatedCardAsync();
+
+            if (ex is ApiException apiEx)
+            {
+                Logger.LogWarning(apiEx, "Сохранение карточки завершилось ошибкой API. Код: {StatusCode}.", apiEx.StatusCode);
+                _error = $"Не удалось сохранить карточку (код {(int)apiEx.StatusCode}).";
+            }
+            else
+            {
+                _error = "Не удалось сохранить карточку.";
+            }
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    /// <summary>
+    /// Удаляет карточку, созданную в рамках текущей неудачной попытки сохранения.
+    /// </summary>
+    /// <remarks>
+    /// Откат нужен, потому что карточку создаём до загрузки иконки, а сам файл — уже после
+    /// появления идентификатора. Если загрузка не удалась, запись без картинки оставлять нельзя.
+    /// </remarks>
+    private async Task RollbackCreatedCardAsync()
+    {
+        if (_createdCardId is not int createdId)
+        {
+            return;
+        }
+
+        _createdCardId = null;
+
+        try
+        {
+            await TryDeleteCardImageAsync(createdId);
+            await DashboardApi.DeleteCardAsync(createdId);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Не удалось откатить создание карточки {CardId}.", createdId);
+        }
+    }
+
+    /// <summary>
+    /// Загружает изображение-иконку для уже сохранённой карточки и возвращает путь к нему.
+    /// </summary>
+    /// <remarks>
+    /// Файл отправляется как multipart-форма, ссылка — как JSON-тело. Поток выбранного файла
+    /// должен жить до конца запроса, поэтому создаётся здесь и не закрывается раньше времени.
+    /// </remarks>
+    private async Task<string> UploadIconAsync(int cardId)
+    {
+        if (_uploadedBytes is not null)
+        {
+            using var stream = new MemoryStream(_uploadedBytes);
+            var file = new StreamPart(stream, $"card-{cardId}", "application/octet-stream");
+            var response = await DashboardApi.UploadImageAsync(cardId, file);
+            return await ReadImagePathAsync(response);
+        }
+
+        var urlResponse = await DashboardApi.UploadImageFromUrlAsync(cardId, new { url = _imageUrl.Trim() });
+        return await ReadImagePathAsync(urlResponse);
     }
 
     private async Task Delete()

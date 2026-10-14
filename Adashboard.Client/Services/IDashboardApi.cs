@@ -1,4 +1,5 @@
 using Adashboard.Domain.Contracts;
+using Adashboard.Domain.ReadModels;
 using Refit;
 
 namespace Adashboard.Client.Services;
@@ -14,23 +15,30 @@ namespace Adashboard.Client.Services;
 /// ручного вызова <c>HttpClient</c> — только описание контракта.
 /// </para>
 /// <para>
-/// Базовый адрес API (например, <c>http://localhost:5024</c>) задаётся один раз при регистрации
-/// клиента в <c>Program.cs</c> через <c>AddRefitClient&lt;IDashboardApi&gt;()</c>. Относительные пути
-/// из атрибутов (например, <c>/api/layout</c>) Refit приклеивает к этому базовому адресу.
+/// Базовый адрес API задаётся один раз при регистрации клиента в <c>Program.cs</c> через
+/// <c>AddRefitGeneratedClient&lt;IDashboardApi&gt;()</c>. Относительные пути из атрибутов
+/// (например, <c>/api/layout</c>) Refit приклеивает к этому базовому адресу.
 /// </para>
 /// <para>
 /// Атрибуты запроса:
 /// <list type="bullet">
 /// <item><description><c>[Get]</c> — HTTP GET, читает данные. Ответ десериализуется в указанный тип.</description></item>
-/// <item><description><c>[Put]</c> — HTTP PUT, полностью заменяет ресурс телом запроса.</description></item>
-/// <item><description><c>[Post]</c> — HTTP POST, создаёт ресурс или отправляет данные на обработку.</description></item>
+/// <item><description><c>[Post]</c> — HTTP POST, создаёт ресурс; сервер возвращает созданную модель с назначенным Id.</description></item>
+/// <item><description><c>[Put]</c> — HTTP PUT, изменяет существующий ресурс (обычно ответ 204 без тела).</description></item>
 /// <item><description><c>[Delete]</c> — HTTP DELETE, удаляет ресурс.</description></item>
 /// <item><description><c>[Body]</c> — помечает параметр как тело запроса (по умолчанию JSON).</description></item>
 /// <item><description><c>[Multipart]</c> и <c>[AliasAs]</c> — отправка файла как <c>multipart/form-data</c>; <c>[AliasAs]</c> задаёт имя поля формы.</description></item>
+/// <item><description><c>[Query]</c> — подставляет значение как параметр строки запроса (<c>?url=...</c>).</description></item>
 /// </list>
 /// </para>
 /// <para>
-/// Фигурные скобки в пути (<c>{cardId}</c>) — это подстановка значений параметров метода в URL.
+/// Фигурные скобки в пути (<c>{id}</c>) — это подстановка значений параметров метода в URL.
+/// </para>
+/// <para>
+/// Важно про модели: API разделяет чтение и запись. Агрегат для отображения отдаёт read-модель
+/// <see cref="DashboardLayoutReadModel"/> (плоские списки категорий и карточек), а команды создания
+/// и изменения принимают плоские контрактные модели <see cref="DashboardCategory"/> и
+/// <see cref="DashboardCard"/>.
 /// </para>
 /// </remarks>
 public interface IDashboardApi
@@ -44,28 +52,109 @@ public interface IDashboardApi
     /// </remarks>
     const long MaxImageBytes = 2 * 1024 * 1024;
 
+    // ---------------------------------------------------------------------
+    // Раскладка (информационная часть: заголовок и описание).
+    // ---------------------------------------------------------------------
+
     /// <summary>
     /// Загружает основную раскладку dashboard (<c>GET /api/layout</c>).
     /// </summary>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns>Раскладка вместе с категориями и карточками; <c>null</c>, если API вернуло пустое тело.</returns>
+    /// <returns>
+    /// Read-модель с информацией о раскладке и плоскими списками категорий и карточек;
+    /// <c>null</c>, если API вернуло пустое тело.
+    /// </returns>
     [Get("/api/layout")]
-    Task<DashboardLayout> GetLayoutAsync(CancellationToken cancellationToken = default);
+    Task<DashboardLayoutReadModel> GetLayoutAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Полностью сохраняет основную раскладку dashboard (<c>PUT /api/layout</c>).
+    /// Изменяет заголовок и описание раскладки (<c>PUT /api/layout/info</c>).
     /// </summary>
-    /// <param name="layout">Раскладка, которой нужно заменить текущую.</param>
+    /// <param name="info">Плоская модель раскладки с новыми полями <c>Title</c> и <c>Description</c>.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
     /// <remarks>
-    /// Возвращаемый тип <see cref="Task"/> без результата: при успешном ответе Refit ничего не возвращает,
-    /// а при ошибке (например, 400) выбрасывает <see cref="ApiException"/>.
+    /// Ответ 204 без тела: Refit не возвращает результат, а при ошибке (например, 400) выбрасывает
+    /// <see cref="ApiException"/>. Категории и карточки этим запросом не затрагиваются.
     /// </remarks>
-    [Put("/api/layout")]
-    Task SaveLayoutAsync([Body] DashboardLayout layout, CancellationToken cancellationToken = default);
+    [Put("/api/layout/info")]
+    Task SaveLayoutInfoAsync([Body] DashboardLayout info, CancellationToken cancellationToken = default);
+
+    // ---------------------------------------------------------------------
+    // Категории: отдельные эндпоинты на создание, изменение и удаление.
+    // ---------------------------------------------------------------------
 
     /// <summary>
-    /// Сохраняет изображение-иконку карточки, загруженное с устройства
+    /// Создаёт категорию (<c>POST /api/categories</c>).
+    /// </summary>
+    /// <param name="category">Плоская модель категории; идентификатор назначает сервер.</param>
+    /// <param name="cancellationToken">Токен отмены операции.</param>
+    /// <returns>Созданная категория с назначенным <c>Id</c>.</returns>
+    [Post("/api/categories")]
+    Task<DashboardCategory> CreateCategoryAsync(
+        [Body] DashboardCategory category,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Изменяет категорию (<c>PUT /api/categories/{id}</c>).
+    /// </summary>
+    /// <param name="id">Идентификатор категории.</param>
+    /// <param name="category">Новые значения полей категории.</param>
+    /// <param name="cancellationToken">Токен отмены операции.</param>
+    [Put("/api/categories/{id}")]
+    Task UpdateCategoryAsync(
+        int id,
+        [Body] DashboardCategory category,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Удаляет категорию вместе с её карточками (<c>DELETE /api/categories/{id}</c>).
+    /// </summary>
+    /// <param name="id">Идентификатор категории.</param>
+    /// <param name="cancellationToken">Токен отмены операции.</param>
+    [Delete("/api/categories/{id}")]
+    Task DeleteCategoryAsync(int id, CancellationToken cancellationToken = default);
+
+    // ---------------------------------------------------------------------
+    // Карточки: отдельные эндпоинты на создание, изменение и удаление.
+    // ---------------------------------------------------------------------
+
+    /// <summary>
+    /// Создаёт карточку в указанной категории (<c>POST /api/cards</c>).
+    /// </summary>
+    /// <param name="card">Плоская модель карточки, включая <c>DashboardCategoryId</c>.</param>
+    /// <param name="cancellationToken">Токен отмены операции.</param>
+    /// <returns>Созданная карточка с назначенным <c>Id</c>.</returns>
+    [Post("/api/cards")]
+    Task<DashboardCard> CreateCardAsync(
+        [Body] DashboardCard card,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Изменяет карточку (<c>PUT /api/cards/{id}</c>).
+    /// </summary>
+    /// <param name="id">Идентификатор карточки.</param>
+    /// <param name="card">Новые значения полей карточки.</param>
+    /// <param name="cancellationToken">Токен отмены операции.</param>
+    [Put("/api/cards/{id}")]
+    Task UpdateCardAsync(
+        int id,
+        [Body] DashboardCard card,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Удаляет карточку (<c>DELETE /api/cards/{id}</c>).
+    /// </summary>
+    /// <param name="id">Идентификатор карточки.</param>
+    /// <param name="cancellationToken">Токен отмены операции.</param>
+    [Delete("/api/cards/{id}")]
+    Task DeleteCardAsync(int id, CancellationToken cancellationToken = default);
+
+    // ---------------------------------------------------------------------
+    // Изображения-иконки карточек.
+    // ---------------------------------------------------------------------
+
+    /// <summary>
+    /// Сохраняет изображение-иконку, загруженное с устройства
     /// (<c>POST /api/cards/{cardId}/image</c>, multipart/form-data, поле <c>file</c>).
     /// </summary>
     /// <param name="cardId">Идентификатор карточки.</param>
@@ -105,18 +194,23 @@ public interface IDashboardApi
     [Delete("/api/cards/{cardId}/image")]
     Task DeleteImageAsync(int cardId, CancellationToken cancellationToken = default);
 
+    // ---------------------------------------------------------------------
+    // Серверные проверки: доступность сервиса и заголовок страницы.
+    // ---------------------------------------------------------------------
+
     /// <summary>
     /// Проверяет доступность сервиса карточки на стороне API (<c>GET /api/probe/health/{cardId}</c>).
     /// </summary>
     /// <param name="cardId">Идентификатор карточки.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns>Ответ со строковым состоянием и пояснением.</returns>
+    /// <returns>Ответ с состоянием сервиса и пояснением.</returns>
     /// <remarks>
+    /// Возвращается read-модель API <see cref="HealthCheckResult"/>: отдельный транспортный DTO не заводим.
     /// API сам находит карточку по идентификатору и обращается к её сервису. Браузерный клиент
     /// не может сделать это напрямую: целевые сервисы не отдают CORS-заголовки.
     /// </remarks>
     [Get("/api/probe/health/{cardId}")]
-    Task<CardHealthResponse> CheckHealthAsync(int cardId, CancellationToken cancellationToken = default);
+    Task<HealthCheckResult?> CheckHealthAsync(int cardId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Запрашивает заголовок страницы у API (<c>GET /api/probe/title</c>).
@@ -130,13 +224,6 @@ public interface IDashboardApi
     [Get("/api/probe/title")]
     Task<CardTitleResponse> GetTitleAsync([Query] string url, CancellationToken cancellationToken = default);
 }
-
-/// <summary>
-/// Ответ API на проверку доступности карточки.
-/// </summary>
-/// <param name="Status">Строковое состояние: <c>online</c>, <c>offline</c> или <c>unknown</c>.</param>
-/// <param name="Message">Короткое пояснение исхода для подсказки на карточке.</param>
-public sealed record CardHealthResponse(string Status, string? Message);
 
 /// <summary>
 /// Ответ API на запрос заголовка страницы.
