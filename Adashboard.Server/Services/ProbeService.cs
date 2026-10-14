@@ -31,7 +31,6 @@ public sealed class ProbeService(
     HttpClient client,
     ILogger<ProbeService> logger)
 {
-    private const string HttpClientName = "Probe";
     private const int MaxHtmlBytes = 256 * 1024;
     private const int MaxTitleLength = 120;
 

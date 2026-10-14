@@ -46,6 +46,19 @@ public sealed class HealthCheckService(
 {
     private const string ErrorMessage = "Не удалось проверить статус сервиса.";
 
+    /// <summary>Максимальное число одновременных проверок доступности.</summary>
+    private const int MaxConcurrentChecks = 6;
+
+    /// <summary>
+    /// Общий ограничитель параллельных проверок внутри одного circuit.
+    /// </summary>
+    /// <remarks>
+    /// Каждая карточка проверяет себя сама и независимо от остальных, поэтому без ограничения
+    /// десятки карточек начали бы опрашивать сервер одновременно. Семафор сдерживает поток
+    /// запросов, чтобы не перегружать сеть и API.
+    /// </remarks>
+    private readonly SemaphoreSlim _concurrencyLimiter = new(MaxConcurrentChecks, MaxConcurrentChecks);
+
     /// <summary>
     /// Выполняет одну проверку доступности карточки по её идентификатору.
     /// </summary>
@@ -54,6 +67,8 @@ public sealed class HealthCheckService(
     /// <returns>Результат проверки: состояние и пояснение от API.</returns>
     public async Task<ServiceHealthResult> CheckAsync(int cardId, CancellationToken cancellationToken = default)
     {
+        // Занимаем «слот» до начала запроса: проверок одновременно не больше MaxConcurrentChecks.
+        await _concurrencyLimiter.WaitAsync(cancellationToken);
         try
         {
             var response = await dashboardApi.CheckHealthAsync(cardId, cancellationToken);
@@ -83,6 +98,10 @@ public sealed class HealthCheckService(
         {
             logger.LogWarning("Проверка карточки {CardId} завершилась сетевой ошибкой: {Message}", cardId, ex.Message);
             return new ServiceHealthResult(ServiceHealthState.Unknown, ErrorMessage);
+        }
+        finally
+        {
+            _concurrencyLimiter.Release();
         }
     }
 

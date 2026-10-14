@@ -104,9 +104,17 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger,
     /// <param name="category">Контрактная модель создаваемой категории.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
     /// <returns>Созданная категория с назначенным идентификатором.</returns>
-    public async Task<DashboardCategory> CreateCategoryAsync(DashboardCategory category, CancellationToken cancellationToken = default)
+    public async Task<DashboardCategory?> CreateCategoryAsync(DashboardCategory category, CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Начато создание категории {Title}.", category.Title);
+
+        // Проверим существование раскладки.
+        var layoutExists = await db.Layouts.AnyAsync(x => x.Id == category.DashboardLayoutId, cancellationToken);
+        if (!layoutExists)
+        {
+            logger.LogWarning("Создание категории отклонено: раскладка dashboard с id {LayoutId} не найдена.", category.DashboardLayoutId);
+            return null;
+        }
 
         var entity = category.Adapt<DashboardCategoryEntity>();
         // Идентификатор назначает EF Core

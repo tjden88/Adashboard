@@ -32,32 +32,35 @@ public class CategoriesController(
         }
 
         var created = await layoutService.CreateCategoryAsync(category, cancellationToken);
+        if (created is null)
+        {
+            return BadRequest();
+        }
+
         return Created($"/api/categories/{created.Id}", created);
     }
 
     /// <summary>
     /// Изменяет существующую категорию.
     /// </summary>
-    /// <param name="id">Идентификатор категории.</param>
     /// <param name="category">Тело запроса с новыми данными категории.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    [HttpPut("{id:int}")]
+    [HttpPut]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Update(
-        int id,
         [FromBody] DashboardCategory? category,
         CancellationToken cancellationToken)
     {
         if (category is null || string.IsNullOrWhiteSpace(category.Title))
         {
-            logger.LogWarning("Изменение категории {CategoryId} отклонено: некорректное тело запроса.", id);
+            logger.LogWarning("Изменение категории {CategoryId} отклонено: некорректное тело запроса.", category?.Id);
             return BadRequest(new { error = "Укажите название категории." });
         }
 
-        var updated = await layoutService.UpdateCategoryAsync(id, category, cancellationToken);
-        return updated ? NoContent() : NotFound(new { error = "Категория не найдена." });
+        var updated = await layoutService.UpdateCategoryAsync(category, cancellationToken);
+        return updated ? NoContent() : NotFound();
     }
 
     /// <summary>
@@ -71,6 +74,6 @@ public class CategoriesController(
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
         var deleted = await layoutService.DeleteCategoryAsync(id, cancellationToken);
-        return deleted ? NoContent() : NotFound(new { error = "Категория не найдена." });
+        return deleted ? NoContent() : NotFound();
     }
 }

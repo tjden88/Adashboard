@@ -1,4 +1,20 @@
+@using Adashboard.Client.Components.Pages
 @using Adashboard.Client.Services
+@using Refit
+@inject IDashboardApi DashboardApi
+@inject DialogService DialogService
+@inject ILogger<Category> Logger
+
+@*
+    Одна категория dashboard вместе со своими ссылками.
+
+    Компонент сам управляет карточками категории: открывает диалоги создания и изменения,
+    обращается к API при удалении и сообщает родителю (DashboardView) об изменениях через
+    CardSaved/CardDeleted, чтобы общий список карточек оставался актуальным.
+
+    Операции с самой категорией (изменение/удаление) остаются за родителем: здесь только
+    поднимаются события EditRequested и DeleteRequested.
+*@
 
 <section class="dashboard-category"
          data-category-id="@Model.Id"
@@ -16,7 +32,7 @@
             <div class="category-actions">
                 <button type="button"
                         class="btn btn-icon btn-sm btn-success"
-                        @onclick="OnAddCard"
+                        @onclick="OpenAddCardDialog"
                         aria-label="Добавить ссылку в категорию @Model.Title"
                         title="Добавить ссылку">
                     <i class="fa-solid fa-plus" aria-hidden="true"></i>
@@ -45,8 +61,7 @@
                       DesktopColumns="@DesktopWidth"
                       MediumColumns="@MediumWidth"
                       MobileColumns="@MobileWidth"
-                      Health="@(HealthLookup?.Invoke(card) ?? ServiceHealthResult.Unknown)"
-                      EditRequested="CardEditRequested" />
+                      EditRequested="OpenEditCardDialog" />
             }
         </div>
     </div>
@@ -69,27 +84,23 @@
     [Parameter, EditorRequired]
     public IReadOnlyList<DashboardCard> Cards { get; set; } = [];
 
+    /// <summary>Запрос на изменение самой категории (выполняет родитель).</summary>
     [Parameter, EditorRequired]
     public EventCallback<DashboardCategory> EditRequested { get; set; }
 
-    [Parameter, EditorRequired]
-    public EventCallback<DashboardCategory> AddCardRequested { get; set; }
-
+    /// <summary>Запрос на удаление самой категории (выполняет родитель).</summary>
     [Parameter, EditorRequired]
     public EventCallback<DashboardCategory> DeleteRequested { get; set; }
 
+    /// <summary>Уведомление родителя о созданной или изменённой карточке.</summary>
     [Parameter, EditorRequired]
-    public EventCallback<DashboardCard> CardEditRequested { get; set; }
+    public EventCallback<DashboardCard> CardSaved { get; set; }
 
-    /// <summary>
-    /// Поставщик результата проверки доступности карточки. Если не задан, состояние считается неизвестным.
-    /// </summary>
-    [Parameter]
-    public Func<DashboardCard, ServiceHealthResult>? HealthLookup { get; set; }
+    /// <summary>Уведомление родителя об удалённой карточке.</summary>
+    [Parameter, EditorRequired]
+    public EventCallback<DashboardCard> CardDeleted { get; set; }
 
     private Task OnEdit() => EditRequested.InvokeAsync(Model);
-
-    private Task OnAddCard() => AddCardRequested.InvokeAsync(Model);
 
     private Task OnDelete() => DeleteRequested.InvokeAsync(Model);
 
@@ -104,5 +115,92 @@
     private static int GetMediumSpan(int desktopWidth)
     {
         return Math.Clamp((int)Math.Round(desktopWidth / 2d, MidpointRounding.AwayFromZero), 1, 6);
+    }
+
+    // ---------------------------------------------------------------
+    // Карточки: создание, изменение и удаление.
+    // Сохранение карточки (включая изображение-иконку) выполняет сам диалог:
+    // он знает, какую иконку выбрал пользователь. Здесь мы лишь обновляем список у родителя.
+    // ---------------------------------------------------------------
+
+    private void OpenAddCardDialog()
+    {
+        var parameters = new Dictionary<string, object?>
+        {
+            [nameof(CardDialog.CategoryId)] = Model.Id,
+            [nameof(CardDialog.Position)] = NextCardPosition(),
+            [nameof(CardDialog.OnSave)] = EventCallback.Factory.Create<DashboardCard>(this, OnCardSavedAsync)
+        };
+
+        DialogService.Show<CardDialog>("Добавить карточку", parameters, closeOnOverlayClick: false);
+    }
+
+    private void OpenEditCardDialog(DashboardCard card)
+    {
+        var parameters = new Dictionary<string, object?>
+        {
+            [nameof(CardDialog.Card)] = card,
+            [nameof(CardDialog.OnSave)] = EventCallback.Factory.Create<DashboardCard>(this, OnCardSavedAsync),
+            [nameof(CardDialog.OnDelete)] = EventCallback.Factory.Create<DashboardCard>(this, OpenDeleteCardConfirm)
+        };
+
+        DialogService.Show<CardDialog>($"Редактировать карточку: {card.Title}", parameters, closeOnOverlayClick: false);
+    }
+
+    private async Task OnCardSavedAsync(DashboardCard card)
+    {
+        // Передаём карточку родителю: он обновит общий список и перерисует сетку.
+        await CardSaved.InvokeAsync(card);
+        DialogService.Close();
+    }
+
+    private void OpenDeleteCardConfirm(DashboardCard card)
+    {
+        var displayName = string.IsNullOrWhiteSpace(card.Title) ? card.Url : card.Title;
+
+        var parameters = new Dictionary<string, object?>
+        {
+            [nameof(ConfirmDialog.Message)] = $"Удалить ссылку «{displayName}»?",
+            [nameof(ConfirmDialog.ConfirmLabel)] = "Удалить",
+            [nameof(ConfirmDialog.OnConfirm)] = EventCallback.Factory.Create(this, () => DeleteCard(card))
+        };
+
+        DialogService.Show<ConfirmDialog>("Подтверждение удаления", parameters, closeOnOverlayClick: true);
+    }
+
+    private async Task DeleteCard(DashboardCard card)
+    {
+        await TryDeleteCardImageAsync(card.Id);
+
+        try
+        {
+            await DashboardApi.DeleteCardAsync(card.Id);
+        }
+        catch (ApiException ex)
+        {
+            Logger.LogWarning(ex, "Не удалось удалить карточку {CardId}. Код: {StatusCode}.", card.Id, ex.StatusCode);
+            return;
+        }
+
+        await CardDeleted.InvokeAsync(card);
+    }
+
+    private int NextCardPosition()
+    {
+        var positions = Cards.Select(x => x.Position).ToList();
+        return positions.Count > 0 ? positions.Max() + 1 : 0;
+    }
+
+    // Удаление файла иконки не должно срывать другие операции: ошибку только логируем.
+    private async Task TryDeleteCardImageAsync(int cardId)
+    {
+        try
+        {
+            await DashboardApi.DeleteImageAsync(cardId);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Не удалось удалить изображение карточки {CardId} через API.", cardId);
+        }
     }
 }

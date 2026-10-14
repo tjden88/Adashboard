@@ -1,6 +1,19 @@
 @using Adashboard.Client.Services
+@implements IAsyncDisposable
 @inject EditModeService EditModeService
 @inject DashboardApiOptions ApiOptions
+@inject HealthCheckService HealthCheckService
+@inject ILogger<Card> Logger
+
+@*
+    Одна карточка-ссылка dashboard.
+
+    Карточка сама следит за своим статусом: пока она есть на странице, компонент периодически
+    просит API проверить сервис, на который ведёт ссылка, и показывает индикатор. Так проверка
+    не зависит от родителя и «умирает» вместе с карточкой при её удалении.
+
+    Отображение ссылки (схема, иконка, цвета) и переход по ней тоже описаны здесь.
+*@
 
 <a class="dashboard-card"
    data-card-id="@Model.Id"
@@ -44,6 +57,26 @@
 </a>
 
 @code {
+    // Как часто повторять проверку статуса. Позже интервал придёт из настроек сайта.
+    private const int HealthCheckIntervalSeconds = 30;
+
+    /// <summary>
+    /// Результат последней проверки доступности: состояние и пояснение от API.
+    /// </summary>
+    private ServiceHealthResult _health = ServiceHealthResult.Unknown;
+
+    private readonly CancellationTokenSource _healthCts = new();
+
+    // «Будильник» цикла проверок: после редактирования карточки проверяем её, не дожидаясь
+    // конца текущего интервала. Пока счётчик равен нулю, цикл просто спит до тайм-аута.
+    private readonly SemaphoreSlim _wake = new(0);
+
+    private Task? _healthLoop;
+
+    // «Отпечаток» данных карточки, влияющих на проверку. Если он изменился (например, после
+    // редактирования), статус проверяем сразу, не дожидаясь очередного интервала.
+    private string? _modelSignature;
+
     [Parameter, EditorRequired]
     public DashboardCard Model { get; set; } = null!;
 
@@ -58,12 +91,6 @@
 
     [Parameter, EditorRequired]
     public EventCallback<DashboardCard> EditRequested { get; set; }
-
-    /// <summary>
-    /// Результат последней проверки доступности: состояние и пояснение от API.
-    /// </summary>
-    [Parameter]
-    public ServiceHealthResult Health { get; set; } = ServiceHealthResult.Unknown;
 
     // Куда ведёт карточка: схема из модели прибавляется к адресу.
     private string Href => UrlSchemePrefix(Model.UrlScheme) + Model.Url;
@@ -80,14 +107,14 @@
         _ => string.Empty
     };
 
-    private string StatusClass => Health.State switch
+    private string StatusClass => _health.State switch
     {
         ServiceHealthState.Online => "online",
         ServiceHealthState.Offline => "offline",
         _ => "unknown"
     };
 
-    private string StatusLabel => Health.State switch
+    private string StatusLabel => _health.State switch
     {
         ServiceHealthState.Online => "Сервис доступен",
         ServiceHealthState.Offline => "Сервис недоступен",
@@ -95,7 +122,7 @@
     };
 
     // В подсказке показываем пояснение API, а при его отсутствии — обычную подпись состояния.
-    private string StatusTitle => string.IsNullOrWhiteSpace(Health.Message) ? StatusLabel : Health.Message;
+    private string StatusTitle => string.IsNullOrWhiteSpace(_health.Message) ? StatusLabel : _health.Message;
 
     private int CardSpanDesktop => GetCardSpan(Model.IsWide, DesktopColumns);
 
@@ -113,5 +140,111 @@
 
         // Широкая карточка всегда занимает две колонки, но не больше доступного числа колонок категории.
         return isWide ? Math.Min(2, safeColumns) : 1;
+    }
+
+    protected override void OnParametersSet()
+    {
+        var signature = $"{Model.StatusMode}|{Model.UrlScheme}|{Model.Url}";
+        if (signature == _modelSignature)
+        {
+            return;
+        }
+
+        var isFirst = _modelSignature is null;
+        _modelSignature = signature;
+
+        // При первой установке параметров цикл ещё не запущен (он стартует после первого
+        // рендера), поэтому будим его только при изменениях: данные карточки поменялись —
+        // статус сбрасываем и проверяем сразу, не дожидаясь очередного интервала.
+        if (!isFirst)
+        {
+            _health = ServiceHealthResult.Unknown;
+
+            if (_wake.CurrentCount == 0)
+            {
+                _wake.Release();
+            }
+        }
+    }
+
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _healthLoop = RunHealthLoopAsync(_healthCts.Token);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    // Периодическая проверка: сразу после появления карточки и далее с заданным интервалом.
+    // Цикл один на карточку, поэтому одновременных проверок не бывает.
+    private async Task RunHealthLoopAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await CheckHealthAsync(cancellationToken);
+
+                // Спим до следующего интервала или до «будильника» после редактирования.
+                await _wake.WaitAsync(TimeSpan.FromSeconds(HealthCheckIntervalSeconds), cancellationToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Штатное завершение цикла: карточка удалена или страница ушла.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Цикл проверки статуса карточки {CardId} остановлен из-за ошибки.", Model.Id);
+        }
+    }
+
+    private async Task CheckHealthAsync(CancellationToken cancellationToken)
+    {
+        // Карточка без индикатора не проверяется.
+        if (Model.StatusMode == CardStatusMode.None)
+        {
+            return;
+        }
+
+        try
+        {
+            var result = await HealthCheckService.CheckAsync(Model.Id, cancellationToken);
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            _health = result;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Не удалось обновить статус карточки {CardId}.", Model.Id);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _healthCts.Cancel();
+
+        if (_healthLoop is not null)
+        {
+            try
+            {
+                await _healthLoop;
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
+        _healthCts.Dispose();
+        _wake.Dispose();
     }
 }

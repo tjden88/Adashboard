@@ -95,14 +95,12 @@ public interface IDashboardApi
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Изменяет категорию (<c>PUT /api/categories/{id}</c>).
+    /// Изменяет категорию (<c>PUT /api/categories</c>).
     /// </summary>
-    /// <param name="id">Идентификатор категории.</param>
     /// <param name="category">Новые значения полей категории.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    [Put("/api/categories/{id}")]
+    [Put("/api/categories")]
     Task UpdateCategoryAsync(
-        int id,
         [Body] DashboardCategory category,
         CancellationToken cancellationToken = default);
 
