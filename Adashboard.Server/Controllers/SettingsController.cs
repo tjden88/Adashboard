@@ -42,10 +42,10 @@ public class SettingsController(
             return BadRequest(new { error = "Тело запроса с настройками обязательно." });
         }
 
-        if (settings.HealthCheckIntervalSeconds <= 0)
+        if (settings.HealthCheckIntervalSeconds < 0)
         {
             logger.LogWarning("Обновление настроек отклонено: некорректный интервал проверки статуса.");
-            return BadRequest(new { error = "Интервал проверки статуса должен быть больше нуля." });
+            return BadRequest(new { error = "Интервал проверки статуса должен быть больше либо равен нулю." });
         }
 
         await settingsService.UpdateAsync(settings, cancellationToken);
