@@ -230,18 +230,17 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger,
     /// <summary>
     /// Изменяет существующую карточку.
     /// </summary>
-    /// <param name="id">Идентификатор карточки.</param>
     /// <param name="card">Новые значения полей карточки.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
     /// <returns><c>true</c>, если карточка найдена и обновлена; иначе <c>false</c>.</returns>
-    public async Task<bool> UpdateCardAsync(int id, DashboardCard card, CancellationToken cancellationToken = default)
+    public async Task<bool> UpdateCardAsync(DashboardCard card, CancellationToken cancellationToken = default)
     {
-        logger.LogDebug("Начато изменение карточки {CardId}.", id);
+        logger.LogDebug("Начато изменение карточки {CardId}.", card.Id);
 
-        var entity = await db.Cards.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        var entity = await db.Cards.FirstOrDefaultAsync(x => x.Id == card.Id, cancellationToken);
         if (entity is null)
         {
-            logger.LogWarning("Изменение карточки {CardId} отклонено: карточка не найдена.", id);
+            logger.LogWarning("Изменение карточки {CardId} отклонено: карточка не найдена.", card.Id);
             return false;
         }
 
@@ -252,13 +251,13 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger,
 
         if (!categoryExists)
         {
-            logger.LogWarning("Изменение карточки {CardId} отклонено: категория {CategoryId} не найдена.", id, entity.DashboardCategoryId);
+            logger.LogWarning("Изменение карточки {CardId} отклонено: категория {CategoryId} не найдена.", card.Id, entity.DashboardCategoryId);
             return false;
         }
 
         await db.SaveChangesAsync(cancellationToken);
 
-        logger.LogInformation("Карточка {CardId} обновлена.", id);
+        logger.LogInformation("Карточка {CardId} обновлена.", card.Id);
         return true;
     }
 

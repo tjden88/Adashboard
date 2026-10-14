@@ -113,26 +113,12 @@
             }
           }
         }
-      }
-    },
-    "/api/cards/{id}": {
+      },
       "put": {
         "tags": [
           "Cards"
         ],
         "operationId": "UpdateCard",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -218,7 +204,9 @@
             }
           }
         }
-      },
+      }
+    },
+    "/api/cards/{id}": {
       "delete": {
         "tags": [
           "Cards"

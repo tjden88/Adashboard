@@ -212,6 +212,8 @@
     private string? _imageError;
     private bool _isSaving;
 
+    private const int MaxImageBytes = 2 * 1024 * 1024;
+
     // Идентификатор, назначенный сервером при создании карточки. Нужен, если создание
     // уже прошло, но следующий шаг (загрузка иконки) не удался: при повторе карточку
     // обновляем, а не создаём заново.
@@ -385,7 +387,7 @@
         _imageError = null;
         var file = args.File;
 
-        if (file.Size > IDashboardApi.MaxImageBytes)
+        if (file.Size > MaxImageBytes)
         {
             _imageError = "Файл превышает максимальный размер 2 МБ.";
             return;
@@ -393,7 +395,7 @@
 
         try
         {
-            await using var stream = file.OpenReadStream(IDashboardApi.MaxImageBytes);
+            await using var stream = file.OpenReadStream(MaxImageBytes);
             using var buffer = new MemoryStream();
             await stream.CopyToAsync(buffer);
 
@@ -425,7 +427,7 @@
         try
         {
             var bytes = Convert.FromBase64String(dataUrl[(commaIndex + 1)..]);
-            if (bytes.Length == 0 || bytes.LongLength > IDashboardApi.MaxImageBytes)
+            if (bytes.Length == 0 || bytes.LongLength > MaxImageBytes)
             {
                 _imageError = "Изображение превышает максимальный размер 2 МБ.";
             }
@@ -565,7 +567,7 @@
             // При создании без пользовательской иконки запись сохранять повторно не нужно.
             if (!isNew || _useCustomImage)
             {
-                await DashboardApi.UpdateCardAsync(card.Id, card);
+                await DashboardApi.UpdateCardAsync(card);
             }
 
             _createdCardId = null;

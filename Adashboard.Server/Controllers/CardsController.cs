@@ -51,25 +51,23 @@ public class CardsController(
     /// <summary>
     /// Изменяет существующую карточку.
     /// </summary>
-    /// <param name="id">Идентификатор карточки.</param>
     /// <param name="card">Тело запроса с новыми данными карточки.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    [HttpPut("{id:int}", Name = "UpdateCard")]
+    [HttpPut(Name = "UpdateCard")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Update(
-        int id,
         [FromBody] DashboardCard? card,
         CancellationToken cancellationToken)
     {
         if (card is null)
         {
-            logger.LogWarning("Изменение карточки {CardId} отклонено: тело запроса пустое.", id);
+            logger.LogWarning("Изменение карточки отклонено: тело запроса пустое.");
             return BadRequest(new { error = "Тело запроса с карточкой обязательно." });
         }
 
-        var updated = await layoutService.UpdateCardAsync(id, card, cancellationToken);
+        var updated = await layoutService.UpdateCardAsync(card, cancellationToken);
         return updated ? NoContent() : NotFound(new { error = "Карточка не найдена." });
     }
 
