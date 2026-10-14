@@ -7,8 +7,20 @@
     justify-items: center;
     gap: 0.2rem;
     width: 100%;
-    /* Высота равна ширине одной колонки: карточка Width=1 квадратная, остальные только шире. */
-    height: calc((100cqw - (var(--cards-current) - 1) * var(--cards-gap)) / var(--cards-current));
+    /* Высота карточки — эталонный квадрат категории ширины 2, поэтому она одинакова во всех
+       категориях. Ширина же заполняет категорию и меняется вместе с её шириной.
+       В панели доступна уже урезанная отступами ширина сетки карточек (100cqw), поэтому к ней
+       возвращаем промежутки между колонками ((n - 1) * шаг) и отступы с рамкой панели
+       (2 * frame), делим на число колонок n — это ширина колонки сетки. Ширина карточки в
+       категории ширины 2 равна «колонка − frame + (шаг − промежуток карточек) / 2»: в ней
+       два столбца и один промежуток между карточками. Это и есть высота для всех категорий. */
+    height: calc(
+        (
+                100cqw - (var(--cards-current) - 1) * var(--dashboard-gap) +
+                    2 * var(--category-frame)
+            ) / var(--cards-current) - var(--category-frame) +
+            (var(--dashboard-gap) - var(--cards-gap)) / 2
+    );
     container-type: inline-size;
     border-radius: 14px;
     padding: 0.35rem 0.4rem;
@@ -112,7 +124,7 @@ html.dashboard-edit-mode .dashboard-card:focus-visible .card-edit-overlay {
 .card-edit-overlay i {
     /* Размер иконки считаем от ширины одной колонки карточки (как и у основной иконки),
        чтобы на широких карточках она не раздувалась. */
-    font-size: calc((100cqw - (var(--card-span-current) - 1) * var(--cards-gap, 0.55rem)) / var(--card-span-current) * 0.42);
+    font-size: calc((100cqw - (var(--card-span-current) - 1) * var(--cards-gap, 0.8rem)) / var(--card-span-current) * 0.42);
     line-height: 1;
     color: #ffffff;
 }

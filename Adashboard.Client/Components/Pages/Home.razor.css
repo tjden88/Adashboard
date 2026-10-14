@@ -84,7 +84,7 @@ html[data-theme="light"] .dashboard-header p {
 
 .dashboard-grid {
     position: relative;
-    column-gap: 1rem;
+    column-gap: var(--dashboard-gap);
 }
 
 @keyframes loader-spin {

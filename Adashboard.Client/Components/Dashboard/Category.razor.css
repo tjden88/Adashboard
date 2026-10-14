@@ -1,5 +1,9 @@
 .dashboard-category {
     --cards-current: var(--cards-desktop, 4);
+    /* Внутренний отступ панели и его учёт вместе с рамкой. Отступы одинаковы для всех
+       категорий; по этим переменным карточка вычисляет свою высоту (эталонный квадрат). */
+    --category-pad: 0.95rem;
+    --category-frame: calc(var(--category-pad) + 1px);
     position: absolute;
     display: grid;
     /* Одна колонка по ширине категории, чтобы длинный заголовок обрезался, а не растягивал блок. */
@@ -8,7 +12,7 @@
     min-width: 0;
     border: 1px solid var(--surface-border);
     border-radius: 18px;
-    padding: 0.95rem;
+    padding: var(--category-pad);
     background: color-mix(in srgb, var(--surface) 40%, transparent);
     backdrop-filter: blur(3px);
     box-shadow: var(--shadow-soft);
@@ -71,7 +75,7 @@
 
 .category-cards {
     display: grid;
-    --cards-gap: 0.55rem;
+    --cards-gap: 0.8rem;
     gap: var(--cards-gap);
     grid-template-columns: repeat(var(--cards-current), minmax(0, 1fr));
     container-type: inline-size;
@@ -89,12 +93,12 @@
     }
 
     .category-cards {
-        --cards-gap: 0.5rem;
+        --cards-gap: 0.7rem;
     }
 }
 
 @media (max-width: 640px) {
     .category-cards {
-        --cards-gap: 0.48rem;
+        --cards-gap: 0.6rem;
     }
 }
