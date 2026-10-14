@@ -1,12 +1,11 @@
 @inherits LayoutComponentBase
+@inject EditModeService EditModeService
+@implements IDisposable
 
-@*
-    Основной layout приложения. Здесь только каркас: содержимое страницы (шапка, сетка
-    dashboard) добавляют части header и page-view, а окна диалогов подключает часть dialogs.
-*@
-
-<main class="main-shell">
-    @Body
+<main class="main-shell @(EditModeService.IsEnabled ? "dashboard-edit-mode" : null)">
+    <article class="content">
+        @Body
+    </article>
 </main>
 
 <div id="blazor-error-ui" data-nosnippet>
@@ -14,3 +13,17 @@
     <a href="." class="reload">Перезагрузить</a>
     <span class="dismiss">🗙</span>
 </div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        EditModeService.OnChange += OnEditModeChanged;
+    }
+
+    private void OnEditModeChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        EditModeService.OnChange -= OnEditModeChanged;
+    }
+}
