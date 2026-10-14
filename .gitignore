@@ -377,3 +377,7 @@ FodyWeavers.xsd
 /.opencode
 /Adashboard.Server/appdata
 /tasks/Задачи Adashboard/.obsidian
+
+# Старый фронтенд, отложенный как референс для переписывания Adashboard.Client.
+# Не собирается и не версионируется: актуальная реализация лежит в Adashboard.Client.
+/_reference/

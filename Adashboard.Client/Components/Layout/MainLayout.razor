@@ -1,15 +1,10 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
+
+@*
+    Заготовка основного layout. Каркас разметки и тему собирает часть `layout-shell`
+    скилла frontend-rewrite (см. .opencode/skills/frontend-rewrite/SKILL.md).
+*@
 
 <main class="main-shell">
-    <article class="content">
-        @Body
-    </article>
+    @Body
 </main>
-
-<DialogContainer />
-
-<div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
-    <span class="dismiss">🗙</span>
-</div>

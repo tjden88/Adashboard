@@ -1,16 +1,4 @@
 @page "/"
-@page "/{PagePath}"
 
-
-<PageView PagePath="@PagePath" />
-
-@code {
-    /// <summary>
-    /// Путь открытой страницы из адреса. <c>null</c> для корневого адреса «/».
-    /// </summary>
-    [Parameter]
-    public string? PagePath { get; set; }
-
-    [CascadingParameter]
-    public string? PageTitle { get; set; } = "test";
-}
+<h1>Adashboard</h1>
+<p>Заготовка нового фронтенда. См. скилл frontend-rewrite.</p>
