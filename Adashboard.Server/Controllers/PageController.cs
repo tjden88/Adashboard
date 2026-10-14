@@ -39,7 +39,13 @@ public class PageController(
     public async Task<ActionResult<DashboardPageReadModel>> GetPage(int id, CancellationToken cancellationToken)
     {
         var result = await pageService.GetPageAsync(id, cancellationToken);
-        return result.ToActionResult(page => Ok(page));
+        if (!result.IsSuccess)
+        {
+            // Единственная причина отказа — страница не найдена.
+            return NotFound(new { error = result.Error });
+        }
+
+        return Ok(result.Value);
     }
 
     /// <summary>
@@ -67,7 +73,14 @@ public class PageController(
         }
 
         var result = await pageService.CreatePageAsync(page, cancellationToken);
-        return result.ToActionResult(created => Created($"/api/pages/{created.Id}", created));
+        if (!result.IsSuccess)
+        {
+            // Единственная причина отказа — путь уже занят.
+            return BadRequest(new { error = result.Error });
+        }
+
+        var created = result.Value;
+        return Created($"/api/pages/{created.Id}", created);
     }
 
     /// <summary>
@@ -96,7 +109,9 @@ public class PageController(
         }
 
         var result = await pageService.UpdatePageInfoAsync(info, cancellationToken);
-        return result.ToActionResult();
+
+        // Отказ — это отклонение изменения (некорректный путь), поэтому отвечаем 400.
+        return result.IsSuccess ? NoContent() : BadRequest(new { error = result.Error });
     }
 
     /// <summary>
@@ -112,6 +127,8 @@ public class PageController(
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
         var result = await pageService.DeletePageAsync(id, cancellationToken);
-        return result.ToActionResult();
+
+        // Отказ — это запрет удаления (страница не найдена или основная страница), отвечаем 400.
+        return result.IsSuccess ? NoContent() : BadRequest(new { error = result.Error });
     }
 }

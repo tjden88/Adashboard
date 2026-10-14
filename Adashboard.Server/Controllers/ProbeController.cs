@@ -35,7 +35,14 @@ public class ProbeController(
         }
 
         var result = await probeService.CheckCardAsync(cardId, cancellationToken);
-        return result.ToActionResult(check => Ok(new { status = check.Status, message = check.Message }));
+        if (!result.IsSuccess)
+        {
+            // Единственная причина отказа — карточка не найдена. Клиент по 404 прекращает проверки.
+            return NotFound(new { error = result.Error });
+        }
+
+        var check = result.Value;
+        return Ok(new { status = check.Status, message = check.Message });
     }
 
     /// <summary>
@@ -55,6 +62,8 @@ public class ProbeController(
         }
 
         var result = await probeService.GetTitleAsync(url, cancellationToken);
-        return result.ToActionResult(title => Ok(title));
+
+        // Отказ — это некорректная ссылка или недоступная страница, поэтому отвечаем 400.
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
     }
 }

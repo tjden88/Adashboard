@@ -8,12 +8,6 @@ namespace Adashboard.Server.Services;
 /// Сервис хранения пользовательских изображений-иконок карточек.
 /// Файлы сохраняются локально в каталоге загрузок приложения (<c>uploads/card-icons</c>).
 /// </summary>
-/// <remarks>
-/// Изображение принимается только готовыми байтами от клиента: по URL сервер больше не ходит.
-/// Поэтому ограничения здесь не зависят от доверия к пользователю — это запрет на размер
-/// больше <see cref="DomainConstants.MaxImageBytes"/> и проверка сигнатуры растрового изображения
-/// (защита от сохранения SVG/HTML, которые браузер мог бы исполнить).
-/// </remarks>
 public sealed class ImageIconService(DashboardPaths paths, ILogger<ImageIconService> logger)
 {
     private const string FolderRelativePath = "uploads/card-icons";
@@ -23,28 +17,19 @@ public sealed class ImageIconService(DashboardPaths paths, ILogger<ImageIconServ
     /// <summary>
     /// Сохраняет переданные байты изображения для карточки (загрузка с устройства или из буфера).
     /// </summary>
-    /// <param name="cardId">Идентификатор карточки.</param>
-    /// <param name="content">Содержимое изображения.</param>
-    /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns>Относительный путь к сохранённому изображению либо ошибка валидации.</returns>
-    public async Task<OperationResult<string, ServiceError>> SaveFromBytesAsync(
-        int cardId,
-        byte[] content,
-        CancellationToken cancellationToken = default)
+    public async Task<OperationResult<string>> SaveFromBytesAsync(int cardId, byte[] content, CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Начато сохранение изображения карточки {CardId} из загруженных данных.", cardId);
 
         if (cardId <= 0)
         {
-            return ServiceError.Validation("Некорректный идентификатор карточки.").AsFailure<string>();
+            return Result.Failure("Некорректный идентификатор карточки.").As<string>();
         }
 
         if (content.Length == 0 || content.LongLength > DomainConstants.MaxImageBytes)
         {
             logger.LogWarning("Изображение карточки {CardId} отклонено: недопустимый размер.", cardId);
-            return ServiceError
-                .Validation($"Изображение превышает максимальный размер {DomainConstants.MaxImageMegabytes} МБ.")
-                .AsFailure<string>();
+            return Result.Failure($"Изображение превышает максимальный размер {DomainConstants.MaxImageMegabytes} МБ.").As<string>();
         }
 
         var extension = DetectExtension(content);
@@ -52,7 +37,7 @@ public sealed class ImageIconService(DashboardPaths paths, ILogger<ImageIconServ
         if (extension is null)
         {
             logger.LogWarning("Изображение карточки {CardId} отклонено: неподдерживаемый формат.", cardId);
-            return ServiceError.Validation("Файл не является поддерживаемым растровым изображением.").AsFailure<string>();
+            return Result.Failure("Файл не является поддерживаемым растровым изображением.").As<string>();
         }
 
         var path = await WriteImageAsync(cardId, content, extension, cancellationToken);

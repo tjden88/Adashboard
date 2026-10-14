@@ -43,6 +43,8 @@ public class SettingsController(
         }
 
         var result = await settingsService.UpdateAsync(settings, cancellationToken);
-        return result.ToActionResult();
+
+        // Единственная причина отказа — некорректное значение настройки.
+        return result.IsSuccess ? NoContent() : BadRequest(new { error = result.Error });
     }
 }

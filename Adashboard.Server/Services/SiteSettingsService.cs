@@ -10,11 +10,6 @@ namespace Adashboard.Server.Services;
 /// <summary>
 /// Сервис чтения и обновления общих настроек dashboard.
 /// </summary>
-/// <remarks>
-/// Настройки хранятся одной строкой (<c>Id = 1</c>) и всегда возвращаются контрактной моделью.
-/// Маппинг «сущность ↔ контрактная модель» выполняет Mapster по правилам из
-/// <see cref="Adashboard.Server.Mapping.MapperConfig"/>.
-/// </remarks>
 public sealed class SiteSettingsService(DashboardDb db, ILogger<SiteSettingsService> logger)
 {
     /// <summary>
@@ -43,10 +38,7 @@ public sealed class SiteSettingsService(DashboardDb db, ILogger<SiteSettingsServ
     /// <summary>
     /// Обновляет настройки dashboard. Если записи нет, она создаётся.
     /// </summary>
-    /// <param name="settings">Новые значения настроек.</param>
-    /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns>Результат операции: успех либо ошибка «некорректный интервал проверки статуса».</returns>
-    public async Task<OperationResult<Unit, ServiceError>> UpdateAsync(
+    public async Task<OperationResult> UpdateAsync(
         SiteSettings settings,
         CancellationToken cancellationToken = default)
     {
@@ -55,7 +47,7 @@ public sealed class SiteSettingsService(DashboardDb db, ILogger<SiteSettingsServ
         if (settings.HealthCheckIntervalSeconds < 0)
         {
             logger.LogWarning("Обновление настроек отклонено: некорректный интервал проверки статуса.");
-            return ServiceError.Validation("Интервал проверки статуса должен быть больше либо равен нулю.").AsFailure();
+            return Result.Failure("Интервал проверки статуса должен быть больше либо равен нулю.");
         }
 
         var entity = await db.SiteSettings.FirstOrDefaultAsync(x => x.Id == 1, cancellationToken);
@@ -74,6 +66,6 @@ public sealed class SiteSettingsService(DashboardDb db, ILogger<SiteSettingsServ
         await db.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Настройки dashboard обновлены.");
-        return Unit.Value;
+        return Result.Success();
     }
 }

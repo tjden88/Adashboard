@@ -40,7 +40,14 @@ public class CardsController(
         }
 
         var result = await pageService.CreateCardAsync(card, cancellationToken);
-        return result.ToActionResult(created => Created($"/api/cards/{created.Id}", created));
+        if (!result.IsSuccess)
+        {
+            // Единственная причина отказа — категория не найдена.
+            return NotFound(new { error = result.Error });
+        }
+
+        var created = result.Value;
+        return Created($"/api/cards/{created.Id}", created);
     }
 
     /// <summary>
@@ -63,7 +70,9 @@ public class CardsController(
         }
 
         var result = await pageService.UpdateCardAsync(card, cancellationToken);
-        return result.ToActionResult();
+
+        // Единственная причина отказа — карточка или её категория не найдена.
+        return result.IsSuccess ? NoContent() : NotFound(new { error = result.Error });
     }
 
     /// <summary>
@@ -77,7 +86,9 @@ public class CardsController(
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
         var result = await pageService.DeleteCardAsync(id, cancellationToken);
-        return result.ToActionResult();
+
+        // Единственная причина отказа — карточка не найдена.
+        return result.IsSuccess ? NoContent() : NotFound(new { error = result.Error });
     }
 
     /// <summary>
@@ -102,8 +113,6 @@ public class CardsController(
         }
 
         var result = await imageIconService.SaveFromBytesAsync(cardId, data, cancellationToken);
-        return result.TryGetValue(out var imagePath)
-            ? Ok(imagePath)
-            : BadRequest(result.Error.Message);
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
     }
 }

@@ -32,7 +32,14 @@ public class CategoriesController(
         }
 
         var result = await pageService.CreateCategoryAsync(category, cancellationToken);
-        return result.ToActionResult(created => Created($"/api/categories/{created.Id}", created));
+        if (!result.IsSuccess)
+        {
+            // Единственная причина отказа — страница не найдена.
+            return BadRequest(new { error = result.Error });
+        }
+
+        var created = result.Value;
+        return Created($"/api/categories/{created.Id}", created);
     }
 
     /// <summary>
@@ -55,7 +62,9 @@ public class CategoriesController(
         }
 
         var result = await pageService.UpdateCategoryAsync(category, cancellationToken);
-        return result.ToActionResult();
+
+        // Единственная причина отказа — категория или её страница не найдена.
+        return result.IsSuccess ? NoContent() : NotFound(new { error = result.Error });
     }
 
     /// <summary>
@@ -69,6 +78,8 @@ public class CategoriesController(
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
         var result = await pageService.DeleteCategoryAsync(id, cancellationToken);
-        return result.ToActionResult();
+
+        // Единственная причина отказа — категория не найдена.
+        return result.IsSuccess ? NoContent() : NotFound(new { error = result.Error });
     }
 }
