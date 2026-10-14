@@ -1,10 +1,14 @@
 using Adashboard.Data;
+using Adashboard.Server.Mapping;
 using Adashboard.Server.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Глобальная конфигурация Mapster: правила маппинга «сущность БД ↔ контрактная модель».
+MapperConfig.Configure();
 
 builder.Logging.AddSimpleConsole(options =>
 {

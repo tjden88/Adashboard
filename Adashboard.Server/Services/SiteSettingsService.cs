@@ -1,6 +1,7 @@
 using Adashboard.Data;
+using Adashboard.Data.Entities;
 using Adashboard.Domain.Contracts;
-using Adashboard.Server.Mapping;
+using Mapster;
 using Microsoft.EntityFrameworkCore;
 
 namespace Adashboard.Server.Services;
@@ -10,7 +11,8 @@ namespace Adashboard.Server.Services;
 /// </summary>
 /// <remarks>
 /// Настройки хранятся одной строкой (<c>Id = 1</c>) и всегда возвращаются контрактной моделью.
-/// Маппинг «сущность ↔ контрактная модель» выполняет статический <see cref="Mapper"/>.
+/// Маппинг «сущность ↔ контрактная модель» выполняет Mapster по правилам из
+/// <see cref="Adashboard.Server.Mapping.MapperConfig"/>.
 /// </remarks>
 public sealed class SiteSettingsService(
     DashboardDb db,
@@ -36,7 +38,7 @@ public sealed class SiteSettingsService(
         }
 
         logger.LogDebug("Настройки dashboard прочитаны.");
-        return Mapper.ToModel(entity);
+        return entity.Adapt<SiteSettings>();
     }
 
     /// <summary>
@@ -52,13 +54,13 @@ public sealed class SiteSettingsService(
         if (entity is null)
         {
             logger.LogWarning("Настройки dashboard не найдены. Создаётся новая запись.");
-            entity = Mapper.ToEntity(settings);
+            entity = settings.Adapt<SiteSettingsEntity>();
             entity.Id = 1;
             db.SiteSettings.Add(entity);
         }
         else
         {
-            Mapper.UpdateSettings(settings, entity);
+            settings.Adapt(entity);
         }
 
         await db.SaveChangesAsync(cancellationToken);

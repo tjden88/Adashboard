@@ -1,0 +1,47 @@
+using Adashboard.Data.Entities;
+using Adashboard.Domain.Contracts;
+using Mapster;
+
+namespace Adashboard.Server.Mapping;
+
+/// <summary>
+/// Глобальная конфигурация Mapster для маппинга «сущность БД ↔ контрактная модель».
+/// </summary>
+/// <remarks>
+/// <para>
+/// Маппинг выполняется во время выполнения, без кодогенерации: правила один раз регистрируются
+/// в глобальных настройках Mapster (<see cref="TypeAdapterConfig.GlobalSettings"/>), а сервисы
+/// дальше просто вызывают расширение <c>Adapt</c>, которое использует эти настройки по умолчанию.
+/// </para>
+/// <para>
+/// Чтение (сущность → модель) настраивать не нужно: имена полей совпадают, а навигации БД,
+/// которых нет в контрактах, Mapster просто не маппит. Явные правила ниже описывают запись
+/// (модель → сущность), чтобы маппинг не трогал защищённые поля — идентификаторы хранения,
+/// внешние ключи и навигации, которыми управляют отдельные операции.
+/// </para>
+/// </remarks>
+public static class MapperConfig
+{
+    /// <summary>
+    /// Регистрирует правила маппинга в глобальных настройках Mapster.
+    /// </summary>
+    /// <remarks>Вызывается один раз при старте приложения, до первых вызовов <c>Adapt</c>.</remarks>
+    public static void Configure()
+    {
+        var config = TypeAdapterConfig.GlobalSettings;
+
+        // Категория: идентификатор, родительская раскладка и навигации задаются отдельными операциями.
+        config.NewConfig<DashboardCategory, DashboardCategoryEntity>()
+            .Ignore(dest => dest.Id)
+            .Ignore(dest => dest.DashboardLayoutId)
+            .Ignore(dest => dest.Layout)
+            .Ignore(dest => dest.Cards);
+
+        // Карточка: идентификатор и категория маппингом не переносятся. Категорию при создании
+        // задаём явно, а при изменении — отдельным кодом, чтобы случайно не «перевесить» карточку.
+        config.NewConfig<DashboardCard, DashboardCardEntity>()
+            .Ignore(dest => dest.Id)
+            .Ignore(dest => dest.DashboardCategoryId)
+            .Ignore(dest => dest.Category);
+    }
+}

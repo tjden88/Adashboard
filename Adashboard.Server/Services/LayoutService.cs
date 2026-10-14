@@ -2,7 +2,7 @@ using Adashboard.Data;
 using Adashboard.Data.Entities;
 using Adashboard.Domain.Contracts;
 using Adashboard.Domain.ReadModels;
-using Adashboard.Server.Mapping;
+using Mapster;
 using Microsoft.EntityFrameworkCore;
 
 namespace Adashboard.Server.Services;
@@ -12,7 +12,8 @@ namespace Adashboard.Server.Services;
 /// CRUD категорий и карточек. Работает с контрактными моделями, наружу сущности не отдаёт.
 /// </summary>
 /// <remarks>
-/// Маппинг «сущность ↔ контрактная модель» выполняет статический <see cref="Mapper"/>.
+/// Маппинг «сущность ↔ контрактная модель» выполняет Mapster по правилам из
+/// <see cref="Adashboard.Server.Mapping.MapperConfig"/>.
 /// </remarks>
 public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger, ImageIconService iconService)
 {
@@ -41,11 +42,10 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger,
 
         var readModel = new DashboardLayoutReadModel
         {
-            Layout = entity.ToModel(),
-            Categories = entity.Categories.ToModels().ToList(),
+            Layout = entity.Adapt<DashboardLayout>(),
+            Categories = entity.Categories.Adapt<List<DashboardCategory>>(),
             Cards = entity.Categories
-                .SelectMany(c => c.Cards).ToModels()
-                .ToList()
+                .SelectMany(c => c.Cards).Adapt<List<DashboardCard>>()
         };
 
         logger.LogDebug("Раскладка dashboard с ID {LayoutId} загружена.", id);
@@ -90,7 +90,7 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger,
     {
         logger.LogDebug("Начато создание категории {Title}.", category.Title);
 
-        var entity = category.ToEntity();
+        var entity = category.Adapt<DashboardCategoryEntity>();
         // Идентификатор назначает EF Core, а категория всегда принадлежит основной раскладке.
         entity.Id = 0;
         entity.DashboardLayoutId = 1;
@@ -99,7 +99,7 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger,
         await db.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Категория создана. Идентификатор: {CategoryId}.", entity.Id);
-        return entity.ToModel();
+        return entity.Adapt<DashboardCategory>();
     }
 
     /// <summary>
@@ -120,7 +120,7 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger,
             return false;
         }
 
-        Mapper.UpdateCategory(category, entity);
+        category.Adapt(entity);
         await db.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Категория {CategoryId} обновлена.", id);
@@ -186,14 +186,16 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger,
             return null;
         }
 
-        var entity = card.ToEntity();
+        var entity = card.Adapt<DashboardCardEntity>();
         entity.Id = 0;
+        // Категорию маппинг не переносит (см. MapperConfig), поэтому задаём её явно.
+        entity.DashboardCategoryId = card.DashboardCategoryId;
 
         db.Cards.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Карточка создана. Идентификатор: {CardId}.", entity.Id);
-        return entity.ToModel();
+        return entity.Adapt<DashboardCard>();
     }
 
     /// <summary>
@@ -214,7 +216,7 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger,
             return false;
         }
 
-        Mapper.UpdateCard(card, entity);
+        card.Adapt(entity);
 
         // Перенос в другую категорию выполняем только при явно указанном идентификаторе,
         // иначе сохраняем текущую категорию карточки.
