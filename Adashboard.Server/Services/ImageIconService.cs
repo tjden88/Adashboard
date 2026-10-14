@@ -22,7 +22,7 @@ namespace Adashboard.Server.Services;
 /// </para>
 /// </remarks>
 public sealed class ImageIconService(
-    IHttpClientFactory httpClientFactory,
+    HttpClient client,
     DashboardPaths paths,
     ILogger<ImageIconService> logger)
 {
@@ -31,9 +31,7 @@ public sealed class ImageIconService(
     /// </summary>
     public const long MaxImageBytes = 2 * 1024 * 1024;
 
-    private const string HttpClientName = "IconDownloader";
     private const string FolderRelativePath = "uploads/card-icons";
-    private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(12);
 
     private readonly string _folder = Path.Combine(paths.UploadsPath, "card-icons");
 
@@ -59,9 +57,6 @@ public sealed class ImageIconService(
             logger.LogWarning("Ссылка на изображение карточки {CardId} отклонена: некорректный адрес.", cardId);
             throw new InvalidOperationException("Укажите корректную HTTP(S)-ссылку на изображение.");
         }
-
-        using var client = httpClientFactory.CreateClient(HttpClientName);
-        client.Timeout = RequestTimeout;
 
         using var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         if (!response.IsSuccessStatusCode)

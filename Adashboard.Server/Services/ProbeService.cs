@@ -28,7 +28,7 @@ namespace Adashboard.Server.Services;
 /// </remarks>
 public sealed class ProbeService(
     DashboardDb db,
-    IHttpClientFactory httpClientFactory,
+    HttpClient client,
     ILogger<ProbeService> logger)
 {
     private const string HttpClientName = "Probe";
@@ -84,7 +84,6 @@ public sealed class ProbeService(
 
         try
         {
-            using var client = httpClientFactory.CreateClient(HttpClientName);
 
             // Таймаут через отдельный токен: так его можно отличить от отмены всего цикла проверок.
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -152,7 +151,6 @@ public sealed class ProbeService(
 
         try
         {
-            using var client = httpClientFactory.CreateClient(HttpClientName);
 
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts.CancelAfter(TitleRequestTimeout);

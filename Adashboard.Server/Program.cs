@@ -29,20 +29,21 @@ services.AddScoped<AssetsInitializer>();
 
 services.AddScoped<LayoutService>();
 services.AddScoped<SiteSettingsService>();
-services.AddScoped<ImageIconService>();
-services.AddScoped<ProbeService>();
 
 // Клиент загрузки иконок по ссылке отключён от редиректов: это снижает риск SSRF
 // через перенаправление.
-services.AddHttpClient("IconDownloader")
+services.AddHttpClient<ImageIconService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(12);
+})
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
     {
-        AllowAutoRedirect = false
+        AllowAutoRedirect = false,
     });
 
 // Клиент серверной проверки карточек и получения заголовка страницы. Редиректы не следуем,
 // чтобы вернуть настоящий код ответа целевого сервиса.
-services.AddHttpClient("Probe")
+services.AddHttpClient<ProbeService>()
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
     {
         AllowAutoRedirect = false
