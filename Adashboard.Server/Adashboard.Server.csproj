@@ -15,49 +15,24 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.13" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
-    <!--
-      Инструменты генерации OpenAPI-документа на этапе сборки (а не только в рантайме).
-      Пакет подключает MSBuild-цель, которая запускает собранное приложение в режиме
-      генерации и сохраняет openapi.json. Документ — источник истины для Refit-клиента,
-      который по нему генерирует Refitter в проекте Adashboard.Client.
-    -->
     <PackageReference Include="Microsoft.Extensions.ApiDescription.Server" Version="10.0.13">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <!--
-      Явно поднимаем транзитивную зависимость (версия 2.0.0 содержит уязвимость GHSA-v5pm-xwqc-g5wc).
-      Кроме того, пакет нужен инструментам EF Core: миграции лежат в Adashboard.Data, но design-time
-      запускается из проекта-хоста (startup), поэтому пакет обязателен и здесь.
-    -->
+
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.13" />
-    <!-- Mapster — маппинг entity ↔ контрактная модель во время выполнения (без кодогенерации). -->
     <PackageReference Include="Mapster" Version="10.0.13" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.18.0" />
     <PackageReference Include="WPR.Operations" Version="1.1.0" />
   </ItemGroup>
-
   <PropertyGroup>
-    <!--
-      Каталог опубликованной копии OpenAPI-документа. Сам документ генерируется в obj при
-      сборке сервера, а здесь лежит его копия, которая хранится в репозитории.
-      Она нужна потому, что клиент Adashboard.Client собирается раньше сервера и берёт
-      спецификацию именно отсюда (см. Adashboard.Client/*.refitter).
-      Каталог лежит в корне решения: документ — общий артефакт двух проектов.
-    -->
+
     <OpenApiPublishedDirectory>$(MSBuildProjectDirectory)\..\openapi</OpenApiPublishedDirectory>
   </PropertyGroup>
-
-  <!--
-    После генерации OpenAPI-документа обновляем его копию в репозитории и сообщаем, если контракт
-    изменился. Сравнивать приходится именно содержимое: документ пересобирается и при сборках без
-    правок API (например, после изменений в клиенте), а копирование по времени файлов тогда
-    срабатывало бы вхолостую и предупреждение было бы ложным.
-  -->
   <Target Name="PublishOpenApiDocument" AfterTargets="GenerateOpenApiDocuments" Condition="Exists('$(_OpenApiDocumentsCache)')">
     <ReadLinesFromFile File="$(_OpenApiDocumentsCache)">
       <Output TaskParameter="Lines" ItemName="_OpenApiGeneratedDocuments" />
@@ -77,10 +52,6 @@
   </Target>
 
   <ItemGroup>
-    <!--
-      Ссылка на WASM-клиент переводит API в режим хоста: статика клиента подключается
-      как static web assets и раздаётся тем же сервером (один origin).
-    -->
     <ProjectReference Include="..\Adashboard.Client\Adashboard.Client.csproj" />
     <ProjectReference Include="..\Adashboard.Domain\Adashboard.Domain.csproj" />
     <ProjectReference Include="..\Adashboard.Data\Adashboard.Data.csproj" />

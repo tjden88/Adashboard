@@ -78,6 +78,10 @@ var app = builder.Build();
 // OpenAPI-документ и интерактивную документацию отдаём только в среде разработки.
 if (app.Environment.IsDevelopment())
 {
+    // Прокси отладки Blazor WASM: браузер подключается к /_framework/debug/ws-proxy,
+    // иначе точки останова в коде клиента недостижимы при запуске через сервер.
+    app.UseWebAssemblyDebugging();
+
     app.MapOpenApi();
 
     // Scalar — современная замена Swagger UI: интерактивная веб-морда для проверки
@@ -92,7 +96,10 @@ app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 
 // Раздаём каталог пользовательских загрузок. Провайдер наведён только на uploads,
-// поэтому файл БД из каталога данных наружу не отдаётся.
+// поэтому файл БД из каталога данных наружу не отдаётся. Каталог создаём заранее:
+// PhysicalFileProvider требует, чтобы он уже существовал (важно, например, при
+// генерации OpenAPI на сборке, когда каталог данных ещё пуст).
+Directory.CreateDirectory(paths.UploadsPath);
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(paths.UploadsPath),
