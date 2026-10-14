@@ -34,6 +34,13 @@
     {
         <span class="status-dot @StatusClass" role="img" aria-label="@StatusLabel" title="@StatusTitle"></span>
     }
+    @* Полупрозрачная иконка редактирования. Элемент присутствует всегда, а видимостью
+       управляет CSS: показывается только в режиме редактирования и только при наведении
+       (или фокусе с клавиатуры) на карточку. Так карточку не нужно перерисовывать при
+       переключении режима, и оверлей не перехватывает клики (pointer-events: none). *@
+    <span class="card-edit-overlay" aria-hidden="true">
+        <i class="fa-solid fa-pen-nib"></i>
+    </span>
 </a>
 
 @code {

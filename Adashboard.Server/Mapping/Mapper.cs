@@ -31,7 +31,7 @@ public static partial class Mapper
     /// поскольку вложенную read-модель сервис собирает отдельно.
     /// </remarks>
     [MapperIgnoreSource(nameof(DashboardLayoutEntity.Categories))]
-    public static partial DashboardLayout ToModel(DashboardLayoutEntity entity);
+    public static partial DashboardLayout ToModel(this DashboardLayoutEntity entity);
 
     /// <summary>
     /// Преобразует сущность категории в плоскую контрактную модель.
@@ -42,7 +42,17 @@ public static partial class Mapper
     /// </remarks>
     [MapperIgnoreSource(nameof(DashboardCategoryEntity.Layout))]
     [MapperIgnoreSource(nameof(DashboardCategoryEntity.Cards))]
-    public static partial DashboardCategory ToModel(DashboardCategoryEntity entity);
+    public static partial DashboardCategory ToModel(this DashboardCategoryEntity entity);
+
+    /// <summary>
+    /// Преобразует коллекцию сущностей категорий в модели.
+    /// </summary>
+    public static partial IEnumerable<DashboardCategory> ToModels(this IEnumerable<DashboardCategoryEntity> entities);
+
+    /// <summary>
+    /// Преобразует коллекцию сущностей карточек в модели.
+    /// </summary>
+    public static partial IEnumerable<DashboardCard> ToModels(this IEnumerable<DashboardCardEntity> entities);
 
     /// <summary>
     /// Преобразует плоскую контрактную модель категории в сущность.
@@ -53,7 +63,7 @@ public static partial class Mapper
     /// </remarks>
     [MapperIgnoreTarget(nameof(DashboardCategoryEntity.Layout))]
     [MapperIgnoreTarget(nameof(DashboardCategoryEntity.Cards))]
-    public static partial DashboardCategoryEntity ToEntity(DashboardCategory category);
+    public static partial DashboardCategoryEntity ToEntity(this DashboardCategory category);
 
     /// <summary>
     /// Копирует изменяемые поля контрактной модели категории в отслеживаемую сущность.
@@ -73,13 +83,13 @@ public static partial class Mapper
     /// Преобразует сущность карточки в контрактную модель.
     /// </summary>
     [MapperIgnoreSource(nameof(DashboardCardEntity.Category))]
-    public static partial DashboardCard ToModel(DashboardCardEntity entity);
+    public static partial DashboardCard ToModel(this DashboardCardEntity entity);
 
     /// <summary>
     /// Преобразует контрактную модель карточки в сущность.
     /// </summary>
     [MapperIgnoreTarget(nameof(DashboardCardEntity.Category))]
-    public static partial DashboardCardEntity ToEntity(DashboardCard card);
+    public static partial DashboardCardEntity ToEntity(this DashboardCard card);
 
     /// <summary>
     /// Копирует изменяемые поля контрактной модели карточки в отслеживаемую сущность.
@@ -98,13 +108,13 @@ public static partial class Mapper
     /// Преобразует сущность настроек в контрактную модель.
     /// </summary>
     [MapperIgnoreSource(nameof(SiteSettingsEntity.Id))]
-    public static partial SiteSettings ToModel(SiteSettingsEntity entity);
+    public static partial SiteSettings ToModel(this SiteSettingsEntity entity);
 
     /// <summary>
     /// Преобразует контрактную модель настроек в сущность.
     /// </summary>
     [MapperIgnoreTarget(nameof(SiteSettingsEntity.Id))]
-    public static partial SiteSettingsEntity ToEntity(SiteSettings settings);
+    public static partial SiteSettingsEntity ToEntity(this SiteSettings settings);
 
     /// <summary>
     /// Копирует поля контрактной модели настроек в отслеживаемую сущность.

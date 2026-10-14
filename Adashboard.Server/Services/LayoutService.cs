@@ -42,11 +42,10 @@ public sealed class LayoutService(DashboardDb db, ILogger<LayoutService> logger)
         // а карточки внутри категории — по Position.
         var readModel = new DashboardLayoutReadModel
         {
-            Layout = Mapper.ToModel(entity),
-            Categories = entity.Categories.Select(Mapper.ToModel).ToList(),
+            Layout = entity.ToModel(),
+            Categories = entity.Categories.ToModels().ToList(),
             Cards = entity.Categories
-                .SelectMany(c => c.Cards)
-                .Select(Mapper.ToModel)
+                .SelectMany(c => c.Cards).ToModels()
                 .ToList()
         };
 
