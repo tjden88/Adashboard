@@ -4,13 +4,7 @@ namespace Adashboard.Server.Services;
 /// Наполняет каталог статики приложения стандартными файлами (фон, логотип и т.п.),
 /// если их там ещё нет.
 /// </summary>
-/// <remarks>
-/// Оригиналы хранятся вне публичных папок (в каталоге <c>Assets</c>) и служат резервом:
-/// пользователь может заменять файлы в каталоге статики, но оригиналы этим не затрагиваются.
-/// </remarks>
-internal sealed class AssetsInitializer(
-    DashboardPaths paths,
-    ILogger<AssetsInitializer> logger)
+internal sealed class AssetsInitializer(DashboardPaths paths, ILogger<AssetsInitializer> logger)
 {
     // Оригиналы стандартных файлов, поставляемые вместе с приложением.
     private readonly string _sourceDirectory = paths.AssetsPath;
@@ -27,10 +21,8 @@ internal sealed class AssetsInitializer(
 
         if (!Directory.Exists(_sourceDirectory))
         {
-            logger.LogWarning(
-                "Каталог оригинальных ассетов {SourceDirectory} не найден. Наполнение пропущено.",
-                _sourceDirectory);
-            return;
+            logger.LogCritical("Каталог оригинальных ассетов {SourceDirectory} не найден. Наполнение пропущено.", _sourceDirectory);
+            throw new InvalidOperationException("Каталог оригинальных ассетов не найден.");
         }
 
         Directory.CreateDirectory(_targetDirectory);
@@ -48,8 +40,6 @@ internal sealed class AssetsInitializer(
             copiedCount++;
         }
 
-        logger.LogInformation(
-            "Наполнение каталога статики завершено. Скопировано стандартных файлов: {FileCount}.",
-            copiedCount);
+        logger.LogInformation("Наполнение каталога статики завершено. Скопировано стандартных файлов: {FileCount}.", copiedCount);
     }
 }
