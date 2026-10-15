@@ -66,13 +66,16 @@
     </div>
 </header>
 
-<DialogContainer @bind-Open="_isAddPageOpen" Title="Создать страницу">
-    <PageDialog Saved="OnPageCreated" />
-</DialogContainer>
+<SectionContent SectionName="dialogs">
+    <DialogContainer @bind-Open="_isAddPageOpen" Title="Создать страницу">
+        <PageDialog Saved="OnPageCreated" />
+    </DialogContainer>
 
-<DialogContainer @bind-Open="_isSettingsOpen" Title="Настройки приложения">
-    <AppSettingsDialog />
-</DialogContainer>
+    <DialogContainer @bind-Open="_isSettingsOpen" Title="Настройки приложения">
+        <AppSettingsDialog />
+    </DialogContainer>
+</SectionContent>
+
 
 @code {
     private bool _isAddPageOpen;
