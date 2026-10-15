@@ -67,13 +67,20 @@
     <div class="dashboard-grid" id="dashboard-grid">
         @foreach (var category in categories)
         {
-            <Category @key="CategoryKey(category)" Model="category" Cards="GetCards(category.Id)" />
+            <Category @key="CategoryKey(category)"
+                      Model="category"
+                      Pages="Model.Pages"
+                      Cards="GetCards(category.Id)"
+                      Saved="OnCategorySavedAsync"
+                      Deleted="OnCategoryDeletedAsync"
+                      CardSaved="OnCardSavedAsync"
+                      CardDeleted="OnCardDeletedAsync" />
         }
     </div>
 </section>
 
 <DialogContainer @bind-Open="_isAddCategoryOpen" Title="Создать категорию">
-    <CategoryDialog DashboardPageId="Model.Page.Id" Order="NextCategoryOrder" Saved="OnCategoryCreatedAsync" />
+    <CategoryDialog DashboardPageId="Model.Page.Id" Order="NextCategoryOrder" Pages="Model.Pages" Saved="OnCategoryCreatedAsync" />
 </DialogContainer>
 
 <DialogContainer @bind-Open="_isPageSettingsOpen" Title="Настройки страницы">
@@ -163,6 +170,68 @@
     private Task OnCategoryCreatedAsync(DashboardCategory category)
     {
         Model.Categories.Add(category);
+        return InvokeAsync(StateHasChanged);
+    }
+
+    // ---------------------------------------------------------------
+    // Уведомления от категорий.
+    // Изменение и удаление категории, а также сохранение и удаление карточек выполняют сами
+    // категории со своими диалогами: здесь мы лишь поддерживаем общие списки в актуальном
+    // состоянии — их владелец модель страницы.
+    // ---------------------------------------------------------------
+
+    // Категория изменена в своём компоненте: заменяем её в списке. Категорию могли перенести
+    // на другую страницу — тогда убираем её из текущей вместе с её карточками.
+    private Task OnCategorySavedAsync(DashboardCategory category)
+    {
+        if (category.DashboardPageId != Model.Page.Id)
+        {
+            Model.Cards.RemoveAll(x => x.DashboardCategoryId == category.Id);
+            Model.Categories.RemoveAll(x => x.Id == category.Id);
+            return InvokeAsync(StateHasChanged);
+        }
+
+        var index = Model.Categories.FindIndex(x => x.Id == category.Id);
+        if (index >= 0)
+        {
+            Model.Categories[index] = category;
+        }
+        else
+        {
+            Model.Categories.Add(category);
+        }
+
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private Task OnCategoryDeletedAsync(DashboardCategory category)
+    {
+        Model.Cards.RemoveAll(x => x.DashboardCategoryId == category.Id);
+        Model.Categories.RemoveAll(x => x.Id == category.Id);
+
+        return InvokeAsync(StateHasChanged);
+    }
+
+    // Карточка создана или изменена: заменяем её по идентификатору, новую добавляем в конец списка.
+    private Task OnCardSavedAsync(DashboardCard card)
+    {
+        var index = Model.Cards.FindIndex(x => x.Id == card.Id);
+        if (index >= 0)
+        {
+            Model.Cards[index] = card;
+        }
+        else
+        {
+            Model.Cards.Add(card);
+        }
+
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private Task OnCardDeletedAsync(DashboardCard card)
+    {
+        Model.Cards.RemoveAll(x => x.Id == card.Id);
+
         return InvokeAsync(StateHasChanged);
     }
 

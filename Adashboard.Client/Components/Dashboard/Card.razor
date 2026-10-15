@@ -1,0 +1,106 @@
+@*
+    Одна карточка-ссылка dashboard: адрес перехода, иконка (встроенная Font Awesome или
+    загруженное изображение), цвета из модели и ширина в колонках сетки категории.
+
+    Ширину карточка отдаёт раскладке CSS-переменными --card-span-*: широкая карточка занимает
+    две колонки, но не больше, чем всего колонок в категории, — иначе она вылезла бы за её рамку.
+
+    В режиме редактирования переход по ссылке отключён, а клик по карточке открывает её диалог:
+    об этом карточка сообщает родителю событием EditRequested. Оверлей с карандашом присутствует
+    всегда, а видимостью управляет CSS (только режим редактирования и только наведение или фокус),
+    поэтому переключение режима карточки не перерисовывает.
+*@
+
+<a class="dashboard-card"
+   data-card-id="@Model.Id"
+   href="@Href"
+   target="_blank"
+   rel="noopener noreferrer"
+   style="--card-bg:@Model.BackgroundColor; --card-icon-color:@Model.GetIconColor(); --card-text-color:@Model.GetTextColor(); --card-span-desktop:@CardSpanDesktop; --card-span-medium:@CardSpanMedium; --card-span-mobile:@CardSpanMobile;"
+   aria-label="@AccessibleLabel"
+   @onclick="OnClickAsync"
+   @onclick:preventDefault="@IsEditMode">
+    <span class="card-title">@Model.Title</span>
+    <span class="card-icon" aria-hidden="true">
+        @if (HasCustomImage)
+        {
+            <img class="card-icon__image" src="@Model.IconSource" alt="" loading="lazy" />
+        }
+        else
+        {
+            <i class="@IconClass"></i>
+        }
+    </span>
+    <span class="card-edit-overlay" aria-hidden="true">
+        <i class="fa-solid fa-pen-nib"></i>
+    </span>
+</a>
+
+@code {
+    [CascadingParameter]
+    private AppStateService AppStateService { get; set; } = null!;
+
+    /// <summary>
+    /// Отображаемая карточка.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public DashboardCard Model { get; set; } = null!;
+
+    /// <summary>
+    /// Число колонок категории на широких экранах.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public int DesktopColumns { get; set; }
+
+    /// <summary>
+    /// Число колонок категории на средних экранах.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public int MediumColumns { get; set; }
+
+    /// <summary>
+    /// Число колонок категории на узких экранах.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public int MobileColumns { get; set; }
+
+    /// <summary>
+    /// Запрос на редактирование карточки: открытие диалога берёт на себя родитель.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback<DashboardCard> EditRequested { get; set; }
+
+    // В режиме редактирования переход по ссылке отключается: карточка не должна уводить
+    // со страницы, пока с ней работают.
+    private bool IsEditMode => AppStateService.IsEditMode;
+
+    // Куда ведёт карточка: схема из модели прибавляется к адресу.
+    private string Href => Model.UrlScheme.ToSchemeText() + Model.Url;
+
+    private bool HasCustomImage => Model.IsCustomIcon && !string.IsNullOrWhiteSpace(Model.IconSource);
+
+    // Если пользовательское изображение не задано, показываем встроенную иконку Font Awesome.
+    private string IconClass => string.IsNullOrWhiteSpace(Model.IconSource)
+        ? DomainConstants.DefaultCardIcon
+        : Model.IconSource;
+
+    // Если название не задано, для скринридера подставляем адрес ссылки.
+    private string AccessibleLabel => string.IsNullOrWhiteSpace(Model.Title) ? Model.Url : Model.Title;
+
+    private int CardSpanDesktop => GetCardSpan(Model.IsWide, DesktopColumns);
+
+    private int CardSpanMedium => GetCardSpan(Model.IsWide, MediumColumns);
+
+    private int CardSpanMobile => GetCardSpan(Model.IsWide, MobileColumns);
+
+    // Клик вне режима редактирования оставляем браузеру: он откроет ссылку в новой вкладке.
+    private Task OnClickAsync() => IsEditMode ? EditRequested.InvokeAsync(Model) : Task.CompletedTask;
+
+    // Широкая карточка занимает две колонки, но не больше доступного числа колонок категории.
+    private static int GetCardSpan(bool isWide, int categoryColumns)
+    {
+        var safeColumns = Math.Max(1, categoryColumns);
+
+        return isWide ? Math.Min(2, safeColumns) : 1;
+    }
+}

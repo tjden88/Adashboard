@@ -20,7 +20,7 @@
                     "type": "null"
                   },
                   {
-                    "$ref": "#/components/schemas/DashboardCard"
+                    "$ref": "#/components/schemas/SaveCardRequest"
                   }
                 ]
               }
@@ -32,7 +32,7 @@
                     "type": "null"
                   },
                   {
-                    "$ref": "#/components/schemas/DashboardCard"
+                    "$ref": "#/components/schemas/SaveCardRequest"
                   }
                 ]
               }
@@ -44,7 +44,7 @@
                     "type": "null"
                   },
                   {
-                    "$ref": "#/components/schemas/DashboardCard"
+                    "$ref": "#/components/schemas/SaveCardRequest"
                   }
                 ]
               }
@@ -91,26 +91,6 @@
                 }
               }
             }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
           }
         }
       },
@@ -128,7 +108,7 @@
                     "type": "null"
                   },
                   {
-                    "$ref": "#/components/schemas/DashboardCard"
+                    "$ref": "#/components/schemas/SaveCardRequest"
                   }
                 ]
               }
@@ -140,7 +120,7 @@
                     "type": "null"
                   },
                   {
-                    "$ref": "#/components/schemas/DashboardCard"
+                    "$ref": "#/components/schemas/SaveCardRequest"
                   }
                 ]
               }
@@ -152,7 +132,7 @@
                     "type": "null"
                   },
                   {
-                    "$ref": "#/components/schemas/DashboardCard"
+                    "$ref": "#/components/schemas/SaveCardRequest"
                   }
                 ]
               }
@@ -160,8 +140,25 @@
           }
         },
         "responses": {
-          "204": {
-            "description": "No Content"
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardCard"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardCard"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardCard"
+                }
+              }
+            }
           },
           "400": {
             "description": "Bad Request",
@@ -207,97 +204,6 @@
         "responses": {
           "204": {
             "description": "No Content"
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/cards/{cardId}/image": {
-      "post": {
-        "tags": [
-          "Cards"
-        ],
-        "operationId": "UploadImage",
-        "parameters": [
-          {
-            "name": "cardId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": [
-                "integer",
-                "string"
-              ],
-              "format": "int32"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "type": "string",
-                    "format": "byte"
-                  }
-                ]
-              }
-            },
-            "text/json": {
-              "schema": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "type": "string",
-                    "format": "byte"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "type": "string",
-                    "format": "byte"
-                  }
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK"
           },
           "400": {
             "description": "Bad Request",
@@ -1290,6 +1196,21 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "SaveCardRequest": {
+        "type": "object",
+        "properties": {
+          "card": {
+            "$ref": "#/components/schemas/DashboardCard"
+          },
+          "imageContent": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "byte"
           }
         }
       },

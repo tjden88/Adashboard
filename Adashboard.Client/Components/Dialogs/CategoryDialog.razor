@@ -2,10 +2,13 @@
 @inject ILogger<CategoryDialog> Logger
 
 @*
-    Диалог создания категории на текущей странице. Открытость окна ведёт PageView.
+    Диалог категории: создание (Category не задана) и изменение (Category передана).
+    Открытость окна ведёт вызывающий: PageView — для создания, Category — для изменения.
 
-    Запрос к API (POST) выполняет сам диалог: при отказе окно остаётся открытым и показывает
-    понятный текст ошибки. Созданную категорию отдаём параметром Saved, а окно закрываем сами.
+    Запрос к API (POST или PUT) выполняет сам диалог: при отказе окно остаётся открытым и
+    показывает понятный текст ошибки. Итоговую категорию отдаём параметром Saved, а окно
+    закрываем сами. Перенос категории на другую страницу — это тоже изменение, поэтому
+    страницу выбирают здесь же.
 *@
 
 <EditForm Model="_model" OnValidSubmit="SaveAsync" class="category-dialog">
@@ -22,6 +25,20 @@
                    @bind-Value="_model.Title" />
         <ValidationMessage For="() => _model.Title" />
     </div>
+
+    @if (Pages.Count > 0)
+    {
+        <div class="category-dialog__field">
+            <label for="categoryDialogPage" class="category-dialog__label">Страница</label>
+            <InputSelect id="categoryDialogPage" class="form-select" @bind-Value="_model.PageId">
+                @foreach (var item in Pages)
+                {
+                    <option value="@item.Id">@PageLabel(item)</option>
+                }
+            </InputSelect>
+            <p class="category-dialog__hint">Категорию можно оставить на текущей странице или перенести на другую.</p>
+        </div>
+    }
 
     <div class="category-dialog__field">
         <div class="category-dialog__slider-head">
@@ -60,7 +77,13 @@
     private DialogContainer Dialog { get; set; } = null!;
 
     /// <summary>
-    /// Идентификатор страницы, в которую добавляется категория.
+    /// Категория для изменения или <c>null</c> при создании.
+    /// </summary>
+    [Parameter]
+    public DashboardCategory? Category { get; set; }
+
+    /// <summary>
+    /// Идентификатор страницы, в которую добавляется новая категория.
     /// </summary>
     [Parameter]
     public int DashboardPageId { get; set; }
@@ -72,10 +95,31 @@
     public int Order { get; set; }
 
     /// <summary>
-    /// Уведомление о созданной категории: вызывающий добавляет её в список.
+    /// Список всех страниц: категорию можно отнести к любой из них.
+    /// </summary>
+    [Parameter]
+    public IReadOnlyList<DashboardPage> Pages { get; set; } = [];
+
+    /// <summary>
+    /// Уведомление о созданной или изменённой категории: вызывающий обновляет списки.
     /// </summary>
     [Parameter, EditorRequired]
     public EventCallback<DashboardCategory> Saved { get; set; }
+
+    protected override void OnInitialized()
+    {
+        _model = Category is null
+            ? new EditModel { PageId = DashboardPageId }
+            : new EditModel
+            {
+                PageId = Category.DashboardPageId,
+                Title = Category.Title,
+                Width = Math.Clamp(Category.Width, 1, 12)
+            };
+    }
+
+    // Подпись страницы в селекторе: путь показываем, чтобы различать страницы с похожими названиями.
+    private static string PageLabel(DashboardPage page) => page.Id == 1 ? $"{page.Title} (основная)" : $"{page.Title} — /{page.Path}";
 
     private void OnWidthInput(ChangeEventArgs args)
     {
@@ -93,33 +137,56 @@
 
         try
         {
+            var isNew = Category is null;
+
+            // При изменении сохраняем идентификатор и порядок, при создании порядок берём из параметров.
+            // Страницу берём из селектора, а если списка страниц нет — остаёмся на текущей.
             var category = new DashboardCategory
             {
-                DashboardPageId = DashboardPageId,
-                Order = Order,
+                Id = Category?.Id ?? 0,
+                DashboardPageId = Pages.Count > 0 ? _model.PageId : DashboardPageId,
+                Order = Category?.Order ?? Order,
                 Title = _model.Title.Trim(),
                 Width = _model.Width
             };
 
-            Logger.LogDebug("Создание категории dashboard {Title}.", category.Title);
-
-            var response = await DashboardApi.CreateCategoryAsync(category);
-            if (!response.IsSuccessStatusCode || response.Content is null)
+            if (isNew)
             {
-                Logger.LogWarning("Создание категории завершилось ошибкой API. Код: {StatusCode}.", (int?)response.StatusCode);
-                _error = response.ErrorText();
-                return;
+                Logger.LogDebug("Создание категории dashboard {Title}.", category.Title);
+
+                var response = await DashboardApi.CreateCategoryAsync(category);
+                if (!response.IsSuccessStatusCode || response.Content is null)
+                {
+                    Logger.LogWarning("Создание категории завершилось ошибкой API. Код: {StatusCode}.", (int?)response.StatusCode);
+                    _error = response.ErrorText();
+                    return;
+                }
+
+                category = response.Content;
+                Logger.LogInformation("Категория dashboard создана. Идентификатор: {CategoryId}.", category.Id);
+            }
+            else
+            {
+                Logger.LogDebug("Изменение категории dashboard {CategoryId}.", category.Id);
+
+                var response = await DashboardApi.UpdateCategoryAsync(category);
+                if (!response.IsSuccessStatusCode)
+                {
+                    Logger.LogWarning("Изменение категории завершилось ошибкой API. Код: {StatusCode}.", (int?)response.StatusCode);
+                    _error = response.ErrorText();
+                    return;
+                }
+
+                Logger.LogInformation("Категория dashboard изменена. Идентификатор: {CategoryId}.", category.Id);
             }
 
-            Logger.LogInformation("Категория dashboard создана. Идентификатор: {CategoryId}.", response.Content.Id);
-
-            await Saved.InvokeAsync(response.Content);
+            await Saved.InvokeAsync(category);
             await Dialog.CloseAsync();
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Не удалось создать категорию dashboard.");
-            _error = "Не удалось создать категорию. Проверьте соединение с сервером и попробуйте снова.";
+            Logger.LogError(ex, "Не удалось сохранить категорию dashboard.");
+            _error = "Не удалось сохранить категорию. Проверьте соединение с сервером и попробуйте снова.";
         }
         finally
         {
@@ -129,10 +196,12 @@
     }
 
     /// <summary>
-    /// Редактируемые поля новой категории.
+    /// Редактируемые поля категории.
     /// </summary>
     private sealed class EditModel
     {
+        public int PageId { get; set; }
+
         [Required(ErrorMessage = "Укажите название категории.")]
         public string Title { get; set; } = string.Empty;
 

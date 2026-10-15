@@ -1,0 +1,167 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject ILogger<ColorPicker> Logger
+
+@*
+    Поле выбора цвета на основе Coloris: текстовое поле со встроенной палитрой и образец
+    выбранного цвета. Если библиотека не загружена, поле работает как обычное текстовое —
+    цвет всё равно можно ввести вручную.
+
+    Атрибут data-coloris обязателен: по нему Coloris находит поле при клике, и уже затем
+    к нему применяются параметры из initializeColoris.
+
+    Набор образцов общий для приложения и статический: недавно выбранные цвета поднимаются
+    наверх, поэтому в следующем диалоге они уже под рукой.
+*@
+
+<div class="color-picker">
+    <input class="form-control color-picker__input"
+           data-coloris
+           id="@_inputId"
+           maxlength="7"
+           autocomplete="off"
+           spellcheck="false"
+           value="@Value"
+           aria-label="@AriaLabel"
+           @oninput="OnInputAsync" />
+    <span class="color-picker__swatch" style="background-color:@Value" aria-hidden="true"></span>
+</div>
+
+@code {
+    private const int MaxSwatches = 12;
+
+    // Набор образцов общий для приложения: недавно выбранные цвета поднимаются наверх.
+    private static readonly object SwatchesLock = new();
+    private static readonly List<string> Swatches =
+    [
+        "#1e40af", "#0369a1", "#0ea5e9", "#15803d",
+        "#22c55e", "#ea580c", "#f97316", "#b91c1c",
+        "#f43f5e", "#8b5cf6", "#0f172a", "#64748b"
+    ];
+
+    private readonly string _inputId = $"coloris-{Guid.NewGuid():N}";
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<ColorPicker>? _dotNetRef;
+
+    /// <summary>
+    /// Текущий выбранный цвет.
+    /// </summary>
+    [Parameter]
+    public string Value { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Уведомление об изменении цвета: поддерживает <c>@bind-Value</c>.
+    /// </summary>
+    [Parameter]
+    public EventCallback<string> ValueChanged { get; set; }
+
+    /// <summary>
+    /// Подпись поля для скринридеров.
+    /// </summary>
+    [Parameter]
+    public string AriaLabel { get; set; } = "Выбор цвета";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        try
+        {
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/colorisInterop.js");
+            _dotNetRef = DotNetObjectReference.Create(this);
+
+            await _module.InvokeVoidAsync("initializeColoris", _inputId, new
+            {
+                format = "hex",
+                swatches = GetSwatchSnapshot(),
+                closeButton = true,
+                closeLabel = "Выбрать"
+            }, _dotNetRef);
+        }
+        catch (JSException ex)
+        {
+            // Поле остаётся рабочим как обычное текстовое.
+            Logger.LogWarning(ex, "Модуль Coloris не подключён: цвет вводится вручную.");
+            _module = null;
+        }
+    }
+
+    private async Task OnInputAsync(ChangeEventArgs args)
+    {
+        Value = args.Value?.ToString() ?? string.Empty;
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    /// <summary>
+    /// Запоминает выбранный в палитре цвет и обновляет образцы в открытом поле.
+    /// </summary>
+    [JSInvokable]
+    public async Task OnColorPicked(string color)
+    {
+        if (string.IsNullOrWhiteSpace(color))
+        {
+            return;
+        }
+
+        RememberColor(color);
+
+        if (_module is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _module.InvokeVoidAsync("updateSwatches", _inputId, GetSwatchSnapshot());
+        }
+        catch (JSException)
+        {
+            // Соединение с JS потеряно: образцы просто не обновятся.
+        }
+    }
+
+    private static string[] GetSwatchSnapshot()
+    {
+        lock (SwatchesLock)
+        {
+            return Swatches.ToArray();
+        }
+    }
+
+    private static void RememberColor(string color)
+    {
+        lock (SwatchesLock)
+        {
+            Swatches.RemoveAll(x => string.Equals(x, color, StringComparison.OrdinalIgnoreCase));
+            Swatches.Insert(0, color);
+
+            if (Swatches.Count > MaxSwatches)
+            {
+                Swatches.RemoveRange(MaxSwatches, Swatches.Count - MaxSwatches);
+            }
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _module.InvokeVoidAsync("disposeColoris", _inputId);
+            await _module.DisposeAsync();
+        }
+        catch (Exception)
+        {
+            // Соединение с JS потеряно: освобождать больше нечего.
+        }
+
+        _dotNetRef?.Dispose();
+    }
+}

@@ -5,37 +5,33 @@ using Microsoft.AspNetCore.Mvc;
 namespace Adashboard.Server.Controllers;
 
 /// <summary>
-/// Эндпоинты управления карточками dashboard и их изображениями-иконками.
+/// Эндпоинты управления карточками dashboard.
 /// </summary>
 [ApiController]
 [Route("api/cards")]
-public class CardsController(
-    PageService pageService,
-    ImageIconService imageIconService,
-    ILogger<CardsController> logger) : ControllerBase
+public class CardsController(PageService pageService, ILogger<CardsController> logger) : ControllerBase
 {
     /// <summary>
-    /// Создаёт новую карточку в указанной категории.
+    /// Создаёт новую карточку в указанной категории, при необходимости с изображением-иконкой.
     /// </summary>
     [HttpPost(Name = "CreateCard")]
     [ProducesResponseType<DashboardCard>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<DashboardCard>> Create([FromBody] DashboardCard? card, CancellationToken cancellationToken)
+    public async Task<ActionResult<DashboardCard>> Create([FromBody] SaveCardRequest? request, CancellationToken cancellationToken)
     {
-        if (card is null)
+        if (request?.Card is null)
         {
             logger.LogWarning("Создание карточки отклонено: тело запроса пустое.");
             return BadRequest("Тело запроса с карточкой обязательно.");
         }
 
-        if (card.DashboardCategoryId <= 0)
+        if (request.Card.DashboardCategoryId <= 0)
         {
             logger.LogWarning("Создание карточки отклонено: не указана категория.");
             return BadRequest("Укажите категорию карточки.");
         }
 
-        var result = await pageService.CreateCardAsync(card, cancellationToken);
+        var result = await pageService.CreateCardAsync(request.Card, request.ImageContent, cancellationToken);
         if (!result.IsSuccess)
         {
             return BadRequest(result.Error);
@@ -46,22 +42,26 @@ public class CardsController(
     }
 
     /// <summary>
-    /// Изменяет существующую карточку.
+    /// Изменяет существующую карточку, при необходимости заменяя или удаляя изображение-иконку.
     /// </summary>
     [HttpPut(Name = "UpdateCard")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<DashboardCard>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Update([FromBody] DashboardCard? card, CancellationToken cancellationToken)
+    public async Task<ActionResult<DashboardCard>> Update([FromBody] SaveCardRequest? request, CancellationToken cancellationToken)
     {
-        if (card is null)
+        if (request?.Card is null)
         {
             logger.LogWarning("Изменение карточки отклонено: тело запроса пустое.");
             return BadRequest("Тело запроса с карточкой обязательно.");
         }
 
-        var result = await pageService.UpdateCardAsync(card, cancellationToken);
+        var result = await pageService.UpdateCardAsync(request.Card, request.ImageContent, cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return BadRequest(result.Error);
+        }
 
-        return result.IsSuccess ? NoContent() : BadRequest(result.Error);
+        return result.Value;
     }
 
     /// <summary>
@@ -74,23 +74,5 @@ public class CardsController(
     {
         var result = await pageService.DeleteCardAsync(id, cancellationToken);
         return result.IsSuccess ? NoContent() : BadRequest(result.Error);
-    }
-
-    /// <summary>
-    /// Сохраняет или обновляет кастомное изображение для карточки, и возвращает путь к нему.
-    /// </summary>
-    [HttpPost("{cardId}/image", Name = "UploadImage")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> UploadImage(int cardId, [FromBody] byte[]? data, CancellationToken cancellationToken)
-    {
-        if (data is null || data.Length == 0)
-        {
-            logger.LogWarning("Загрузка изображения карточки {CardId} отклонена: файл не передан.", cardId);
-            return BadRequest("Файл изображения не передан.");
-        }
-
-        var result = await imageIconService.SaveFromBytesAsync(cardId, data, cancellationToken);
-        return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
     }
 }

@@ -275,10 +275,11 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
     }
 
     /// <summary>
-    /// Создаёт новую карточку в указанной категории.
+    /// Создаёт новую карточку в указанной категории, при необходимости с изображением-иконкой.
     /// </summary>
     public async Task<OperationResult<DashboardCard>> CreateCardAsync(
         DashboardCard card,
+        byte[]? imageContent,
         CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Начато создание карточки {Title} в категории {CategoryId}.", card.Title, card.DashboardCategoryId);
@@ -300,17 +301,46 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
         entity.Id = 0;
         entity.Position = category.Count; // Новая карточка добавляется в конец списка
 
+        // Изображение-иконку сохраняет отдельный сервис, а имя файла содержит идентификатор
+        // карточки: сначала создаём запись, и только потом привязываем к ней файл.
+        var newImage = imageContent is { Length: > 0 } content ? content : null;
+        if (newImage is not null)
+        {
+            entity.IsCustomIcon = true;
+            entity.IconSource = string.Empty;
+        }
+
         db.Cards.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
+
+        if (newImage is not null)
+        {
+            var savedIcon = await iconService.SaveFromBytesAsync(entity.Id, newImage, cancellationToken);
+            if (!savedIcon.IsSuccess)
+            {
+                // Карточка без запрошенной иконки оставлять нельзя: убираем запись вместе с ошибкой.
+                db.Cards.Remove(entity);
+                await db.SaveChangesAsync(cancellationToken);
+
+                logger.LogWarning("Создание карточки {CardId} отменено: изображение не сохранено.", entity.Id);
+                return Result.Failure(savedIcon.Error).As<DashboardCard>();
+            }
+
+            entity.IconSource = savedIcon.Value;
+            await db.SaveChangesAsync(cancellationToken);
+        }
 
         logger.LogInformation("Карточка создана. Идентификатор: {CardId}.", entity.Id);
         return entity.Adapt<DashboardCard>();
     }
 
     /// <summary>
-    /// Изменяет существующую карточку.
+    /// Изменяет существующую карточку, при необходимости заменяя или удаляя изображение-иконку.
     /// </summary>
-    public async Task<OperationResult> UpdateCardAsync(DashboardCard card, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<DashboardCard>> UpdateCardAsync(
+        DashboardCard card,
+        byte[]? imageContent,
+        CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Начато изменение карточки {CardId}.", card.Id);
 
@@ -318,7 +348,7 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
         if (entity is null)
         {
             logger.LogWarning("Изменение карточки {CardId} отклонено: карточка не найдена.", card.Id);
-            return Result.Failure("Карточка не найдена.");
+            return Result.Failure("Карточка не найдена.").As<DashboardCard>();
         }
 
         card.Adapt(entity);
@@ -329,17 +359,31 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
         if (!categoryExists)
         {
             logger.LogWarning("Изменение карточки {CardId} отклонено: категория {CategoryId} не найдена.", card.Id, entity.DashboardCategoryId);
-            return Result.Failure("Категория не найдена.");
+            return Result.Failure("Категория не найдена.").As<DashboardCard>();
         }
 
-        // Проверим иконку
-        if (!card.IsCustomIcon)
+        // Новое изображение заменяет прежний файл иконки, отказ от пользовательской иконки — удаляет его.
+        if (imageContent is { Length: > 0 })
+        {
+            var savedIcon = await iconService.SaveFromBytesAsync(entity.Id, imageContent, cancellationToken);
+            if (!savedIcon.IsSuccess)
+            {
+                logger.LogWarning("Изменение карточки {CardId} отменено: изображение не сохранено.", entity.Id);
+                return Result.Failure(savedIcon.Error).As<DashboardCard>();
+            }
+
+            entity.IsCustomIcon = true;
+            entity.IconSource = savedIcon.Value;
+        }
+        else if (!card.IsCustomIcon)
+        {
             iconService.Delete(card.Id);
+        }
 
         await db.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Карточка {CardId} обновлена.", card.Id);
-        return Result.Success();
+        return entity.Adapt<DashboardCard>();
     }
 
     /// <summary>

@@ -1,0 +1,101 @@
+@*
+    Выбор встроенной иконки Font Awesome: поле поиска со списком подходящих классов иконок,
+    образец выбранной иконки и ссылка на поиск иконок на сайте библиотеки.
+
+    Справочник классов лежит в домене (FontAwesomeIcons), поэтому поиск идёт по нему,
+    а не по разметке Font Awesome.
+*@
+
+<div class="icon-picker">
+    <div class="icon-picker__field">
+        <span class="icon-picker__preview" aria-hidden="true">
+            <i class="@Value"></i>
+        </span>
+        <input class="form-control icon-picker__input"
+               type="text"
+               autocomplete="off"
+               spellcheck="false"
+               placeholder="Например: house, docker, github"
+               value="@_searchText"
+               aria-label="@AriaLabel"
+               @oninput="OnSearchInput"
+               @onkeydown="OnKeyDown" />
+        <a class="icon-picker__search-link"
+           href="https://fontawesome.com/v6/search"
+           target="_blank"
+           rel="noopener noreferrer"
+           title="Поиск иконок на fontawesome.com"
+           aria-label="Открыть поиск иконок Font Awesome в новой вкладке">
+            <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
+        </a>
+    </div>
+
+    @if (_matches.Count > 0)
+    {
+        <ul class="icon-picker__list" role="listbox">
+            @foreach (var icon in _matches)
+            {
+                <li class="icon-picker__item" role="option" @onclick="() => SelectIconAsync(icon)">
+                    <i class="@icon" aria-hidden="true"></i>
+                    <span>@icon</span>
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    private const int MaxResults = 30;
+
+    private string _searchText = string.Empty;
+    private IReadOnlyList<string> _matches = [];
+
+    /// <summary>
+    /// Текущий CSS-класс выбранной иконки.
+    /// </summary>
+    [Parameter]
+    public string Value { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Уведомление о выборе иконки: поддерживает <c>@bind-Value</c>.
+    /// </summary>
+    [Parameter]
+    public EventCallback<string> ValueChanged { get; set; }
+
+    /// <summary>
+    /// Подпись поля для скринридеров.
+    /// </summary>
+    [Parameter]
+    public string AriaLabel { get; set; } = "Поиск иконки";
+
+    private void OnSearchInput(ChangeEventArgs args)
+    {
+        _searchText = args.Value?.ToString() ?? string.Empty;
+
+        var search = _searchText.Trim();
+        _matches = search.Length == 0
+            ? []
+            : FontAwesomeIcons.Icons
+                .Where(x => x.Contains(search, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                .Take(MaxResults)
+                .ToList();
+    }
+
+    // Esc закрывает список подсказок, не меняя выбранную иконку.
+    private void OnKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape")
+        {
+            _matches = [];
+        }
+    }
+
+    private async Task SelectIconAsync(string icon)
+    {
+        Value = icon;
+        _searchText = icon;
+        _matches = [];
+        await ValueChanged.InvokeAsync(icon);
+    }
+}

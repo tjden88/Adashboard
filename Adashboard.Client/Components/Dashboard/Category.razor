@@ -1,5 +1,8 @@
+@inject IDashboardApi DashboardApi
+@inject ILogger<Category> Logger
+
 @*
-    Категория dashboard: заголовок и ссылки-карточки.
+    Категория dashboard: заголовок, карточки ссылок и действия над ними.
 
     Свою ширину категория отдаёт раскладке CSS-переменными --span-* (в колонках сетки текущего
     брейкпоинта) — их читает модуль js/dashboard.js. Число колонок карточек внутри категории
@@ -8,8 +11,12 @@
 
     Карточки приходят параметром: read-модель API отдаёт их плоским списком, а не внутри категории.
 
+    Запросы к API выполняют диалоги (создание, изменение карточки и категории) и само удаление;
+    об изменениях категория сообщает родителю событиями Saved/Deleted/CardSaved/CardDeleted:
+    списки категорий и карточек ведёт модель страницы, поэтому обновляет их родитель.
+
     Перетаскивание за маркер и изменение ширины берёт на себя модуль js/dashboard.js;
-    сами ручки видны только в режиме редактирования.
+    сами ручки и кнопки действий видны только в режиме редактирования.
 *@
 
 <section class="dashboard-category"
@@ -23,9 +30,33 @@
                 </span>
                 <h2 title="@Model.Title">@Model.Title</h2>
             </div>
+
+            <div class="category-actions">
+                <button type="button"
+                        class="btn btn-icon btn-sm btn-success"
+                        @onclick="OpenAddCardDialog"
+                        aria-label="Добавить ссылку в категорию @Model.Title"
+                        title="Добавить ссылку">
+                    <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                </button>
+                <button type="button"
+                        class="btn btn-icon btn-sm btn-primary"
+                        @onclick="() => _isCategoryFormOpen = true"
+                        aria-label="Изменить категорию @Model.Title"
+                        title="Изменить категорию">
+                    <i class="fa-solid fa-pen-nib" aria-hidden="true"></i>
+                </button>
+                <button type="button"
+                        class="btn btn-icon btn-sm btn-danger"
+                        @onclick="RequestDeleteCategory"
+                        aria-label="Удалить категорию @Model.Title"
+                        title="Удалить категорию">
+                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                </button>
+            </div>
         </header>
 
-        @if (Cards.Count == 0 && AppStateService.IsEditMode)
+        @if (Cards.Count == 0 && IsEditMode)
         {
             <p class="category-empty">В категории пока нет ссылок.</p>
         }
@@ -33,26 +64,12 @@
         <div class="category-cards" data-category-id="@Model.Id">
             @foreach (var card in Cards)
             {
-                <a class="dashboard-card"
-                   data-card-id="@card.Id"
-                   href="@CardHref(card)"
-                   target="_blank"
-                   rel="noopener noreferrer"
-                   style="--card-bg:@card.BackgroundColor; --card-icon-color:@card.GetIconColor(); --card-text-color:@card.GetTextColor();"
-                   aria-label="@CardLabel(card)"
-                   @onclick:preventDefault="@IsEditMode">
-                    <span class="card-title">@card.Title</span>
-                    <span class="card-icon" aria-hidden="true">
-                        @if (card.IsCustomIcon && !string.IsNullOrWhiteSpace(card.IconSource))
-                        {
-                            <img class="card-icon__image" src="@card.IconSource" alt="" loading="lazy" />
-                        }
-                        else
-                        {
-                            <i class="@CardIconClass(card)"></i>
-                        }
-                    </span>
-                </a>
+                <Card @key="card.Id"
+                      Model="card"
+                      DesktopColumns="DesktopWidth"
+                      MediumColumns="MediumWidth"
+                      MobileColumns="MobileWidth"
+                      EditRequested="OpenCardDialog" />
             }
         </div>
     </div>
@@ -64,7 +81,42 @@
     </span>
 </section>
 
+<DialogContainer @bind-Open="_isCardFormOpen" Title="@CardFormTitle" Size="DialogContainer.DialogSize.Large">
+    <CardDialog Card="_editingCard"
+                CategoryId="Model.Id"
+                Position="@NextCardPosition"
+                Saved="OnCardSavedAsync"
+                DeleteRequested="RequestCardDelete" />
+</DialogContainer>
+
+<DialogContainer @bind-Open="_isCategoryFormOpen" Title="Настройки категории">
+    <CategoryDialog Category="Model"
+                    Pages="Pages"
+                    DashboardPageId="Model.DashboardPageId"
+                    Order="Model.Order"
+                    Saved="OnCategorySavedAsync" />
+</DialogContainer>
+
+<DialogContainer @bind-Open="_isDeleteCardOpen" Title="Удаление ссылки" Size="DialogContainer.DialogSize.ConfirmDialog">
+    <ConfirmDialog Message="@CardDeleteMessage" ConfirmLabel="Удалить" Confirmed="DeleteCardAsync" />
+</DialogContainer>
+
+<DialogContainer @bind-Open="_isDeleteCategoryOpen" Title="Удаление категории" Size="DialogContainer.DialogSize.ConfirmDialog">
+    <ConfirmDialog Message="@CategoryDeleteMessage" ConfirmLabel="Удалить" Confirmed="DeleteCategoryAsync" />
+</DialogContainer>
+
 @code {
+    private bool _isCardFormOpen;
+    private DashboardCard? _editingCard;
+    private DashboardCard? _cardPendingDelete;
+
+    private bool _isCategoryFormOpen;
+    private bool _isDeleteCardOpen;
+    private bool _isDeleteCategoryOpen;
+
+    [CascadingParameter]
+    private AppStateService AppStateService { get; set; } = null!;
+
     /// <summary>
     /// Отображаемая категория.
     /// </summary>
@@ -72,16 +124,43 @@
     public DashboardCategory Model { get; set; } = null!;
 
     /// <summary>
+    /// Список всех страниц: нужен селектору страницы в диалоге категории.
+    /// </summary>
+    [Parameter]
+    public IReadOnlyList<DashboardPage> Pages { get; set; } = [];
+
+    /// <summary>
     /// Карточки категории, упорядоченные по положению.
     /// </summary>
     [Parameter, EditorRequired]
     public IReadOnlyList<DashboardCard> Cards { get; set; } = [];
 
-    [CascadingParameter]
-    private AppStateService AppStateService { get; set; } = null!;
+    /// <summary>
+    /// Уведомление о созданной или изменённой категории.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback<DashboardCategory> Saved { get; set; }
+
+    /// <summary>
+    /// Уведомление об удалённой категории.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback<DashboardCategory> Deleted { get; set; }
+
+    /// <summary>
+    /// Уведомление о созданной или изменённой карточке.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback<DashboardCard> CardSaved { get; set; }
+
+    /// <summary>
+    /// Уведомление об удалённой карточке.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback<DashboardCard> CardDeleted { get; set; }
 
     // В режиме редактирования переход по ссылке отключается: карточка не должна уводить
-    // со страницы, пока с ней работают. Редактор карточки появится в части card-view.
+    // со страницы, пока с ней работают.
     private bool IsEditMode => AppStateService.IsEditMode;
 
     // Ширину категории ограничиваем допустимым диапазоном сетки (1..12), даже если в данных
@@ -93,14 +172,127 @@
 
     private int MobileWidth => Math.Min(DesktopWidth, 4);
 
-    // Куда ведёт карточка: схема из модели прибавляется к адресу.
-    private static string CardHref(DashboardCard card) => card.UrlScheme.ToSchemeText() + card.Url;
+    private string CardFormTitle => _editingCard is null
+        ? "Добавить ссылку"
+        : $"Изменить ссылку: {DisplayName(_editingCard)}";
 
-    // Если название не задано, показываем адрес ссылки.
-    private static string CardLabel(DashboardCard card) => string.IsNullOrWhiteSpace(card.Title) ? card.Url : card.Title;
+    private string CardDeleteMessage => $"Удалить ссылку «{DisplayName(_cardPendingDelete)}»?";
 
-    // Если пользовательское изображение не задано, показываем встроенную иконку Font Awesome.
-    private static string CardIconClass(DashboardCard card) => string.IsNullOrWhiteSpace(card.IconSource)
-        ? DomainConstants.DefaultCardIcon
-        : card.IconSource;
+    private string CategoryDeleteMessage => $"Удалить категорию «{Model.Title}» вместе со всеми ссылками?";
+
+    // Порядковый номер новой карточки: она добавляется в конец категории.
+    private int NextCardPosition => Cards.Count > 0 ? Cards.Max(x => x.Position) + 1 : 0;
+
+    // ---------------------------------------------------------------
+    // Карточки: открытие диалога и удаление.
+    // Создание и изменение выполняет сам диалог карточки, здесь мы только открываем его
+    // и сообщаем родителю результат.
+    // ---------------------------------------------------------------
+
+    private void OpenAddCardDialog()
+    {
+        _editingCard = null;
+        _isCardFormOpen = true;
+    }
+
+    private void OpenCardDialog(DashboardCard card)
+    {
+        _editingCard = card;
+        _isCardFormOpen = true;
+    }
+
+    // Карточка сохранена диалогом: передаём её родителю, а окно закрывает сам диалог.
+    private Task OnCardSavedAsync(DashboardCard card) => CardSaved.InvokeAsync(card);
+
+    // Из диалога карточки запрошено удаление: закрываем его и спрашиваем подтверждение.
+    private void RequestCardDelete(DashboardCard card)
+    {
+        _editingCard = null;
+        _cardPendingDelete = card;
+        _isCardFormOpen = false;
+        _isDeleteCardOpen = true;
+    }
+
+    private async Task DeleteCardAsync()
+    {
+        if (_cardPendingDelete is null)
+        {
+            return;
+        }
+
+        var card = _cardPendingDelete;
+        Logger.LogDebug("Удаление карточки dashboard {CardId}.", card.Id);
+
+        try
+        {
+            var response = await DashboardApi.DeleteCardAsync(card.Id);
+            if (!response.IsSuccessStatusCode)
+            {
+                Logger.LogWarning("Удаление карточки {CardId} завершилось ошибкой API. Код: {StatusCode}.", card.Id, (int?)response.StatusCode);
+                return;
+            }
+
+            Logger.LogInformation("Карточка dashboard удалена. Идентификатор: {CardId}.", card.Id);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Не удалось удалить карточку dashboard {CardId}.", card.Id);
+            return;
+        }
+        finally
+        {
+            _cardPendingDelete = null;
+        }
+
+        await CardDeleted.InvokeAsync(card);
+    }
+
+    // ---------------------------------------------------------------
+    // Категория: изменение и удаление.
+    // Изменение выполняет сам диалог категории, здесь мы открываем его и сообщаем родителю
+    // результат; удаление делает категория.
+    // ---------------------------------------------------------------
+
+    private Task OnCategorySavedAsync(DashboardCategory category) => Saved.InvokeAsync(category);
+
+    private async Task RequestDeleteCategory()
+    {
+        // Пустую категорию удаляем сразу: подтверждать нечего.
+        if (Cards.Count == 0)
+        {
+            await DeleteCategoryAsync();
+            return;
+        }
+
+        _isDeleteCategoryOpen = true;
+    }
+
+    private async Task DeleteCategoryAsync()
+    {
+        Logger.LogDebug("Удаление категории dashboard {CategoryId}.", Model.Id);
+
+        try
+        {
+            var response = await DashboardApi.DeleteCategoryAsync(Model.Id);
+            if (!response.IsSuccessStatusCode)
+            {
+                Logger.LogWarning("Удаление категории {CategoryId} завершилось ошибкой API. Код: {StatusCode}.", Model.Id, (int?)response.StatusCode);
+                return;
+            }
+
+            Logger.LogInformation("Категория dashboard удалена. Идентификатор: {CategoryId}.", Model.Id);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Не удалось удалить категорию dashboard {CategoryId}.", Model.Id);
+            return;
+        }
+
+        await Deleted.InvokeAsync(Model);
+    }
+
+    // Если название не задано, для сообщений подставляем адрес ссылки.
+    private static string DisplayName(DashboardCard? card) => card is null
+        ? string.Empty
+        : string.IsNullOrWhiteSpace(card.Title) ? card.Url : card.Title;
 }

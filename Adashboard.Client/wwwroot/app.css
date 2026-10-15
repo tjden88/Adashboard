@@ -81,6 +81,12 @@ body.dialog-open {
     overflow: hidden;
 }
 
+/* Палитра Coloris рисуется поверх затемнения диалога. Её собственный z-index (1000) ниже,
+   чем у окна (1500), поэтому палитра уходила под него: поднимаем её выше окна. */
+.clr-picker {
+    z-index: 2000;
+}
+
 /* Сообщения валидации формы (Blazor) в оформлении проекта. */
 .validation-message {
     color: #dc2626;
@@ -229,9 +235,11 @@ html[data-theme="dark"] .validation-message {
     background: color-mix(in srgb, #16a34a 88%, #ffffff);
 }
 
-/* Перетаскивание и изменение ширины категории доступны только в режиме редактирования.
-   Признак режима — класс dashboard-edit-mode на корневом элементе приложения (ставит MainLayout). */
-.main-shell:not(.dashboard-edit-mode) .drag-handle {
+/* Перетаскивание категории, её действия и изменение ширины доступны только в режиме
+   редактирования. Признак режима — класс dashboard-edit-mode на корневом элементе
+   приложения (ставит MainLayout). */
+.main-shell:not(.dashboard-edit-mode) .drag-handle,
+.main-shell:not(.dashboard-edit-mode) .category-actions {
     display: none;
 }
 

@@ -17,8 +17,5 @@
   "additionalNamespaces": [
     "Adashboard.Domain.Contracts",
     "Adashboard.Domain.ReadModels"
-  ],
-  "responseTypeOverride": {
-    "UploadImage": "System.Net.Http.HttpResponseMessage"
-  }
+  ]
 }

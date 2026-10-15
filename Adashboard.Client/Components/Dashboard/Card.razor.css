@@ -1,0 +1,152 @@
+/* Карточка-ссылка. Живёт в сетке карточек категории, поэтому её ширина задана span-переменной,
+   а высота одинакова во всех категориях (эталонный квадрат, см. Category.razor.css). */
+
+.dashboard-card {
+    --card-span-current: var(--card-span-desktop, 1);
+    grid-column: span var(--card-span-current);
+    display: grid;
+    grid-template-rows: min-content 1fr;
+    align-items: center;
+    justify-items: center;
+    gap: 0.2rem;
+    width: 100%;
+    /* Высота карточки — эталонный квадрат категории ширины 2, поэтому она одинакова во всех
+       категориях. Ширина же заполняет категорию и меняется вместе с её шириной. В панели
+       доступна уже урезанная отступами ширина сетки карточек (100cqw), поэтому к ней
+       возвращаем промежутки между колонками ((n - 1) * шаг) и отступы с рамкой панели
+       (2 * frame), делим на число колонок n — это ширина колонки сетки. */
+    height: calc(
+        (
+                100cqw - (var(--cards-current) - 1) * var(--dashboard-gap) +
+                    2 * var(--category-frame)
+            ) / var(--cards-current) - var(--category-frame) +
+            (var(--dashboard-gap) - var(--cards-gap)) / 2
+    );
+    container-type: inline-size;
+    border-radius: 14px;
+    padding: 0.35rem 0.4rem;
+    text-decoration: none;
+    background-color: var(--card-bg, #1e40af);
+    color: var(--card-text-color, #ffffff);
+    position: relative;
+    overflow: hidden;
+    transition: box-shadow 0.18s ease;
+}
+
+.dashboard-card:hover,
+.dashboard-card:focus-visible {
+    box-shadow:
+        inset 0 0 0 2px color-mix(in srgb, var(--text-main) 75%, transparent),
+        0 8px 22px rgba(0, 0, 0, 0.28);
+    outline: none;
+}
+
+.card-title {
+    width: 100%;
+    min-width: 0;
+    text-align: center;
+    line-height: 1.2;
+    font-size: 0.82rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--card-text-color, #ffffff);
+}
+
+.card-icon {
+    position: relative;
+    min-height: 0;
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    color: var(--card-icon-color, #ffffff);
+    /* Контейнер по обеим осям: размер иконки считаем от фактической области иконки,
+       а не от фиксированного значения. Область зависит от размера карточки, который,
+       в свою очередь, зависит от числа колонок и ширины экрана. */
+    container-type: size;
+}
+
+/* Размер иконки пропорционален её области: берём минимум ширины и высоты, поэтому иконка
+   не обрезается ни на узких колонках, ни на широких карточках (span 2). */
+.card-icon i {
+    font-size: min(80cqw, 80cqh);
+    line-height: 1;
+    transition: transform 0.18s ease;
+}
+
+.card-icon__image {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    max-width: 72%;
+    max-height: 72%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: 6px;
+}
+
+/* При наведении (и при фокусе с клавиатуры) иконка слегка увеличивается. В режиме
+   редактирования увеличение отключено: там при наведении показывается оверлей правки. */
+.main-shell:not(.dashboard-edit-mode) .dashboard-card:hover .card-icon i,
+.main-shell:not(.dashboard-edit-mode) .dashboard-card:focus-visible .card-icon i {
+    transform: scale(1.12);
+}
+
+/* Полупрозрачный оверлей редактирования: затемнение карточки и иконка карандаша.
+   По умолчанию скрыт; показывается только в режиме редактирования при наведении или фокусе.
+   pointer-events: none, чтобы клик по-прежнему доходил до самой карточки. */
+.card-edit-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    background: rgba(15, 15, 25, 0.45);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease;
+}
+
+.main-shell.dashboard-edit-mode .dashboard-card:hover .card-edit-overlay,
+.main-shell.dashboard-edit-mode .dashboard-card:focus-visible .card-edit-overlay {
+    opacity: 1;
+}
+
+/* Размер иконки оверлея считаем от ширины одной колонки карточки (как и у основной иконки),
+   чтобы на широких карточках она не раздувалась. */
+.card-edit-overlay i {
+    font-size: calc((100cqw - (var(--card-span-current) - 1) * var(--cards-gap, 0.8rem)) / var(--card-span-current) * 0.42);
+    line-height: 1;
+    color: #ffffff;
+}
+
+@media (max-width: 1200px) and (min-width: 901px) {
+    .dashboard-card {
+        --card-span-current: var(--card-span-medium, 1);
+        padding: 0.3rem 0.35rem;
+    }
+
+    .card-title {
+        font-size: 0.76rem;
+    }
+}
+
+@media (max-width: 900px) {
+    .dashboard-card {
+        --card-span-current: var(--card-span-mobile, 1);
+    }
+}
+
+@media (max-width: 640px) {
+    .dashboard-card {
+        border-radius: 12px;
+        padding: 0.28rem;
+    }
+
+    .card-title {
+        font-size: 0.72rem;
+    }
+}

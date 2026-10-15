@@ -9,9 +9,7 @@ namespace Adashboard.Server.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/probe")]
-public class ProbeController(
-    ProbeService probeService,
-    ILogger<ProbeController> logger) : ControllerBase
+public class ProbeController(ProbeService probeService, ILogger<ProbeController> logger) : ControllerBase
 {
     /// <summary>
     /// Проверяет доступность сервиса карточки по её идентификатору.
