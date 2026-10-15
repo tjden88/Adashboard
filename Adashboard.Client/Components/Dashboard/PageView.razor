@@ -53,7 +53,7 @@
         <p class="dashboard-empty" role="status">
             <i class="fa-regular fa-rectangle-list" aria-hidden="true"></i>
             <span>
-                Пока нет категорий.
+                Нет содержимого.
                 @if (isEditMode)
                 {
                     <text>Добавьте первую категорию, чтобы наполнить страницу.</text>
@@ -81,7 +81,7 @@
 </DialogContainer>
 
 <DialogContainer @bind-Open="_isDeletePageOpen" Title="Удаление страницы" Size="DialogContainer.DialogSize.ConfirmDialog">
-    <ConfirmDialog Message="@DeletePageMessage" ConfirmLabel="Удалить" Confirmed="DeletePageAsync" />
+    <ConfirmDialog Message="Удалить страницу вместе со всеми категориями и ссылками?" ConfirmLabel="Удалить" Confirmed="DeletePageAsync" />
 </DialogContainer>
 
 @code {
@@ -119,8 +119,6 @@
     // Порядковый номер новой категории: она добавляется в конец списка.
     private int NextCategoryOrder => Model.Categories.Count > 0 ? Model.Categories.Max(x => x.Order) + 1 : 0;
 
-
-    private string DeletePageMessage => $"Удалить страницу «{Model.DisplayTitle}» вместе со всеми категориями и ссылками?";
 
     // Карточки указанной категории, упорядоченные по положению. Read-модель отдаёт карточки
     // плоским списком, поэтому категория получает свои карточки параметром.

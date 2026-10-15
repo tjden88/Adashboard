@@ -25,7 +25,7 @@
             </div>
         </header>
 
-        @if (Cards.Count == 0)
+        @if (Cards.Count == 0 && AppStateService.IsEditMode)
         {
             <p class="category-empty">В категории пока нет ссылок.</p>
         }
@@ -41,7 +41,7 @@
                    style="--card-bg:@card.BackgroundColor; --card-icon-color:@card.GetIconColor(); --card-text-color:@card.GetTextColor();"
                    aria-label="@CardLabel(card)"
                    @onclick:preventDefault="@IsEditMode">
-                    <span class="card-title">@CardLabel(card)</span>
+                    <span class="card-title">@card.Title</span>
                     <span class="card-icon" aria-hidden="true">
                         @if (card.IsCustomIcon && !string.IsNullOrWhiteSpace(card.IconSource))
                         {
