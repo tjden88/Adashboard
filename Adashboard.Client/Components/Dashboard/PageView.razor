@@ -107,12 +107,6 @@
     [CascadingParameter]
     private DashboardPageModel Model { get; set; } = null!;
 
-    /// <summary>
-    /// Уведомление Home об изменении данных страницы: шапка получает страницу параметром
-    /// и должна перерисоваться.
-    /// </summary>
-    [Parameter]
-    public EventCallback PageInfoSaved { get; set; }
 
     private IReadOnlyList<DashboardCategory> OrderedCategories => Model.Categories.OrderBy(x => x.Order).ToList();
 
@@ -122,8 +116,10 @@
 
     // Карточки указанной категории, упорядоченные по положению. Read-модель отдаёт карточки
     // плоским списком, поэтому категория получает свои карточки параметром.
-    private IReadOnlyList<DashboardCard> GetCards(int categoryId)
-        => Model.Cards.Where(x => x.DashboardCategoryId == categoryId).OrderBy(x => x.Position).ToList();
+    private IReadOnlyList<DashboardCard> GetCards(int categoryId) => Model.Cards
+        .Where(x => x.DashboardCategoryId == categoryId)
+        .OrderBy(x => x.Position)
+        .ToList();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -183,8 +179,7 @@
             Model.Pages[index] = page;
         }
 
-        // Заголовок и описание страницы показывают шапка и вкладка браузера: сообщаем Home.
-        await PageInfoSaved.InvokeAsync();
+        Model.NotifyPageChanged();
 
         if (pathChanged)
         {

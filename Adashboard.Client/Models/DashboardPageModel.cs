@@ -10,9 +10,24 @@ namespace Adashboard.Client.Models;
 public sealed class DashboardPageModel
 {
     /// <summary>
+    /// Происходит при изменении текущей страницы
+    /// </summary>
+    public event Action? PageInfoChanged;
+
+    /// <summary>
     /// Информационная часть текущей страницы.
     /// </summary>
-    public DashboardPage Page { get; set; } = new();
+    public DashboardPage Page
+    {
+        get;
+        set
+        {
+            if(Equals(field, value))
+                return;
+            field = value;
+            PageInfoChanged?.Invoke();
+        }
+    } = new();
 
     /// <summary>
     /// Список всех страниц dashboard: нужен для поиска страницы по пути и выбора страницы в диалогах.
@@ -39,4 +54,9 @@ public sealed class DashboardPageModel
     /// Признак главной страницы
     /// </summary>
     public bool IsMainPage => Page.Id == 1;
+
+    /// <summary>
+    /// Уведомить об изменении текущей страницы
+    /// </summary>
+    public void NotifyPageChanged() => PageInfoChanged?.Invoke();
 }

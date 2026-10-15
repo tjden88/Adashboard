@@ -1,4 +1,5 @@
 @inject NavigationManager Navigation
+@implements IDisposable
 
 @*
     Шапка dashboard. Живёт внутри Home.razor (а не в layout): её содержимое относится
@@ -33,9 +34,9 @@
             else
             {
                 <h1>@DisplayTitle</h1>
-                @if (!string.IsNullOrWhiteSpace(Page.Description))
+                @if (!string.IsNullOrWhiteSpace(Model.Page.Description))
                 {
-                    <p>@Page.Description</p>
+                    <p>@Model.Page.Description</p>
                 }
             }
         </div>
@@ -66,15 +67,13 @@
     </div>
 </header>
 
-<SectionContent SectionName="dialogs">
-    <DialogContainer @bind-Open="_isAddPageOpen" Title="Создать страницу">
-        <PageDialog Saved="OnPageCreated" />
-    </DialogContainer>
+<DialogContainer @bind-Open="_isAddPageOpen" Title="Создать страницу">
+    <PageDialog Saved="OnPageCreated" />
+</DialogContainer>
 
-    <DialogContainer @bind-Open="_isSettingsOpen" Title="Настройки приложения">
-        <AppSettingsDialog />
-    </DialogContainer>
-</SectionContent>
+<DialogContainer @bind-Open="_isSettingsOpen" Title="Настройки приложения">
+    <AppSettingsDialog />
+</DialogContainer>
 
 
 @code {
@@ -90,14 +89,14 @@
     /// <summary>
     /// Информационная часть открытой страницы: заголовок и описание в шапке.
     /// </summary>
-    [Parameter]
-    public DashboardPage Page { get; set; } = new();
+    [CascadingParameter]
+    public DashboardPageModel Model { get; set; } = new();
 
     [CascadingParameter]
     private AppStateService AppStateService { get; set; } = null!;
 
     // Заголовок в шапке: у страницы без названия подставляем имя приложения.
-    private string DisplayTitle => string.IsNullOrWhiteSpace(Page.Title) ? DomainConstants.AppTitle : Page.Title;
+    private string DisplayTitle => string.IsNullOrWhiteSpace(Model.Page.Title) ? DomainConstants.AppTitle : Model.Page.Title;
 
     // Созданную страницу открываем: Home загрузит её по новому адресу, а окно закроет сам диалог.
     private void OnPageCreated(DashboardPage page) => Navigation.NavigateTo("/" + page.Path);
@@ -107,4 +106,17 @@
     private void OpenSiteSettings() => _isSettingsOpen = true;
 
     private void ToggleEditMode() => AppStateService.ToggleEditMode();
+
+    protected override void OnInitialized()
+    {
+        Model.PageInfoChanged += ModelOnPageInfoChanged;
+    }
+
+    private void ModelOnPageInfoChanged() => StateHasChanged();
+
+    public void Dispose()
+    {
+        Model.PageInfoChanged -= ModelOnPageInfoChanged;
+    }
+
 }

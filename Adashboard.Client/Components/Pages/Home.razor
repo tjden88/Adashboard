@@ -56,8 +56,8 @@
     }
     else
     {
-        <Header Page="_model.Page" />
-        <PageView PageInfoSaved="OnPageInfoSaved" />
+        <Header/>
+        <PageView/>
     }
 </CascadingValue>
 
@@ -114,9 +114,6 @@
 
     // Повторная загрузка текущей страницы (кнопка «Повторить» после ошибки).
     private Task RetryAsync() => LoadAsync(_loadedPath);
-
-    // Данные страницы обновлены из PageView: шапка получает страницу параметром и перерисовывается.
-    private void OnPageInfoSaved() => StateHasChanged();
 
     // Загружает страницу и её содержимое в модель, приводя состояние к одному из итогов:
     // загружено, не найдено, dashboard не настроен или ошибка.
