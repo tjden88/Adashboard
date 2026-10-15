@@ -5,11 +5,26 @@
 namespace Adashboard.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class Init : Migration
+    public partial class Initial : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.CreateTable(
+                name: "AppSettings",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    ThemeMode = table.Column<int>(type: "INTEGER", nullable: false),
+                    ShowLogo = table.Column<bool>(type: "INTEGER", nullable: false),
+                    HealthCheckIntervalSeconds = table.Column<int>(type: "INTEGER", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AppSettings", x => x.Id);
+                });
+
             migrationBuilder.CreateTable(
                 name: "Pages",
                 columns: table => new
@@ -23,21 +38,6 @@ namespace Adashboard.Data.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Pages", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "SiteSettings",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    ThemeMode = table.Column<int>(type: "INTEGER", nullable: false),
-                    ShowLogo = table.Column<bool>(type: "INTEGER", nullable: false),
-                    HealthCheckIntervalSeconds = table.Column<int>(type: "INTEGER", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_SiteSettings", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -69,7 +69,7 @@ namespace Adashboard.Data.Migrations
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
                     DashboardCategoryId = table.Column<int>(type: "INTEGER", nullable: false),
-                    Title = table.Column<string>(type: "TEXT", maxLength: 30, nullable: false),
+                    Title = table.Column<string>(type: "TEXT", maxLength: 120, nullable: false),
                     Url = table.Column<string>(type: "TEXT", maxLength: 500, nullable: false),
                     UrlScheme = table.Column<int>(type: "INTEGER", nullable: false),
                     IsCustomIcon = table.Column<bool>(type: "INTEGER", nullable: false),
@@ -91,7 +91,7 @@ namespace Adashboard.Data.Migrations
                 });
 
             migrationBuilder.InsertData(
-                table: "SiteSettings",
+                table: "AppSettings",
                 columns: new[] { "Id", "HealthCheckIntervalSeconds", "ShowLogo", "ThemeMode" },
                 values: new object[] { 1, 30, true, 0 });
 
@@ -116,10 +116,10 @@ namespace Adashboard.Data.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "Cards");
+                name: "AppSettings");
 
             migrationBuilder.DropTable(
-                name: "SiteSettings");
+                name: "Cards");
 
             migrationBuilder.DropTable(
                 name: "Categories");

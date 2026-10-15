@@ -21,7 +21,7 @@ public sealed class SiteSettingsService(DashboardDb db, ILogger<SiteSettingsServ
     {
         logger.LogDebug("Начато чтение настроек dashboard.");
 
-        var entity = await db.SiteSettings
+        var entity = await db.AppSettings
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == 1, cancellationToken);
 
@@ -50,13 +50,13 @@ public sealed class SiteSettingsService(DashboardDb db, ILogger<SiteSettingsServ
             return Result.Failure("Интервал проверки статуса должен быть больше либо равен нулю.");
         }
 
-        var entity = await db.SiteSettings.FirstOrDefaultAsync(x => x.Id == 1, cancellationToken);
+        var entity = await db.AppSettings.FirstOrDefaultAsync(x => x.Id == 1, cancellationToken);
         if (entity is null)
         {
             logger.LogWarning("Настройки dashboard не найдены. Создаётся новая запись.");
-            entity = settings.Adapt<SiteSettingsEntity>();
+            entity = settings.Adapt<AppSettingsEntity>();
             entity.Id = 1;
-            db.SiteSettings.Add(entity);
+            db.AppSettings.Add(entity);
         }
         else
         {

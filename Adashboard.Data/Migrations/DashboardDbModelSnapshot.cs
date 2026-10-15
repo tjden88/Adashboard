@@ -14,7 +14,36 @@ namespace Adashboard.Data.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.13");
+
+            modelBuilder.Entity("Adashboard.Data.Entities.AppSettingsEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("HealthCheckIntervalSeconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("ShowLogo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ThemeMode")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AppSettings");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            HealthCheckIntervalSeconds = 30,
+                            ShowLogo = true,
+                            ThemeMode = 0
+                        });
+                });
 
             modelBuilder.Entity("Adashboard.Data.Entities.DashboardCardEntity", b =>
                 {
@@ -47,7 +76,7 @@ namespace Adashboard.Data.Migrations
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasMaxLength(30)
+                        .HasMaxLength(120)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Url")
@@ -119,35 +148,6 @@ namespace Adashboard.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("Pages");
-                });
-
-            modelBuilder.Entity("Adashboard.Data.Entities.SiteSettingsEntity", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("HealthCheckIntervalSeconds")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("ShowLogo")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("ThemeMode")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("SiteSettings");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            HealthCheckIntervalSeconds = 30,
-                            ShowLogo = true,
-                            ThemeMode = 0
-                        });
                 });
 
             modelBuilder.Entity("Adashboard.Data.Entities.DashboardCardEntity", b =>
