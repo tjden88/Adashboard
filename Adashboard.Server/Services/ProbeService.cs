@@ -13,19 +13,28 @@ namespace Adashboard.Server.Services;
 
 
 /// <summary>
-/// Сервис серверной проверки карточек: доступность сервисов и заголовки страниц.
+/// Сервис серверной проверки карточек: доступность сервисов, заголовки и иконки страниц.
 /// </summary>
 public sealed class ProbeService(DashboardDb db, HttpClient client, ILogger<ProbeService> logger)
 {
     private const int MaxHtmlBytes = 256 * 1024;
 
+    // Сколько раз вручную следуем перенаправлению при загрузке страницы или иконки.
+    private const int MaxRedirects = 3;
+
     private static readonly TimeSpan _HealthRequestTimeout = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan _TitleRequestTimeout = TimeSpan.FromSeconds(8);
+    private static readonly TimeSpan _IconRequestTimeout = TimeSpan.FromSeconds(10);
 
     // Захватываем содержимое тега title без учёта регистра и переносов строк.
     private static readonly Regex _TitleRegex = new(@"<title[^>]*>(?<title>.*?)</title>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
 
     private static readonly Regex _WhitespaceRegex = new(@"\s+", RegexOptions.Compiled);
+
+    // Теги meta и link разбираем по атрибутам: их порядок и кавычки на страницах произвольные.
+    private static readonly Regex _MetaTagRegex = new(@"<meta\b[^>]*>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex _LinkTagRegex = new(@"<link\b[^>]*>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex _AttributeRegex = new(@"([-\w:]+)\s*=\s*(?:""(?<dq>[^""]*)""|'(?<sq>[^']*)'|(?<uq>[^\s>]+))", RegexOptions.Compiled);
 
     /// <summary>
     /// Проверяет доступность сервиса карточки по её идентификатору.
@@ -135,7 +144,7 @@ public sealed class ProbeService(DashboardDb db, HttpClient client, ILogger<Prob
                 logger.LogWarning("Получение заголовка завершилось неудачно. Код ответа: {StatusCode}.", (int)response.StatusCode); return null;
             }
 
-            var content = await ReadLimitedAsync(response.Content, cancellationToken);
+            var content = await ReadLimitedAsync(response.Content, MaxHtmlBytes, timeoutCts.Token);
             var html = DecodeHtml(content, response.Content.Headers.ContentType?.CharSet);
             var title = ExtractTitle(html);
 
@@ -165,6 +174,61 @@ public sealed class ProbeService(DashboardDb db, HttpClient client, ILogger<Prob
     }
 
     /// <summary>
+    /// Пытается получить иконку сервиса: сначала изображение со страницы (og:image),
+    /// затем favicon сайта. Изображение возвращается как data URL.
+    /// </summary>
+    public async Task<OperationResult<string>> GetIconAsync(string url, CancellationToken cancellationToken = default)
+    {
+        if (!TryBuildAbsoluteUri(url, out var pageUri))
+        {
+            logger.LogWarning("Получение иконки отклонено: адрес не является абсолютным HTTP(S)-адресом.");
+            return Result.Failure("Укажите корректную HTTP(S)-ссылку.").As<string>();
+        }
+
+        logger.LogDebug("Начато получение иконки сервиса на хосте {Host}.", pageUri.Host);
+
+        try
+        {
+            var html = await DownloadHtmlAsync(pageUri, cancellationToken);
+            if (html is null)
+            {
+                logger.LogWarning("Получение иконки не удалось: страница хоста {Host} недоступна.", pageUri.Host);
+                return Result.Failure("Не удалось загрузить страницу сервиса.").As<string>();
+            }
+
+            // Идём по кандидатам по приоритету: первый, который скачался и подошёл по формату, побеждает.
+            foreach (var candidate in BuildIconCandidates(html, pageUri))
+            {
+                var icon = await TryDownloadIconAsync(candidate, cancellationToken);
+                if (icon is null)
+                {
+                    continue;
+                }
+
+                logger.LogDebug("Иконка сервиса на хосте {Host} получена.", pageUri.Host);
+                return $"data:{icon.Value.ContentType};base64,{Convert.ToBase64String(icon.Value.Content)}";
+            }
+
+            logger.LogWarning("На странице хоста {Host} не найдена подходящая иконка.", pageUri.Host);
+            return Result.Failure("Не удалось найти подходящую иконку на странице.").As<string>();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogWarning("Получение иконки не завершилось за отведённое время.");
+            return Result.Failure("Время запроса истекло.").As<string>();
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning("Получение иконки завершилось сетевой ошибкой: {Message}", ex.Message);
+            return Result.Failure("Не удалось загрузить иконку.").As<string>();
+        }
+    }
+
+    /// <summary>
     /// Определяет состояние сервиса по режиму проверки и полученному коду ответа.
     /// </summary>
     private static HealthCheckResult Evaluate(CardStatusMode mode, int statusCode)
@@ -183,17 +247,243 @@ public sealed class ProbeService(DashboardDb db, HttpClient client, ILogger<Prob
     }
 
     /// <summary>
+    /// Скачивает HTML страницы, из которого берутся кандидаты на иконку.
+    /// </summary>
+    private async Task<string?> DownloadHtmlAsync(Uri pageUri, CancellationToken cancellationToken)
+    {
+        var downloaded = await DownloadLimitedAsync(pageUri, MaxHtmlBytes, cancellationToken);
+        if (downloaded is null)
+        {
+            logger.LogWarning("Загрузка страницы {Uri} для поиска иконки не удалась.", pageUri);
+            return null;
+        }
+
+        return DecodeHtml(downloaded.Value.Content, downloaded.Value.Charset);
+    }
+
+    /// <summary>
+    /// Скачивает изображение-кандидат и определяет его формат.
+    /// </summary>
+    private async Task<(string ContentType, byte[] Content)?> TryDownloadIconAsync(Uri uri, CancellationToken cancellationToken)
+    {
+        // Читаем на байт больше предела, чтобы отличить «ровно предел» от «больше предела».
+        var downloaded = await DownloadLimitedAsync(uri, (int)DomainConstants.MaxImageBytes + 1, cancellationToken);
+        if (downloaded is null)
+        {
+            return null;
+        }
+
+        var content = downloaded.Value.Content;
+        if (content.Length == 0 || content.LongLength > DomainConstants.MaxImageBytes)
+        {
+            logger.LogDebug("Иконка {Uri} пропущена: недопустимый размер.", uri);
+            return null;
+        }
+
+        var extension = ImageSignature.DetectExtension(content);
+        var contentType = extension is null ? null : ImageSignature.GetContentType(extension);
+        if (contentType is null)
+        {
+            logger.LogDebug("Иконка {Uri} пропущена: неподдерживаемый формат.", uri);
+            return null;
+        }
+
+        return (contentType, content);
+    }
+
+    /// <summary>
+    /// Скачивает содержимое по адресу, вручную следуя перенаправлениям: общий HttpClient
+    /// редиректы не следует, а у страниц и иконок они часты (http → https, переход на CDN).
+    /// </summary>
+    private async Task<(byte[] Content, string? Charset)?> DownloadLimitedAsync(Uri uri, int maxBytes, CancellationToken cancellationToken)
+    {
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(_IconRequestTimeout);
+
+        try
+        {
+            var current = uri;
+
+            for (var hop = 0; hop <= MaxRedirects; hop++)
+            {
+                using var response = await client.GetAsync(current, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token);
+
+                if ((int)response.StatusCode is >= 300 and < 400)
+                {
+                    if (!TryResolveRedirect(current, response.Headers.Location, out current))
+                    {
+                        logger.LogDebug("Загрузка {Uri} прервана: перенаправление не разрешено.", uri);
+                        return null;
+                    }
+
+                    continue;
+                }
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    logger.LogDebug("Загрузка {Uri} прервана: код ответа {StatusCode}.", uri, (int)response.StatusCode);
+                    return null;
+                }
+
+                var content = await ReadLimitedAsync(response.Content, maxBytes, timeoutCts.Token);
+                return (content, response.Content.Headers.ContentType?.CharSet);
+            }
+
+            logger.LogDebug("Загрузка {Uri} прервана: слишком много перенаправлений.", uri);
+            return null;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or HttpRequestException)
+        {
+            logger.LogDebug("Загрузка {Uri} прервана: {Message}", uri, ex.Message);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Собирает адреса-кандидаты на иконку в порядке приоритета: изображение со страницы,
+    /// затем favicon. Относительные адреса приводятся к абсолютным относительно страницы.
+    /// </summary>
+    private static List<Uri> BuildIconCandidates(string html, Uri pageUri)
+    {
+        // Приоритет: 0 — og:image, 1 — twitter:image, 2 — link rel="icon",
+        // 3 — apple-touch-icon, 4 — favicon.ico в корне сайта.
+        var found = new List<(int Priority, string Value)>();
+
+        foreach (Match meta in _MetaTagRegex.Matches(html))
+        {
+            var attributes = ReadAttributes(meta.Value);
+            if (!attributes.TryGetValue("content", out var content) || string.IsNullOrWhiteSpace(content))
+            {
+                continue;
+            }
+
+            attributes.TryGetValue("property", out var property);
+            attributes.TryGetValue("name", out var name);
+            var key = property ?? name;
+
+            if (string.Equals(key, "og:image", StringComparison.OrdinalIgnoreCase))
+            {
+                found.Add((0, content));
+            }
+            else if (string.Equals(key, "twitter:image", StringComparison.OrdinalIgnoreCase))
+            {
+                found.Add((1, content));
+            }
+        }
+
+        foreach (Match link in _LinkTagRegex.Matches(html))
+        {
+            var attributes = ReadAttributes(link.Value);
+            if (!attributes.TryGetValue("rel", out var rel) || !attributes.TryGetValue("href", out var href) || string.IsNullOrWhiteSpace(href))
+            {
+                continue;
+            }
+
+            var tokens = rel.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+
+            if (tokens.Any(t => string.Equals(t, "apple-touch-icon", StringComparison.OrdinalIgnoreCase)))
+            {
+                found.Add((3, href));
+            }
+            else if (tokens.Any(t => string.Equals(t, "icon", StringComparison.OrdinalIgnoreCase)))
+            {
+                found.Add((2, href));
+            }
+        }
+
+        found.Add((4, "/favicon.ico"));
+
+        var candidates = new List<Uri>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (_, value) in found.OrderBy(x => x.Priority))
+        {
+            if (!TryResolveUri(pageUri, value, out var resolved) || !seen.Add(resolved.AbsoluteUri))
+            {
+                continue;
+            }
+
+            candidates.Add(resolved);
+        }
+
+        return candidates;
+    }
+
+    /// <summary>
+    /// Читает атрибуты тега HTML в словарь без учёта регистра имён.
+    /// </summary>
+    private static Dictionary<string, string> ReadAttributes(string tag)
+    {
+        var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (Match match in _AttributeRegex.Matches(tag))
+        {
+            var value = match.Groups["dq"].Success ? match.Groups["dq"].Value
+                : match.Groups["sq"].Success ? match.Groups["sq"].Value
+                : match.Groups["uq"].Value;
+
+            attributes[match.Groups[1].Value] = WebUtility.HtmlDecode(value);
+        }
+
+        return attributes;
+    }
+
+    /// <summary>
+    /// Разрешает адрес иконки относительно страницы и проверяет, что это HTTP(S).
+    /// </summary>
+    private static bool TryResolveUri(Uri pageUri, string value, out Uri uri)
+    {
+        uri = null!;
+
+        if (!Uri.TryCreate(pageUri, value.Trim(), out var resolved)
+            || (resolved.Scheme != Uri.UriSchemeHttp && resolved.Scheme != Uri.UriSchemeHttps)
+            || resolved.Host.Length == 0)
+        {
+            return false;
+        }
+
+        uri = resolved;
+        return true;
+    }
+
+    /// <summary>
+    /// Разрешает адрес перенаправления относительно текущего адреса.
+    /// </summary>
+    private static bool TryResolveRedirect(Uri current, Uri? location, out Uri next)
+    {
+        next = null!;
+
+        if (location is null)
+        {
+            return false;
+        }
+
+        var resolved = new Uri(current, location);
+        if (resolved.Scheme != Uri.UriSchemeHttp && resolved.Scheme != Uri.UriSchemeHttps)
+        {
+            return false;
+        }
+
+        next = resolved;
+        return true;
+    }
+
+    /// <summary>
     /// Читает ответ с ограничением размера, чтобы не вычитывать в память большой документ.
     /// </summary>
-    private static async Task<byte[]> ReadLimitedAsync(HttpContent content, CancellationToken cancellationToken)
+    private static async Task<byte[]> ReadLimitedAsync(HttpContent content, int maxBytes, CancellationToken cancellationToken)
     {
         await using var stream = await content.ReadAsStreamAsync(cancellationToken);
         using var buffer = new MemoryStream();
         var chunk = new byte[81920];
 
-        while (buffer.Length < MaxHtmlBytes)
+        while (buffer.Length < maxBytes)
         {
-            var remaining = MaxHtmlBytes - (int)buffer.Length;
+            var remaining = maxBytes - (int)buffer.Length;
             var read = await stream.ReadAsync(chunk.AsMemory(0, Math.Min(chunk.Length, remaining)), cancellationToken);
             if (read == 0)
             {

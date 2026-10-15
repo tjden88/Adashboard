@@ -10,6 +10,14 @@
 
 <div class="icon-picker">
     <div class="icon-picker__field">
+        <a class="icon-picker__search-link"
+           href="https://fontawesome.com/v6/search"
+           target="_blank"
+           rel="noopener noreferrer"
+           title="Поиск иконок на fontawesome.com"
+           aria-label="Открыть поиск иконок Font Awesome в новой вкладке">
+            <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
+        </a>
         <span class="icon-picker__preview" aria-hidden="true">
             <i class="@Value"></i>
         </span>
@@ -27,14 +35,6 @@
                aria-label="@AriaLabel"
                @oninput="OnSearchInput"
                @onkeydown="OnKeyDownAsync" />
-        <a class="icon-picker__search-link"
-           href="https://fontawesome.com/v6/search"
-           target="_blank"
-           rel="noopener noreferrer"
-           title="Поиск иконок на fontawesome.com"
-           aria-label="Открыть поиск иконок Font Awesome в новой вкладке">
-            <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
-        </a>
     </div>
 
     @if (_matches.Count > 0)

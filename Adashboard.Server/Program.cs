@@ -55,12 +55,14 @@ services.AddScoped<SiteSettingsService>();
 services.AddScoped<ImageIconService>();
 
 // Клиент серверной проверки карточек и получения заголовка страницы. Редиректы не следуем,
-// чтобы вернуть настоящий код ответа целевого сервиса.
+// чтобы вернуть настоящий код ответа целевого сервиса. Представляемся понятным User-Agent:
+// без него многие сайты отвечают 403 и заголовок или иконку получить не удаётся.
 services.AddHttpClient<ProbeService>()
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
     {
         AllowAutoRedirect = false
-    });
+    })
+    .ConfigureHttpClient(client => client.DefaultRequestHeaders.UserAgent.ParseAdd("Adashboard/1.0"));
 
 
 // Разрешаем кросс-доменные запросы с любого origin: это личный дашборд,
@@ -104,7 +106,20 @@ Directory.CreateDirectory(paths.UploadsPath);
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(paths.UploadsPath),
-    RequestPath = DomainConstants.UploadsUrl
+    RequestPath = DomainConstants.UploadsUrl,
+    OnPrepareResponse = context =>
+    {
+        // Пользовательские загрузки — недоверенные данные. Для SVG, который может содержать
+        // скрипты, запрещаем любые внешние и встроенные загрузки: в <img> скрипты не исполняются,
+        // но при прямом переходе на файл это защищает от XSS на своём origin.
+        var headers = context.Context.Response.Headers;
+        headers.XContentTypeOptions = "nosniff";
+
+        if (context.File.Name.EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
+        {
+            headers.ContentSecurityPolicy = "default-src 'none'; style-src 'unsafe-inline'";
+        }
+    }
 });
 
 app.UseCors(corsPolicyName);

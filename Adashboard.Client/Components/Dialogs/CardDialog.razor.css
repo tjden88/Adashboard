@@ -44,7 +44,9 @@
 }
 
 .card-dialog__fetch-title,
-.card-dialog__fetch-title:disabled {
+.card-dialog__fetch-title:disabled,
+.card-dialog__fetch-icon,
+.card-dialog__fetch-icon:disabled {
     flex-shrink: 0;
 }
 
@@ -82,6 +84,30 @@
     flex-wrap: wrap;
     gap: 0.6rem 1.25rem;
     margin-bottom: 0.5rem;
+}
+
+/* Поле иконки и кнопка подтягивания стоят в одной строке: кнопка видна и для
+   встроенной иконки, и для своего изображения. */
+.card-dialog__icon-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.card-dialog__icon-control {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Кнопка равна по высоте полю ввода (.form-control: строка 1.5rem, отступы 1.1rem,
+   рамки 2px) и стоит по верху строки, поэтому не меняет размер ни при переключении
+   режима иконки, ни рядом с блоком изображения. */
+.card-dialog__fetch-icon,
+.card-dialog__fetch-icon:disabled {
+    flex-shrink: 0;
+    align-self: flex-start;
+    height: calc(2.6rem + 2px);
+    padding: 0 0.9rem;
 }
 
 .card-dialog__radio {

@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Adashboard.Server.Controllers;
 
 /// <summary>
-/// Эндпоинты серверной проверки карточек: доступность сервиса и заголовок страницы.
+/// Эндпоинты серверной проверки карточек: доступность сервиса, заголовок и иконка страницы.
 /// </summary>
 [ApiController]
 [Route("api/probe")]
@@ -52,6 +52,26 @@ public class ProbeController(ProbeService probeService, ILogger<ProbeController>
         var result = await probeService.GetTitleAsync(url, cancellationToken);
 
         // Отказ — это некорректная ссылка или недоступная страница, поэтому отвечаем 400.
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
+    }
+
+    /// <summary>
+    /// Пытается получить иконку сервиса по указанному адресу: изображение со страницы или favicon.
+    /// </summary>
+    [HttpGet("icon", Name = "GetIcon")]
+    [ProducesResponseType<string>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetIcon([FromQuery] string? url, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            logger.LogWarning("Получение иконки отклонено: ссылка не указана.");
+            return BadRequest("Укажите ссылку на страницу.");
+        }
+
+        var result = await probeService.GetIconAsync(url, cancellationToken);
+
+        // Отказ — это некорректная ссылка или ненайденная иконка, поэтому отвечаем 400.
         return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
     }
 }

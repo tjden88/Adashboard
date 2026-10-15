@@ -68,6 +68,11 @@
     <div class="card-dialog__field">
         <span class="card-dialog__label">Иконка</span>
 
+        @if (_iconError is not null)
+        {
+            <p class="card-dialog__error" role="alert">@_iconError</p>
+        }
+
         <div class="card-dialog__icon-modes" role="radiogroup" aria-label="Тип иконки">
             <label class="card-dialog__radio">
                 <input type="radio"
@@ -85,49 +90,61 @@
             </label>
         </div>
 
-        @if (_model.UseCustomImage)
-        {
-            <div class="card-dialog__image">
-                <div class="card-dialog__image-preview">
-                    @if (PreviewSource is not null)
-                    {
-                        <img src="@PreviewSource" alt="Предпросмотр иконки карточки" />
-                    }
-                    else
-                    {
-                        <i class="fa-regular fa-image" aria-hidden="true"></i>
-                    }
-                </div>
+        <div class="card-dialog__icon-row">
+            <div class="card-dialog__icon-control">
+                @if (_model.UseCustomImage)
+                {
+                    <div class="card-dialog__image">
+                        <div class="card-dialog__image-preview">
+                            @if (PreviewSource is not null)
+                            {
+                                <img src="@PreviewSource" alt="Предпросмотр иконки карточки" />
+                            }
+                            else
+                            {
+                                <i class="fa-regular fa-image" aria-hidden="true"></i>
+                            }
+                        </div>
 
-                <div class="card-dialog__image-controls">
-                    <div class="card-dialog__image-buttons">
-                        <label class="btn btn-outline-secondary card-dialog__image-upload">
-                            <i class="fa-solid fa-upload" aria-hidden="true"></i>Выбрать файл
-                            <InputFile OnChange="OnFileSelectedAsync"
-                                       accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,image/avif"
-                                       hidden />
-                        </label>
-                        <button type="button" class="btn btn-outline-secondary" @onclick="ClearImage">
-                            <i class="fa-solid fa-eraser" aria-hidden="true"></i>Очистить
-                        </button>
+                        <div class="card-dialog__image-controls">
+                            <div class="card-dialog__image-buttons">
+                                <label class="btn btn-outline-secondary card-dialog__image-upload">
+                                    <i class="fa-solid fa-upload" aria-hidden="true"></i>Выбрать файл
+                                    <InputFile OnChange="OnFileSelectedAsync"
+                                               accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,image/avif,image/svg+xml"
+                                               hidden />
+                                </label>
+                                <button type="button" class="btn btn-outline-secondary" @onclick="ClearImage">
+                                    <i class="fa-solid fa-eraser" aria-hidden="true"></i>Очистить
+                                </button>
+                            </div>
+
+                            <p class="card-dialog__hint">
+                                Выберите файл или вставьте изображение из буфера обмена.
+                            </p>
+                        </div>
                     </div>
 
-                    <p class="card-dialog__hint">
-                        Выберите файл или вставьте изображение из буфера обмена (Ctrl+V).
-                        Максимальный размер — @DomainConstants.MaxImageMegabytes МБ.
-                    </p>
-                </div>
+                    @if (_imageError is not null)
+                    {
+                        <p class="card-dialog__error" role="alert">@_imageError</p>
+                    }
+                }
+                else
+                {
+                    <IconPicker @bind-Value="_model.Icon" AriaLabel="Поиск иконки карточки" />
+                }
             </div>
 
-            @if (_imageError is not null)
-            {
-                <p class="card-dialog__error" role="alert">@_imageError</p>
-            }
-        }
-        else
-        {
-            <IconPicker @bind-Value="_model.Icon" AriaLabel="Поиск иконки карточки" />
-        }
+            <button type="button"
+                    class="btn btn-outline-secondary card-dialog__fetch-icon"
+                    @onclick="FetchIconAsync"
+                    disabled="@_isFetchingIcon"
+                    title="Подтянуть иконку с сайта по ссылке"
+                    aria-label="Подтянуть иконку с сайта по ссылке">
+                <i class="fa-solid @(_isFetchingIcon ? "fa-spinner fa-spin" : "fa-cloud-arrow-down")" aria-hidden="true"></i>
+            </button>
+        </div>
     </div>
 
     <div class="card-dialog__row">
@@ -200,11 +217,14 @@
     private bool _isSaving;
     private bool _isFetchingTitle;
     private string? _titleError;
+    private bool _isFetchingIcon;
+    private string? _iconError;
 
     private byte[]? _uploadedBytes;
     private string? _uploadedPreview;
 
     private readonly CancellationTokenSource _titleLookupCts = new();
+    private readonly CancellationTokenSource _iconLookupCts = new();
 
     private IJSObjectReference? _module;
     private DotNetObjectReference<CardDialog>? _selfRef;
@@ -361,10 +381,83 @@
     }
 
     // ---------------------------------------------------------------
+    // Иконка по ссылке: разбор страницы выполняет сервер, браузеру он недоступен из-за CORS.
+    // Подтянутое изображение проходит тем же путём, что и выбранный файл: preview и байты
+    // уходят в API при сохранении карточки.
+    // ---------------------------------------------------------------
+
+    private async Task FetchIconAsync()
+    {
+        _iconError = null;
+
+        var (scheme, url) = NormalizeUrl(_model.Scheme, _model.Url);
+        if (url.Length == 0)
+        {
+            _iconError = "Введите ссылку.";
+            return;
+        }
+
+        if (!IsSafeUrl(scheme, url))
+        {
+            _iconError = "Недопустимая схема ссылки.";
+            return;
+        }
+
+        _isFetchingIcon = true;
+
+        try
+        {
+            Logger.LogDebug("Запрошено получение иконки по ссылке карточки.");
+
+            var response = await DashboardApi.GetIconAsync(UrlSchemePrefix(scheme) + url, _iconLookupCts.Token);
+            if (!response.IsSuccessStatusCode)
+            {
+                Logger.LogWarning("Получение иконки завершилось ошибкой API. Код: {StatusCode}.", (int?)response.StatusCode);
+                _iconError = response.ErrorText();
+                return;
+            }
+
+            // Сервер отдаёт готовый data URL: он же служит предпросмотром, а байты уйдут при сохранении.
+            var (bytes, dataUrl) = DecodeDataUrl(response.Content);
+            if (bytes is null || dataUrl is null)
+            {
+                Logger.LogWarning("Не удалось разобрать изображение иконки, полученное по ссылке карточки.");
+                _iconError = "Не удалось получить иконку.";
+                return;
+            }
+
+            if (bytes.LongLength > DomainConstants.MaxImageBytes)
+            {
+                Logger.LogWarning("Иконка по ссылке карточки превышает допустимый размер.");
+                _iconError = $"Изображение превышает максимальный размер {DomainConstants.MaxImageMegabytes} МБ.";
+                return;
+            }
+
+            _uploadedBytes = bytes;
+            _uploadedPreview = dataUrl;
+            _model.UseCustomImage = true;
+            _imageError = null;
+            Logger.LogDebug("Иконка по ссылке карточки получена.");
+        }
+        catch (OperationCanceledException) when (_iconLookupCts.IsCancellationRequested)
+        {
+            // Диалог закрыли: ответ уже не нужен.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Не удалось получить иконку по ссылке карточки.");
+            _iconError = "Не удалось получить иконку.";
+        }
+        finally
+        {
+            _isFetchingIcon = false;
+        }
+    }
+
+    // ---------------------------------------------------------------
     // Изображение-иконка: выбор файла и вставка из буфера обмена.
     // Байты уходят в API уже при сохранении карточки.
     // ---------------------------------------------------------------
-
     private async Task OnFileSelectedAsync(InputFileChangeEventArgs args)
     {
         _imageError = null;
@@ -403,33 +496,49 @@
             return;
         }
 
+        var (bytes, preview) = DecodeDataUrl(dataUrl);
+        if (bytes is null || preview is null)
+        {
+            _imageError = "Не удалось прочитать изображение из буфера обмена.";
+        }
+        else if (bytes.LongLength > DomainConstants.MaxImageBytes)
+        {
+            _imageError = $"Изображение превышает максимальный размер {DomainConstants.MaxImageMegabytes} МБ.";
+        }
+        else
+        {
+            _uploadedBytes = bytes;
+            _uploadedPreview = preview;
+            _model.UseCustomImage = true;
+            _imageError = null;
+        }
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    // Разбирает data URL вида "data:image/png;base64,...": возвращает байты и сам адрес.
+    private static (byte[]? Bytes, string? DataUrl) DecodeDataUrl(string? dataUrl)
+    {
+        if (string.IsNullOrWhiteSpace(dataUrl))
+        {
+            return (null, null);
+        }
+
         var commaIndex = dataUrl.IndexOf(',');
         if (commaIndex < 0)
         {
-            return;
+            return (null, null);
         }
 
         try
         {
             var bytes = Convert.FromBase64String(dataUrl[(commaIndex + 1)..]);
-            if (bytes.Length == 0 || bytes.LongLength > DomainConstants.MaxImageBytes)
-            {
-                _imageError = $"Изображение превышает максимальный размер {DomainConstants.MaxImageMegabytes} МБ.";
-            }
-            else
-            {
-                _uploadedBytes = bytes;
-                _uploadedPreview = dataUrl;
-                _model.UseCustomImage = true;
-                _imageError = null;
-            }
+            return bytes.Length == 0 ? (null, null) : (bytes, dataUrl);
         }
         catch (FormatException)
         {
-            _imageError = "Не удалось прочитать изображение из буфера обмена.";
+            return (null, null);
         }
-
-        InvokeAsync(StateHasChanged);
     }
 
     private void ClearImage()
@@ -630,6 +739,7 @@
     public async ValueTask DisposeAsync()
     {
         await _titleLookupCts.CancelAsync();
+        await _iconLookupCts.CancelAsync();
 
         if (_module is not null)
         {
@@ -645,6 +755,7 @@
         }
 
         _titleLookupCts.Dispose();
+        _iconLookupCts.Dispose();
         _selfRef?.Dispose();
     }
 
