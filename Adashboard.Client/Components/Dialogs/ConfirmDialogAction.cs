@@ -15,8 +15,3 @@ public enum ConfirmDialogAction
     /// </summary>
     Primary
 }
-
-/// <summary>
-/// Параметры диалога подтверждения.
-/// </summary>
-public sealed record ConfirmDialogParameters(string Message, string ConfirmLabel = "Удалить", ConfirmDialogAction Action = ConfirmDialogAction.Danger);

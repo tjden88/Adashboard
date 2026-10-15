@@ -1,14 +1,12 @@
-@using Adashboard.Client.Services
-@inherits DialogComponent<PageDialogParameters, DashboardPage?>
 @inject IDashboardApi DashboardApi
 @inject ILogger<PageDialog> Logger
 
 @*
-    Диалог создания страницы dashboard.
+    Диалог создания страницы dashboard. Содержимое окна — сам диалог, открытость окна ведёт
+    вызывающий (Header или PageView).
 
     Запрос к API (POST) выполняет сам диалог: при отказе окно остаётся открытым и показывает
-    понятный текст ошибки. Созданная страница уходит результатом работы диалога, а переход
-    на неё выполняет тот, кто открывал окно.
+    понятный текст ошибки. Созданную страницу отдаём параметром Saved, а окно закрываем сами.
 
     Пока путь не правили вручную, он генерируется из названия страницы.
 *@
@@ -65,13 +63,28 @@
 </EditForm>
 
 @code {
-    private EditModel _model = new();
+    private readonly EditModel _model = new();
     private string? _error;
     private bool _isSaving;
 
     // Путь, введённый вручную. Пока его не трогали, путь генерируется из названия страницы.
     private string _manualPath = string.Empty;
     private bool _pathTouched;
+
+    [CascadingParameter]
+    private DialogContainer Dialog { get; set; } = null!;
+
+    /// <summary>
+    /// Пути всех существующих страниц: нужны для проверки уникальности пути.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<string> ExistingPaths { get; set; } = [];
+
+    /// <summary>
+    /// Уведомление о созданной странице: вызывающий обновляет списки и переходит на неё.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback<DashboardPage> Saved { get; set; }
 
     // Пока путь не трогали, он следует за названием: латиница, нижний регистр, дефисы.
     private string EffectivePath => _pathTouched ? _manualPath : PagePathRules.CreateSlug(_model.Title);
@@ -110,7 +123,7 @@
         }
 
         _isSaving = true;
-        SetBusy(true);
+        Dialog.SetBusy(true);
 
         try
         {
@@ -132,7 +145,9 @@
             }
 
             Logger.LogInformation("Страница dashboard создана. Идентификатор: {PageId}.", response.Content.Id);
-            Close(response.Content);
+
+            await Saved.InvokeAsync(response.Content);
+            await Dialog.CloseAsync();
         }
         catch (Exception ex)
         {
@@ -142,13 +157,13 @@
         finally
         {
             _isSaving = false;
-            SetBusy(false);
+            Dialog.SetBusy(false);
         }
     }
 
     // Путь уже занят другой страницей: сервер проверит это же, но ответим сразу, без запроса.
     private bool IsPathTaken(string path)
-        => Parameters.ExistingPaths.Any(existing => string.Equals(existing, path, StringComparison.Ordinal));
+        => ExistingPaths.Any(existing => string.Equals(existing, path, StringComparison.Ordinal));
 
     /// <summary>
     /// Редактируемые поля новой страницы.

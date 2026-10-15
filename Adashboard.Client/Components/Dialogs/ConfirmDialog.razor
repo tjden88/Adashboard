@@ -1,28 +1,89 @@
-@using Adashboard.Client.Services
-@inherits DialogComponent<ConfirmDialogParameters, bool?>
-
 @*
     Диалог подтверждения действия.
 
-    Ничего не выполняет сам: результат сообщает, подтвердил пользователь действие или нет,
-    а само действие (в том числе запрос к API) выполняет тот, кто открывал окно.
+    Ничего не выполняет сам: сообщает параметром Confirmed, что действие подтверждено,
+    а само действие (в том числе запрос к API) выполняет вызывающий. Отмена и закрытие окна
+    результата не несут.
 *@
 
 <div class="confirm-dialog">
-    <p class="confirm-dialog__message">@Parameters.Message</p>
+    <p class="confirm-dialog__message">@Message</p>
 
     <div class="confirm-dialog__actions">
-        <button type="button" class="btn btn-outline-secondary" @onclick="() => Close(false)">
+        <button type="button" class="btn btn-outline-secondary" @onclick="CancelAsync">
             Отмена
         </button>
-        <button type="button" class="@ConfirmButtonClass" @onclick="() => Close(true)">
-            <i class="fa-solid @ConfirmIconClass" aria-hidden="true"></i>@Parameters.ConfirmLabel
+        <button type="button" class="@ConfirmButtonClass" @onclick="ConfirmAsync">
+            <i class="fa-solid @ConfirmIconClass" aria-hidden="true"></i>@ConfirmLabel
         </button>
     </div>
 </div>
 
 @code {
-    private string ConfirmButtonClass => Parameters.Action == ConfirmDialogAction.Danger ? "btn btn-danger" : "btn btn-primary";
+    [CascadingParameter]
+    private DialogContainer Dialog { get; set; } = null!;
 
-    private string ConfirmIconClass => Parameters.Action == ConfirmDialogAction.Danger ? "fa-trash" : "fa-check";
+    /// <summary>
+    /// Текст вопроса о подтверждении.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public string Message { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Подпись кнопки подтверждения.
+    /// </summary>
+    [Parameter]
+    public string ConfirmLabel { get; set; } = "Удалить";
+
+    /// <summary>
+    /// Вид кнопки подтверждения: опасное действие или обычное.
+    /// </summary>
+    [Parameter]
+    public ConfirmDialogAction Action { get; set; } = ConfirmDialogAction.Danger;
+
+    /// <summary>
+    /// Уведомление о подтверждении: вызывающий выполняет само действие.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback Confirmed { get; set; }
+
+    private string ConfirmButtonClass => Action == ConfirmDialogAction.Danger ? "btn btn-danger" : "btn btn-primary";
+
+    private string ConfirmIconClass => Action == ConfirmDialogAction.Danger ? "fa-trash" : "fa-check";
+
+    private Task CancelAsync() => Dialog.CloseAsync();
+
+    // Сначала закрываем окно, потом выполняем действие: оно может увести на другую страницу.
+    private async Task ConfirmAsync()
+    {
+        await Dialog.CloseAsync();
+        await Confirmed.InvokeAsync();
+    }
+
+
+    /// <summary>
+    /// Входные данные диалога
+    /// </summary>
+    /// <param name="Message">Текст вопроса о подтверждении.</param>
+    /// <param name="ConfirmLabel">Подпись кнопки подтверждения.</param>
+    /// <param name="Action">Вид кнопки подтверждения: опасное действие или обычное.</param>
+    /// <param name="Confirmed">Уведомление о подтверждении: вызывающий выполняет само действие.</param>
+    public record EditModel(string Message, string ConfirmLabel, ConfirmAction Action, EventCallback Confirmed);
+
+    // <summary>
+    /// Вид основной кнопки диалога подтверждения.
+    /// </summary>
+    public enum ConfirmAction
+    {
+        /// <summary>
+        /// Опасное действие: красная кнопка с иконкой корзины.
+        /// </summary>
+        Danger,
+
+        /// <summary>
+        /// Обычное действие: основная кнопка с иконкой подтверждения.
+        /// </summary>
+        Primary
+    }
+
 }

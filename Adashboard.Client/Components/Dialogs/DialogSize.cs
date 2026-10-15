@@ -1,4 +1,4 @@
-namespace Adashboard.Client.Services;
+namespace Adashboard.Client.Components.Dialogs;
 
 /// <summary>
 /// Размер окна диалога.
@@ -19,15 +19,4 @@ public enum DialogSize
     /// Широкое окно: формы с несколькими полями и списками.
     /// </summary>
     Large
-}
-
-/// <summary>
-/// Настройки открытия диалога.
-/// </summary>
-public sealed record DialogOptions(DialogSize Size = DialogSize.Medium, bool CloseOnOverlayClick = false)
-{
-    /// <summary>
-    /// Настройки по умолчанию: обычный размер окна, клик вне окна диалог не закрывает.
-    /// </summary>
-    public static DialogOptions Default { get; } = new();
 }

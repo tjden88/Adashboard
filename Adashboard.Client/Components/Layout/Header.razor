@@ -1,4 +1,3 @@
-@inject DialogService DialogService
 @inject NavigationManager Navigation
 @inject ILogger<Header> Logger
 
@@ -10,6 +9,9 @@
     DashboardPageModel (обе задаёт Home). Пока страница грузится, вместо текста рисуется
     скелет заголовка, а кнопки остаются на месте. Логотип из настроек сайта подключит
     часть theme/site-settings-dialog.
+
+    Окна диалогов рисуются здесь же: состояние открытости ведёт шапка, содержимое передаётся
+    контейнеру как RenderFragment, а закрывает окно сам диалог через каскадный контейнер.
 *@
 
 <header class="dashboard-header">
@@ -33,7 +35,7 @@
     <div class="dashboard-header-actions">
         @if (AppState.IsEditMode)
         {
-            <button type="button" class="btn btn-sm btn-success" @onclick="OpenAddPageDialogAsync" aria-label="Добавить страницу" title="Добавить страницу">
+            <button type="button" class="btn btn-sm btn-success" @onclick="() => _isAddPageOpen = true" aria-label="Добавить страницу" title="Добавить страницу">
                 <i class="fa-solid fa-file-circle-plus" aria-hidden="true"></i>
                 <span class="header-button-label">Добавить страницу</span>
             </button>
@@ -44,7 +46,7 @@
             </button>
 
             @* ВРЕМЕННО: проверка диалога подтверждения. Удалить вместе с подключением удаления страницы в части page-view. *@
-            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CheckConfirmDialogAsync" aria-label="Проверить диалог подтверждения" title="Проверить диалог подтверждения">
+            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => _isConfirmOpen = true" aria-label="Проверить диалог подтверждения" title="Проверить диалог подтверждения">
                 <i class="fa-solid fa-vial" aria-hidden="true"></i>
                 <span class="header-button-label">Проверка</span>
             </button>
@@ -61,7 +63,25 @@
     </div>
 </header>
 
+<DialogContainer @bind-Open="_isAddPageOpen" Title="Создать страницу">
+    <PageDialog ExistingPaths="ExistingPaths" Saved="OnPageCreated" />
+</DialogContainer>
+
+@* ВРЕМЕННО: второе окно нужно только для проверки ConfirmDialog, пока его не подключит удаление страницы. *@
+<DialogContainer @bind-Open="_isConfirmOpen"
+                 Title="Подтверждение"
+                 Size="DialogSize.Small"
+                 CloseOnOverlayClick="true">
+    <ConfirmDialog Message="Это проверка диалога подтверждения. Продолжить?"
+                   ConfirmLabel="Подтвердить"
+                   Action="ConfirmDialogAction.Primary"
+                   Confirmed="OnConfirmChecked" />
+</DialogContainer>
+
 @code {
+    private bool _isAddPageOpen;
+    private bool _isConfirmOpen;
+
     /// <summary>
     /// Идёт загрузка страницы: вместо заголовка и описания рисуется скелет.
     /// </summary>
@@ -74,36 +94,18 @@
     [CascadingParameter]
     private DashboardPageModel Model { get; set; } = null!;
 
-    // Создание страницы: запрос к API и валидацию выполняет сам диалог, сюда приходит
-    // созданная страница либо null, если окно закрыли без сохранения.
-    private async Task OpenAddPageDialogAsync()
-    {
-        var created = await DialogService.ShowAsync<PageDialog, PageDialogParameters, DashboardPage?>(
-            new PageDialogParameters(Model.Pages.Select(x => x.Path).ToList()),
-            "Создать страницу");
+    // Пути существующих страниц нужны диалогу создания для проверки уникальности пути.
+    private List<string> ExistingPaths => Model.Pages.Select(x => x.Path).ToList();
 
-        if (created is not null)
-        {
-            // Открываем созданную страницу: Home загрузит её по новому адресу.
-            Navigation.NavigateTo("/" + created.Path);
-        }
-    }
+    // Созданную страницу открываем: Home загрузит её по новому адресу, а окно закроет сам диалог.
+    private void OnPageCreated(DashboardPage page) => Navigation.NavigateTo("/" + page.Path);
 
     private void OpenSiteSettings()
     {
     }
 
-    // ВРЕМЕННО: кнопка проверки диалога подтверждения, пока его не подключит удаление страницы
-    // (часть page-view). Результат пишем в лог, чтобы видеть, что диалог вернул.
-    private async Task CheckConfirmDialogAsync()
-    {
-        var confirmed = await DialogService.ShowAsync<ConfirmDialog, ConfirmDialogParameters, bool?>(
-            new ConfirmDialogParameters("Это проверка диалога подтверждения. Продолжить?", "Подтвердить"),
-            "Подтверждение",
-            new DialogOptions(CloseOnOverlayClick: true));
-
-        Logger.LogInformation("Проверка диалога подтверждения. Результат: {Result}.", confirmed);
-    }
+    // ВРЕМЕННО: проверка ConfirmDialog, пока его не подключит удаление страницы (часть page-view).
+    private void OnConfirmChecked() => Logger.LogInformation("Проверка диалога подтверждения: подтверждено.");
 
     private void ToggleEditMode() => AppState.ToggleEditMode();
 }
