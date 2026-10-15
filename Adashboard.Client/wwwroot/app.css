@@ -357,6 +357,13 @@ html[data-theme="dark"] .validation-message {
     display: grid;
 }
 
+/* Карточка в режиме редактирования переносится целиком, поэтому показываем «захват», а системное
+   меню ссылки по долгому нажатию подавляем: на тач-устройстве долгое нажатие — начало переноса. */
+.main-shell.dashboard-edit-mode .dashboard-card {
+    cursor: grab;
+    -webkit-touch-callout: none;
+}
+
 /* Место, куда встанет перетаскиваемая категория. */
 .dnd-placeholder {
     box-sizing: border-box;
@@ -368,6 +375,26 @@ html[data-theme="dark"] .validation-message {
 
 .dnd-placeholder-category {
     border-radius: 18px;
+}
+
+/* Placeholder карточки: стоит в сетке карточек категории и занимает столько же колонок,
+   сколько сама карточка (span-переменные переносит из неё скрипт). */
+.dnd-placeholder-card {
+    --card-span-current: var(--card-span-desktop, 1);
+    grid-column: span var(--card-span-current);
+    border-radius: 14px;
+}
+
+@media (max-width: 1200px) and (min-width: 901px) {
+    .dnd-placeholder-card {
+        --card-span-current: var(--card-span-medium, 1);
+    }
+}
+
+@media (max-width: 900px) {
+    .dnd-placeholder-card {
+        --card-span-current: var(--card-span-mobile, 1);
+    }
 }
 
 /* Фантом перетаскиваемой категории: следует за указателем. */

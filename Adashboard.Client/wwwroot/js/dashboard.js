@@ -1,8 +1,7 @@
-// Оформление dashboard: режим темы, фоновые изображения страницы, раскладка категорий
-// и их перетаскивание.
+// Оформление dashboard: режим темы, фоновые изображения страницы, раскладка категорий,
+// а также перетаскивание категорий и карточек.
 //
 // Модуль оформления подключает MainLayout, раскладку и перетаскивание — PageView.
-// Перетаскивание карточек между категориями добавит часть card-view.
 
 let activeThemeMode = "auto";
 let systemThemeMedia = null;
@@ -84,7 +83,11 @@ export function setBackgroundImages(lightUrl, darkUrl) {
 // ---------------------------------------------------------------------------
 
 const GRID_ELEMENT_ID = "dashboard-grid";
+
+// Перетаскивание начинается после заметного смещения указателя, а на тач-устройстве — ещё
+// и после длительного нажатия: иначе обычный жест остался бы обычной прокруткой страницы.
 const DRAG_THRESHOLD_PX = 6;
+const LONG_PRESS_DELAY_MS = 400;
 
 let gridResizeObserver = null;
 let itemResizeObserver = null;
@@ -101,6 +104,10 @@ let dragState = null;
 let editModeEnabled = false;
 let syncQueue = [];
 let syncInProgress = false;
+
+// Перенос карточки, ожидающий применения в Blazor: карточка скрыта, а на новом месте стоит
+// placeholder. Превью держится, пока Blazor не расставит карточки по новому порядку.
+let pendingCardDrop = null;
 
 function getGrid() {
     return document.getElementById(GRID_ELEMENT_ID);
@@ -464,7 +471,7 @@ export function disposeLayout() {
 }
 
 // ---------------------------------------------------------------------------
-// Перетаскивание и изменение ширины категорий.
+// Перетаскивание категорий и карточек, изменение ширины категории.
 // ---------------------------------------------------------------------------
 
 function sameOrder(a, b) {
@@ -491,10 +498,33 @@ function createPlaceholder(rect) {
     return placeholder;
 }
 
-function createClone(item, rect) {
+// Placeholder карточки: стоит в сетке карточек категории и занимает столько же колонок, сколько
+// сама карточка. Ширину карточка задаёт span-переменными, поэтому переносим их на placeholder —
+// иначе широкая карточка заняла бы одну колонку.
+function createCardPlaceholder(item, rect) {
+    const placeholder = document.createElement("div");
+    placeholder.className = "dnd-placeholder dnd-placeholder-card";
+
+    for (const name of ["--card-span-desktop", "--card-span-medium", "--card-span-mobile"]) {
+        const value = item.style.getPropertyValue(name);
+        if (value) {
+            placeholder.style.setProperty(name, value);
+        }
+    }
+
+    placeholder.style.height = `${rect.height}px`;
+    placeholder.setAttribute("aria-hidden", "true");
+    return placeholder;
+}
+
+function createClone(item, rect, dataAttribute) {
     const clone = item.cloneNode(true);
     clone.classList.add("dnd-clone");
-    clone.removeAttribute("data-category-id");
+
+    if (dataAttribute) {
+        clone.removeAttribute(dataAttribute);
+    }
+
     clone.style.position = "fixed";
     clone.style.top = "0";
     clone.style.left = "0";
@@ -505,15 +535,16 @@ function createClone(item, rect) {
     return clone;
 }
 
-function startSession(item, event) {
+function startCategorySession(category, event) {
     dragState = {
         kind: "category",
-        item,
+        item: category,
         pointerId: event.pointerId,
         startX: event.clientX,
         startY: event.clientY,
-        rect: item.getBoundingClientRect(),
+        rect: category.getBoundingClientRect(),
         active: false,
+        pressTimer: 0,
         previewIds: null
     };
 
@@ -522,7 +553,48 @@ function startSession(item, event) {
     document.addEventListener("pointercancel", onPointerCancel, true);
 }
 
+// Карточку мышью и стилусом переносим после заметного смещения, а пальцем — после длительного
+// нажатия: обычный жест по карточке должен остаться прокруткой страницы.
+function startCardSession(card, container, event) {
+    dragState = {
+        kind: "card",
+        item: card,
+        container,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        rect: card.getBoundingClientRect(),
+        active: false,
+        pressTimer: 0,
+        previewIds: null
+    };
+
+    if (event.pointerType === "touch") {
+        dragState.pressTimer = window.setTimeout(() => {
+            const state = dragState;
+
+            if (state && state.pointerId === event.pointerId && !state.active) {
+                activateDrag(state.startX, state.startY);
+            }
+        }, LONG_PRESS_DELAY_MS);
+    }
+
+    document.addEventListener("pointermove", onPointerMove, true);
+    document.addEventListener("pointerup", onPointerUp, true);
+    document.addEventListener("pointercancel", onPointerCancel, true);
+}
+
+function clearPressTimer(state) {
+    if (state && state.pressTimer) {
+        window.clearTimeout(state.pressTimer);
+        state.pressTimer = 0;
+    }
+}
+
 function endSession() {
+    clearPressTimer(dragState);
+    stopEdgeScroll();
+
     document.removeEventListener("pointermove", onPointerMove, true);
     document.removeEventListener("pointerup", onPointerUp, true);
     document.removeEventListener("pointercancel", onPointerCancel, true);
@@ -658,12 +730,21 @@ function onPointerDown(event) {
     if (handle) {
         const category = handle.closest(".dashboard-category");
         if (category) {
-            startSession(category, event);
+            startCategorySession(category, event);
+            return;
+        }
+    }
+
+    const card = event.target.closest(".dashboard-card");
+    if (card) {
+        const container = card.closest(".category-cards");
+        if (container) {
+            startCardSession(card, container, event);
         }
     }
 }
 
-// Убирает превью перетаскивания: placeholder и фантом, возвращает категорию в раскладку.
+// Убирает превью перетаскивания: placeholder и фантом, возвращает элемент в раскладку.
 // Позиции после этого расставляет layout() — он же возвращает прежнее место при отмене.
 function cleanup() {
     const state = dragState;
@@ -688,25 +769,35 @@ function cleanup() {
     state.clone = null;
 }
 
-function activateDrag(event) {
+function activateDrag(x, y) {
     const state = dragState;
-    const grid = getGrid();
 
     state.active = true;
-    state.offsetX = event.clientX - state.rect.left;
-    state.offsetY = event.clientY - state.rect.top;
-    state.sourceSpan = readSpan(state.item);
-    state.sourceHeight = state.item.offsetHeight;
+    state.offsetX = x - state.rect.left;
+    state.offsetY = y - state.rect.top;
 
-    const placeholder = createPlaceholder(state.rect);
-    if (grid) {
-        grid.appendChild(placeholder);
+    clearPressTimer(state);
+
+    if (state.kind === "card") {
+        // Карточка живёт в сетке карточек своей категории: placeholder встаёт рядом с ней.
+        state.placeholder = createCardPlaceholder(state.item, state.rect);
+        state.container.insertBefore(state.placeholder, state.item);
+    } else {
+        const grid = getGrid();
+        const placeholder = createPlaceholder(state.rect);
+
+        state.sourceSpan = readSpan(state.item);
+        state.sourceHeight = state.item.offsetHeight;
+
+        if (grid) {
+            grid.appendChild(placeholder);
+        }
+
+        state.placeholder = placeholder;
     }
 
-    state.placeholder = placeholder;
-
     // Фантом создаём до скрытия источника, иначе он унаследует display:none.
-    const clone = createClone(state.item, state.rect);
+    const clone = createClone(state.item, state.rect, state.kind === "card" ? "data-card-id" : null);
     document.body.appendChild(clone);
     state.clone = clone;
 
@@ -714,7 +805,8 @@ function activateDrag(event) {
     state.item.style.display = "none";
 
     document.body.classList.add("dnd-active");
-    updateDrag(event);
+    updateDrag(x, y);
+    startEdgeScroll();
 }
 
 // Пересобирает раскладку под указатель: placeholder встаёт на место, куда попадёт категория,
@@ -769,21 +861,103 @@ function updateCategoryTarget(x, y) {
         .filter((id) => id !== null);
 }
 
-function updateDrag(event) {
+// ---------------------------------------------------------------------------
+// Перенос карточки: placeholder встаёт в сетку карточек категории под указателем.
+// ---------------------------------------------------------------------------
+
+// Сетка карточек под указателем. Сначала проверяем точное попадание в сетку по геометрии,
+// а если указатель в стороне (например, над заголовком категории) — берём сетку категории
+// под указателем: сбрасывать карточку разрешено в любое место категории.
+function findCardContainer(x, y) {
+    for (const container of document.querySelectorAll(".category-cards")) {
+        const rect = container.getBoundingClientRect();
+        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+            return container;
+        }
+    }
+
+    const under = document.elementFromPoint(x, y);
+    const category = under?.closest(".dashboard-category");
+    return category ? category.querySelector(".category-cards") : null;
+}
+
+// Ставит placeholder перед нужной карточкой. Когда положение не меняется, DOM не трогаем:
+// иначе он менялся бы на каждом движении указателя.
+function movePlaceholder(container, placeholder, before) {
+    if (placeholder.parentElement !== container || placeholder.nextElementSibling !== before) {
+        container.insertBefore(placeholder, before);
+    }
+}
+
+function updateCardTarget(x, y) {
     const state = dragState;
-    const x = event.clientX;
-    const y = event.clientY;
+    const container = findCardContainer(x, y);
+    if (!container) {
+        return;
+    }
+
+    const cards = Array.from(container.children).filter(
+        (child) => child.classList.contains("dashboard-card") && child !== state.item);
+
+    movePlaceholder(container, state.placeholder, findInsertBefore(cards, x, y));
+}
+
+// Идентификаторы карточек контейнера в порядке DOM. Перетаскиваемую карточку пропускаем,
+// а на место placeholder подставляем её идентификатор — так получается порядок после сброса.
+function collectCardIds(container, item, placeholder) {
+    const ids = [];
+    const movedId = item ? parseId(item.dataset.cardId) : null;
+
+    for (const child of container.children) {
+        if (item && child === item) {
+            continue;
+        }
+
+        if (placeholder && child === placeholder) {
+            if (movedId !== null) {
+                ids.push(movedId);
+            }
+
+            continue;
+        }
+
+        if (child.classList.contains("dashboard-card")) {
+            const id = parseId(child.dataset.cardId);
+            if (id !== null) {
+                ids.push(id);
+            }
+        }
+    }
+
+    return ids;
+}
+
+function updateDrag(x, y) {
+    const state = dragState;
+
+    // Последнее положение указателя нужно автопрокрутке: она пересчитывает цель без движений.
+    state.lastX = x;
+    state.lastY = y;
 
     if (state.clone) {
         state.clone.style.transform = `translate(${x - state.offsetX}px, ${y - state.offsetY}px)`;
     }
 
-    updateCategoryTarget(x, y);
+    if (state.kind === "card") {
+        updateCardTarget(x, y);
+    } else {
+        updateCategoryTarget(x, y);
+    }
 }
 
 function finishDrag() {
     const state = dragState;
     if (!state) {
+        return;
+    }
+
+    if (state.kind === "card") {
+        finishCardDrag(state);
         return;
     }
 
@@ -811,6 +985,79 @@ function finishDrag() {
     }
 }
 
+// Порядок карточек в категории задаёт порядок узлов в DOM, поэтому, в отличие от категорий,
+// новый порядок применяет Blazor — по модели. Пока он не пересобрал раскладку, превью держится:
+// карточка остаётся скрытой и встаёт на своё место уже с новым порядком.
+function finishCardDrag(state) {
+    const sourceContainer = state.container;
+    const targetContainer = state.placeholder.parentElement;
+    const sourceCategoryId = parseId(sourceContainer.dataset.categoryId);
+    const targetCategoryId = targetContainer ? parseId(targetContainer.dataset.categoryId) : null;
+
+    // Фантом убираем сразу: дальше на экране только placeholder и скрытая карточка.
+    if (state.clone && state.clone.parentElement) {
+        state.clone.remove();
+        state.clone = null;
+    }
+
+    document.body.classList.remove("dnd-active");
+
+    if (sourceCategoryId === null || targetCategoryId === null || !state.placeholder.isConnected) {
+        cleanup();
+        endSession();
+        return;
+    }
+
+    const sameContainer = sourceContainer === targetContainer;
+    const targetIds = collectCardIds(targetContainer, state.item, state.placeholder);
+    const sourceIds = sameContainer ? targetIds : collectCardIds(sourceContainer, state.item, null);
+
+    // Порядок не изменился: карточку сразу возвращаем на место, сохранять нечего.
+    if (sameContainer && sameOrder(targetIds, collectCardIds(targetContainer, null, null))) {
+        cleanup();
+        endSession();
+        return;
+    }
+
+    // Карточку и placeholder оставляем на месте: их уберёт finalizeCardDrop после применения порядка.
+    pendingCardDrop = { item: state.item, placeholder: state.placeholder };
+    state.placeholder = null;
+    endSession();
+
+    if (!dotNetRef) {
+        finalizeCardDrop();
+        return;
+    }
+
+    enqueueSync(async () => {
+        try {
+            await dotNetRef.invokeMethodAsync("OnCardsReordered", sourceCategoryId, targetCategoryId, sourceIds, targetIds);
+        } finally {
+            finalizeCardDrop();
+        }
+    });
+}
+
+// Возвращает карточку в раскладку после того, как Blazor применил новый порядок. Карточка,
+// перенесённая в другую категорию, к этому моменту уже пересоздана Blazor — тогда исходный
+// узел просто исчез из документа.
+function finalizeCardDrop() {
+    const pending = pendingCardDrop;
+    if (!pending) {
+        return;
+    }
+
+    pendingCardDrop = null;
+
+    if (pending.item.isConnected) {
+        pending.item.style.display = "";
+    }
+
+    if (pending.placeholder.parentElement) {
+        pending.placeholder.remove();
+    }
+}
+
 function onPointerMove(event) {
     if (!dragState || event.pointerId !== dragState.pointerId) {
         return;
@@ -829,12 +1076,18 @@ function onPointerMove(event) {
             return;
         }
 
-        activateDrag(event);
+        // На тач-устройстве до длительного нажатия жест остаётся прокруткой страницы.
+        if (dragState.pressTimer) {
+            endSession();
+            return;
+        }
+
+        activateDrag(event.clientX, event.clientY);
         return;
     }
 
     event.preventDefault();
-    updateDrag(event);
+    updateDrag(event.clientX, event.clientY);
 }
 
 function onPointerUp(event) {
@@ -870,10 +1123,80 @@ function onPointerCancel(event) {
 }
 
 function onDragStart(event) {
-    // В режиме редактирования нативный drag-and-drop у карточки-ссылки рисует фантом ссылки:
-    // это мешает перетаскиванию категорий, поэтому подавляем.
-    if (editModeEnabled) {
+    // Нативная ссылка «тянется» браузером и рисует полупрозрачный фантом карточки — даже вне
+    // режима редактирования, поэтому у карточек нативный drag подавляем всегда. В режиме
+    // редактирования — ещё и у остальных элементов: их фантом мешал бы перетаскиванию.
+    if (editModeEnabled || event.target instanceof Element && event.target.closest(".dashboard-card")) {
         event.preventDefault();
+    }
+}
+
+// Прокрутку страницы во время переноса карточки пальцем подавляем вручную: карточкам
+// touch-action не ограничиваем, иначе страница не листалась бы вне перетаскивания. Подавляем
+// и во время ожидания длительного нажатия: браузер отменяет прокрутку только по первому
+// touchmove жеста, а дрожание пальца на удержании иначе успело бы запустить скролл.
+function onTouchMove(event) {
+    if (dragState && dragState.kind === "card" && (dragState.active || dragState.pressTimer)) {
+        event.preventDefault();
+    }
+}
+
+// Долгое нажатие по ссылке — начало переноса карточки, а не системное меню ссылки.
+function onContextMenu(event) {
+    if (editModeEnabled && dragState && dragState.kind === "card") {
+        event.preventDefault();
+    }
+}
+
+// Край экрана, у которого при переносе начинается автопрокрутка, и её максимальная скорость
+// за кадр: прокрутка во время переноса выключена, и добраться до невидимой части страницы
+// можно только подтягиванием к краю.
+const EDGE_SCROLL_ZONE_PX = 90;
+const EDGE_SCROLL_MAX_STEP_PX = 24;
+
+let edgeScrollFrame = 0;
+
+function edgeScrollStep() {
+    edgeScrollFrame = 0;
+
+    const state = dragState;
+    if (!state || !state.active || state.kind === "resize") {
+        return;
+    }
+
+    const y = state.lastY;
+    const height = window.innerHeight;
+    let delta = 0;
+
+    if (y < EDGE_SCROLL_ZONE_PX) {
+        delta = -Math.ceil(((EDGE_SCROLL_ZONE_PX - y) / EDGE_SCROLL_ZONE_PX) * EDGE_SCROLL_MAX_STEP_PX);
+    } else if (y > height - EDGE_SCROLL_ZONE_PX) {
+        delta = Math.ceil(((y - (height - EDGE_SCROLL_ZONE_PX)) / EDGE_SCROLL_ZONE_PX) * EDGE_SCROLL_MAX_STEP_PX);
+    }
+
+    if (delta !== 0) {
+        const before = window.scrollY;
+        window.scrollBy(0, delta);
+
+        // Страница сдвинулась — под указателем оказались другие элементы, цель переносим заново.
+        if (window.scrollY !== before) {
+            updateDrag(state.lastX, state.lastY);
+        }
+    }
+
+    edgeScrollFrame = window.requestAnimationFrame(edgeScrollStep);
+}
+
+function startEdgeScroll() {
+    if (edgeScrollFrame === 0) {
+        edgeScrollFrame = window.requestAnimationFrame(edgeScrollStep);
+    }
+}
+
+function stopEdgeScroll() {
+    if (edgeScrollFrame !== 0) {
+        window.cancelAnimationFrame(edgeScrollFrame);
+        edgeScrollFrame = 0;
     }
 }
 
@@ -930,6 +1253,8 @@ export function initializeDragAndDrop(ref) {
     document.addEventListener("pointerdown", onPointerDown, true);
     document.addEventListener("dragstart", onDragStart, true);
     document.addEventListener("keydown", onKeyDown, true);
+    document.addEventListener("touchmove", onTouchMove, { capture: true, passive: false });
+    document.addEventListener("contextmenu", onContextMenu, true);
 }
 
 // Режим редактирования приходит из Blazor: вне него перетаскивание и ресайз не начинаются.
@@ -948,9 +1273,12 @@ export function disposeDragAndDrop() {
     document.removeEventListener("pointerdown", onPointerDown, true);
     document.removeEventListener("dragstart", onDragStart, true);
     document.removeEventListener("keydown", onKeyDown, true);
+    document.removeEventListener("touchmove", onTouchMove, { capture: true });
+    document.removeEventListener("contextmenu", onContextMenu, true);
 
     cleanup();
     endSession();
+    finalizeCardDrop();
     document.body.classList.remove("category-resizing");
 
     dotNetRef = null;

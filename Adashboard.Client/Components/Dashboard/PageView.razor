@@ -12,8 +12,9 @@
     и карточек прямо в модели и перерисовывает себя.
 
     Категории укладывает по колонкам модуль js/dashboard.js: он позиционирует их абсолютно,
-    поэтому сетке задаётся высота. Там же живёт перетаскивание категорий и изменение их ширины:
-    результаты приходят обратно в OnCategoriesReordered и OnCategoryResized.
+    поэтому сетке задаётся высота. Там же живёт перетаскивание категорий и карточек, а также
+    изменение ширины категории: результаты приходят обратно в OnCategoriesReordered,
+    OnCategoryResized и OnCardsReordered.
 
     Окна диалогов рисуются здесь же: открытость ведёт этот компонент, содержимое передаётся
     контейнеру, а закрывает окно сам диалог через каскадный DialogContainer.
@@ -106,6 +107,7 @@
     private bool? _appliedEditMode;
 
     // Изменения порядка и ширины уходят в API по одному: одновременно больше одной записи не бывает.
+    // Тот же замок сериализует перестановки категорий и переносы карточек.
     private readonly SemaphoreSlim _reorderLock = new(1, 1);
 
     [CascadingParameter]
@@ -422,6 +424,101 @@
         }
 
         Logger.LogInformation("Изменения категорий dashboard сохранены. Категорий: {Count}.", categories.Count);
+    }
+
+    // ---------------------------------------------------------------
+    // Перетаскивание карточек внутри категории и между категориями (из модуля js/dashboard.js).
+    // Итоговый состав и порядок задают списки из DOM: карточку могли перенести в другую категорию,
+    // поэтому обновляем и её положение, и саму категорию. Сохраняем только то, что изменилось.
+    // ---------------------------------------------------------------
+
+    /// <summary>
+    /// Применяет новый порядок карточек, полученный от перетаскивания, в том числе с переносом в другую категорию.
+    /// </summary>
+    [JSInvokable]
+    public async Task OnCardsReordered(int sourceCategoryId, int targetCategoryId, int[] sourceCardIds, int[] targetCardIds)
+    {
+        await _reorderLock.WaitAsync();
+        try
+        {
+            // Сначала считаем итоговое положение, не трогая модель: так видно, что реально изменилось,
+            // и перенос на прежнее место не приводит к сохранению.
+            var target = new List<(DashboardCard Card, int CategoryId, int Position)>();
+            CollectCards(target, sourceCategoryId, sourceCardIds);
+
+            if (sourceCategoryId != targetCategoryId)
+            {
+                CollectCards(target, targetCategoryId, targetCardIds);
+            }
+
+            var changed = target
+                .Where(x => x.Card.DashboardCategoryId != x.CategoryId || x.Card.Position != x.Position)
+                .Select(x => x.Card)
+                .ToList();
+
+            if (changed.Count == 0)
+            {
+                Logger.LogDebug("Положение карточек не изменилось: сохранение не требуется.");
+                return;
+            }
+
+            foreach (var (card, categoryId, position) in target)
+            {
+                card.DashboardCategoryId = categoryId;
+                card.Position = position;
+            }
+
+            Logger.LogDebug("Применён новый порядок карточек. Изменено карточек: {Count}.", changed.Count);
+            await PersistCardChangesAsync(changed);
+        }
+        finally
+        {
+            _reorderLock.Release();
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    // Раскладывает идентификаторы контейнера по позициям: список из DOM полностью задаёт
+    // и состав, и порядок карточек категории.
+    private void CollectCards(List<(DashboardCard Card, int CategoryId, int Position)> target, int categoryId, int[] orderedCardIds)
+    {
+        for (var position = 0; position < orderedCardIds.Length; position++)
+        {
+            var card = Model.Cards.FirstOrDefault(x => x.Id == orderedCardIds[position]);
+            if (card is not null)
+            {
+                target.Add((card, categoryId, position));
+            }
+        }
+    }
+
+    // Сохраняет изменённые карточки по одной: ошибку отдельной записи только логируем,
+    // чтобы состояние интерфейса совпадало с показанным пользователю (как у категорий).
+    private async Task PersistCardChangesAsync(IReadOnlyCollection<DashboardCard> cards)
+    {
+        if (cards.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var card in cards)
+        {
+            try
+            {
+                var response = await DashboardApi.UpdateCardAsync(new SaveCardRequest { Card = card });
+                if (!response.IsSuccessStatusCode)
+                {
+                    Logger.LogWarning("Не удалось сохранить карточку {CardId}. Код: {StatusCode}.", card.Id, (int?)response.StatusCode);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Не удалось сохранить карточку {CardId}.", card.Id);
+            }
+        }
+
+        Logger.LogInformation("Изменения карточек dashboard сохранены. Карточек: {Count}.", cards.Count);
     }
 
     // Ключ включает ширину: после ресайза категория перерисовывается и получает корректные

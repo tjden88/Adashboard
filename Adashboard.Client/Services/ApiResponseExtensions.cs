@@ -18,7 +18,7 @@ public static class ApiResponseExtensions
     {
         ArgumentNullException.ThrowIfNull(response);
 
-        if (!response.IsSuccessStatusCode && response.Error is ApiException apiException)
+        if (response is {IsSuccessStatusCode: false, Error: ApiException apiException})
         {
             var message = apiException.Content?.Trim();
             if (!string.IsNullOrEmpty(message))
