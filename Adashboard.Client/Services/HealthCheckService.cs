@@ -7,10 +7,6 @@ namespace Adashboard.Client.Services;
 /// <summary>
 /// Сервис проверки доступности сервисов, на которые ведут карточки dashboard.
 /// </summary>
-/// <remarks>
-/// Проверку выполняет Adashboard.Server (браузер не может обращаться к целевым сервисам напрямую
-/// из-за политики CORS): клиент только запрашивает готовый результат и отдаёт его как есть.
-/// </remarks>
 public sealed class HealthCheckService(IDashboardApi dashboardApi, ILogger<HealthCheckService> logger)
 {
     /// <summary>
