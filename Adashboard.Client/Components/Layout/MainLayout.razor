@@ -1,7 +1,7 @@
 @inherits LayoutComponentBase
 
 
-<main class="main-shell @(AppState.IsEditMode ? "dashboard-edit-mode" : null)">
+<main class="main-shell @(AppStateService.IsEditMode ? "dashboard-edit-mode" : null)">
     <article class="content">
         @Body
     </article>
@@ -15,5 +15,5 @@
 
 @code {
     [CascadingParameter]
-    private AppState AppState { get; set; } = null!;
+    private AppStateService AppStateService { get; set; } = null!;
 }

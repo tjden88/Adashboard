@@ -6,24 +6,24 @@ namespace Adashboard.Client.Services;
 /// <summary>
 /// Состояние приложения, общее для всех компонентов: режим редактирования и настройки dashboard.
 /// </summary>
-public class AppState
+public class AppStateService
 {
-    private readonly ILogger<AppState> _logger;
-    private readonly CascadingValueSource<AppState> _source;
+    private readonly ILogger<AppStateService> _logger;
+    private readonly CascadingValueSource<AppStateService> _source;
 
     /// <summary>
     /// Создаёт состояние приложения и источник каскадного значения для него.
     /// </summary>
-    public AppState(ILogger<AppState> logger)
+    public AppStateService(ILogger<AppStateService> logger)
     {
         _logger = logger;
-        _source = new CascadingValueSource<AppState>(this, isFixed: false);
+        _source = new CascadingValueSource<AppStateService>(this, isFixed: false);
     }
 
     /// <summary>
     /// Источник каскадного значения: регистрируется в DI, чтобы состояние доходило до компонентов.
     /// </summary>
-    public CascadingValueSource<AppState> Source => _source;
+    public CascadingValueSource<AppStateService> Source => _source;
 
     /// <summary>
     /// Включён ли режим редактирования dashboard.

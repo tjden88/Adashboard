@@ -14,6 +14,10 @@
     контейнеру как RenderFragment, а закрывает окно сам диалог через каскадный контейнер.
 *@
 
+@{
+    var isEditMode = AppStateService.IsEditMode;
+}
+
 <header class="dashboard-header">
     <div class="dashboard-header-brand">
         <div>
@@ -33,7 +37,7 @@
         </div>
     </div>
     <div class="dashboard-header-actions">
-        @if (AppState.IsEditMode)
+        @if (isEditMode)
         {
             <button type="button" class="btn btn-sm btn-success" @onclick="() => _isAddPageOpen = true" aria-label="Добавить страницу" title="Добавить страницу">
                 <i class="fa-solid fa-file-circle-plus" aria-hidden="true"></i>
@@ -53,12 +57,12 @@
         }
 
         <button type="button"
-                class="px-4 btn btn-icon btn-sm @(AppState.IsEditMode ? "btn-primary" : "btn-outline-secondary")"
+                class="px-4 btn btn-icon btn-sm @(isEditMode ? "btn-primary" : "btn-outline-secondary")"
                 @onclick="ToggleEditMode"
-                aria-pressed="@(AppState.IsEditMode ? "true" : "false")"
+                aria-pressed="@(isEditMode ? "true" : "false")"
                 aria-label="Переключить режим редактирования"
-                title="@(AppState.IsEditMode ? "Завершить редактирование" : "Редактировать")">
-            <i class="fa-solid @(AppState.IsEditMode ? "fa-check" : "fa-pen-nib")" aria-hidden="true"></i>
+                title="@(isEditMode ? "Завершить редактирование" : "Редактировать")">
+            <i class="fa-solid @(isEditMode ? "fa-check" : "fa-pen-nib")" aria-hidden="true"></i>
         </button>
     </div>
 </header>
@@ -89,7 +93,7 @@
     public bool IsLoading { get; set; }
 
     [CascadingParameter]
-    private AppState AppState { get; set; } = null!;
+    private AppStateService AppStateService { get; set; } = null!;
 
     [CascadingParameter]
     private DashboardPageModel Model { get; set; } = null!;
@@ -104,5 +108,5 @@
     // ВРЕМЕННО: проверка ConfirmDialog, пока его не подключит удаление страницы (часть page-view).
     private void OnConfirmChecked() => Logger.LogInformation("Проверка диалога подтверждения: подтверждено.");
 
-    private void ToggleEditMode() => AppState.ToggleEditMode();
+    private void ToggleEditMode() => AppStateService.ToggleEditMode();
 }
