@@ -381,3 +381,4 @@ FodyWeavers.xsd
 # Старый фронтенд, отложенный как референс для переписывания Adashboard.Client.
 # Не собирается и не версионируется: актуальная реализация лежит в Adashboard.Client.
 /_reference/
+/tasks
