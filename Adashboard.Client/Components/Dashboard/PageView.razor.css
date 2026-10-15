@@ -19,10 +19,13 @@
     box-shadow: var(--shadow-soft);
 }
 
+/* Кнопки стоят слева, а подпись «Настройка страницы» — справа. Порядок меняем визуально,
+   чтобы кнопки шли первыми и при переносе строки оставались слева. */
 .page-actions__title {
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
+    order: 2;
     margin: 0;
     color: var(--accent);
     font-weight: 700;
@@ -32,6 +35,7 @@
     display: flex;
     align-items: center;
     flex-wrap: wrap;
+    order: 1;
     gap: 0.5rem;
 }
 
