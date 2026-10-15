@@ -64,17 +64,17 @@
 </header>
 
 <DialogContainer @bind-Open="_isAddPageOpen" Title="Создать страницу">
-    <PageDialog ExistingPaths="ExistingPaths" Saved="OnPageCreated" />
+    <PageDialog Saved="OnPageCreated" />
 </DialogContainer>
 
 @* ВРЕМЕННО: второе окно нужно только для проверки ConfirmDialog, пока его не подключит удаление страницы. *@
 <DialogContainer @bind-Open="_isConfirmOpen"
                  Title="Подтверждение"
-                 Size="DialogSize.Small"
+                 Size="DialogContainer.DialogSize.ConfirmDialog"
                  CloseOnOverlayClick="true">
     <ConfirmDialog Message="Это проверка диалога подтверждения. Продолжить?"
                    ConfirmLabel="Подтвердить"
-                   Action="ConfirmDialogAction.Primary"
+                   Action="ConfirmDialog.ConfirmDialogAction.Primary"
                    Confirmed="OnConfirmChecked" />
 </DialogContainer>
 
@@ -93,9 +93,6 @@
 
     [CascadingParameter]
     private DashboardPageModel Model { get; set; } = null!;
-
-    // Пути существующих страниц нужны диалогу создания для проверки уникальности пути.
-    private List<string> ExistingPaths => Model.Pages.Select(x => x.Path).ToList();
 
     // Созданную страницу открываем: Home загрузит её по новому адресу, а окно закроет сам диалог.
     private void OnPageCreated(DashboardPage page) => Navigation.NavigateTo("/" + page.Path);

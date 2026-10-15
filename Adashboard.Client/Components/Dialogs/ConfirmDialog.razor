@@ -1,3 +1,4 @@
+@inject AppState As
 @*
     Диалог подтверждения действия.
 
@@ -60,20 +61,10 @@
         await Confirmed.InvokeAsync();
     }
 
-
     /// <summary>
-    /// Входные данные диалога
-    /// </summary>
-    /// <param name="Message">Текст вопроса о подтверждении.</param>
-    /// <param name="ConfirmLabel">Подпись кнопки подтверждения.</param>
-    /// <param name="Action">Вид кнопки подтверждения: опасное действие или обычное.</param>
-    /// <param name="Confirmed">Уведомление о подтверждении: вызывающий выполняет само действие.</param>
-    public record EditModel(string Message, string ConfirmLabel, ConfirmAction Action, EventCallback Confirmed);
-
-    // <summary>
     /// Вид основной кнопки диалога подтверждения.
     /// </summary>
-    public enum ConfirmAction
+    public enum ConfirmDialogAction
     {
         /// <summary>
         /// Опасное действие: красная кнопка с иконкой корзины.

@@ -74,11 +74,11 @@
     [CascadingParameter]
     private DialogContainer Dialog { get; set; } = null!;
 
-    /// <summary>
-    /// Пути всех существующих страниц: нужны для проверки уникальности пути.
-    /// </summary>
-    [Parameter, EditorRequired]
-    public IReadOnlyList<string> ExistingPaths { get; set; } = [];
+    [CascadingParameter]
+    private DashboardPageModel PageModel { get; set; } = null!;
+
+    // Пути существующих страниц нужны диалогу создания для проверки уникальности пути.
+    private IEnumerable<string> ExistingPaths => PageModel.Pages.Select(x => x.Path);
 
     /// <summary>
     /// Уведомление о созданной странице: вызывающий обновляет списки и переходит на неё.
@@ -162,8 +162,7 @@
     }
 
     // Путь уже занят другой страницей: сервер проверит это же, но ответим сразу, без запроса.
-    private bool IsPathTaken(string path)
-        => ExistingPaths.Any(existing => string.Equals(existing, path, StringComparison.Ordinal));
+    private bool IsPathTaken(string path) => ExistingPaths.Any(existing => string.Equals(existing, path, StringComparison.Ordinal));
 
     /// <summary>
     /// Редактируемые поля новой страницы.
