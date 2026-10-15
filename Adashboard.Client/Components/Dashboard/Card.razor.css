@@ -76,16 +76,18 @@
     transition: transform 0.18s ease;
 }
 
+/* Картинка-иконка занимает ту же область, что и встроенная иконка. Размеры заданы явно,
+   а object-fit: contain вписывает изображение в эту область с сохранением пропорций, поэтому
+   даже небольшая картинка растягивается до общего размера (max-width/max-height так не умеют). */
 .card-icon__image {
     position: absolute;
     inset: 0;
     margin: auto;
-    max-width: 72%;
-    max-height: 72%;
-    width: auto;
-    height: auto;
+    width: 72%;
+    height: 72%;
     object-fit: contain;
     border-radius: 6px;
+    transition: transform 0.18s ease;
 }
 
 /* Индикатор доступности сервиса: виден только у проверяемых карточек (условие — в разметке).
@@ -151,10 +153,13 @@
     }
 }
 
-/* При наведении (и при фокусе с клавиатуры) иконка слегка увеличивается. В режиме
-   редактирования увеличение отключено: там при наведении показывается оверлей правки. */
+/* При наведении (и при фокусе с клавиатуры) иконка слегка увеличивается. Правило действует
+   и на встроенную иконку, и на картинку. В режиме редактирования увеличение отключено:
+   там при наведении показывается оверлей правки. */
 .main-shell:not(.dashboard-edit-mode) .dashboard-card:hover .card-icon i,
-.main-shell:not(.dashboard-edit-mode) .dashboard-card:focus-visible .card-icon i {
+.main-shell:not(.dashboard-edit-mode) .dashboard-card:hover .card-icon__image,
+.main-shell:not(.dashboard-edit-mode) .dashboard-card:focus-visible .card-icon i,
+.main-shell:not(.dashboard-edit-mode) .dashboard-card:focus-visible .card-icon__image {
     transform: scale(1.12);
 }
 
