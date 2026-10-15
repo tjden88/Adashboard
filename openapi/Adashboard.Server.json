@@ -979,17 +979,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/SiteSettings"
+                  "$ref": "#/components/schemas/AppSettings"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SiteSettings"
+                  "$ref": "#/components/schemas/AppSettings"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SiteSettings"
+                  "$ref": "#/components/schemas/AppSettings"
                 }
               }
             }
@@ -1010,7 +1010,7 @@
                     "type": "null"
                   },
                   {
-                    "$ref": "#/components/schemas/SiteSettings"
+                    "$ref": "#/components/schemas/AppSettings"
                   }
                 ]
               }
@@ -1022,7 +1022,7 @@
                     "type": "null"
                   },
                   {
-                    "$ref": "#/components/schemas/SiteSettings"
+                    "$ref": "#/components/schemas/AppSettings"
                   }
                 ]
               }
@@ -1034,7 +1034,7 @@
                     "type": "null"
                   },
                   {
-                    "$ref": "#/components/schemas/SiteSettings"
+                    "$ref": "#/components/schemas/AppSettings"
                   }
                 ]
               }
@@ -1071,6 +1071,25 @@
   },
   "components": {
     "schemas": {
+      "AppSettings": {
+        "type": "object",
+        "properties": {
+          "themeMode": {
+            "$ref": "#/components/schemas/ThemeMode"
+          },
+          "showLogo": {
+            "type": "boolean"
+          },
+          "healthCheckIntervalSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "CardStatusMode": {
         "type": "integer"
       },
@@ -1271,25 +1290,6 @@
               "null",
               "string"
             ]
-          }
-        }
-      },
-      "SiteSettings": {
-        "type": "object",
-        "properties": {
-          "themeMode": {
-            "$ref": "#/components/schemas/ThemeMode"
-          },
-          "showLogo": {
-            "type": "boolean"
-          },
-          "healthCheckIntervalSeconds": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
           }
         }
       },

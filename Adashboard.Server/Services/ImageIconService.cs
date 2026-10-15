@@ -10,9 +10,9 @@ namespace Adashboard.Server.Services;
 /// </summary>
 public sealed class ImageIconService(DashboardPaths paths, ILogger<ImageIconService> logger)
 {
-    private const string FolderRelativePath = "uploads/card-icons";
+    private const string FolderName = "card-icons";
 
-    private readonly string _folder = Path.Combine(paths.UploadsPath, "card-icons");
+    private readonly string _folder = Path.Combine(paths.UploadsPath, FolderName);
 
     /// <summary>
     /// Сохраняет переданные байты изображения для карточки (загрузка с устройства или из буфера).
@@ -98,7 +98,7 @@ public sealed class ImageIconService(DashboardPaths paths, ILogger<ImageIconServ
             throw;
         }
 
-        return $"/{FolderRelativePath}/{fileName}";
+        return $"{DomainConstants.UploadsUrl}/{FolderName}/{fileName}";
     }
 
     /// <summary>

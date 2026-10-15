@@ -1,4 +1,5 @@
 using Adashboard.Data;
+using Adashboard.Domain.Reference;
 using Adashboard.Server.Mapping;
 using Adashboard.Server.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -103,7 +104,7 @@ Directory.CreateDirectory(paths.UploadsPath);
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(paths.UploadsPath),
-    RequestPath = "/uploads"
+    RequestPath = DomainConstants.UploadsUrl
 });
 
 app.UseCors(corsPolicyName);

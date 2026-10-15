@@ -4,18 +4,20 @@ using Microsoft.AspNetCore.Components;
 namespace Adashboard.Client.Services;
 
 /// <summary>
-/// Состояние приложения, общее для всех компонентов: режим редактирования и настройки dashboard.
+/// Состояние приложения, общее для всех компонентов: режим редактирования и настройки приложения.
 /// </summary>
-public class AppStateService
+public sealed class AppStateService
 {
+    private readonly IDashboardApi _dashboardApi;
     private readonly ILogger<AppStateService> _logger;
     private readonly CascadingValueSource<AppStateService> _source;
 
     /// <summary>
     /// Создаёт состояние приложения и источник каскадного значения для него.
     /// </summary>
-    public AppStateService(ILogger<AppStateService> logger)
+    public AppStateService(IDashboardApi dashboardApi, ILogger<AppStateService> logger)
     {
+        _dashboardApi = dashboardApi;
         _logger = logger;
         _source = new CascadingValueSource<AppStateService>(this, isFixed: false);
     }
@@ -31,9 +33,72 @@ public class AppStateService
     public bool IsEditMode { get; private set; }
 
     /// <summary>
-    /// Настройки dashboard, полученные с сервера. До загрузки отдаются значения по умолчанию.
+    /// Настройки приложения, полученные с сервера. До загрузки отдаются значения по умолчанию.
     /// </summary>
-    public SiteSettings Settings { get; private set; } = new();
+    public AppSettings Settings { get; private set; } = new();
+
+    /// <summary>
+    /// Загружает настройки приложения из API и делает их текущими.
+    /// </summary>
+    public async Task LoadSettingsAsync(CancellationToken cancellationToken = default)
+    {
+        _logger.LogDebug("Начата загрузка настроек.");
+
+        try
+        {
+            var response = await _dashboardApi.GetSettingsAsync(cancellationToken);
+            if (!response.IsSuccessStatusCode || response.Content is null)
+            {
+                _logger.LogWarning("Настройки приложения не загружены. Код ответа: {StatusCode}.", (int?)response.StatusCode);
+                return;
+            }
+
+            SetSettings(response.Content);
+            _logger.LogDebug("Настройки приложения загружены.");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Загрузка настроек завершилась ошибкой. Оставлены значения по умолчанию.");
+        }
+    }
+
+    /// <summary>
+    /// Сохраняет настройки приложения через API и делает их текущими. Возвращает текст ошибки,
+    /// а при успехе — <c>null</c>.
+    /// </summary>
+    public async Task<string?> SaveSettingsAsync(AppSettings settings, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+
+        _logger.LogDebug("Начато сохранение настроек приложения.");
+
+        try
+        {
+            var response = await _dashboardApi.SaveSettingsAsync(settings, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Сохранение настроек приложения завершилось ошибкой API. Код: {StatusCode}.", (int?)response.StatusCode);
+                return response.ErrorText();
+            }
+
+            SetSettings(settings);
+            _logger.LogInformation("Настройки приложения сохранены.");
+            return null;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Сохранение настроек приложения завершилось ошибкой.");
+            return "Не удалось сохранить настройки. Проверьте соединение с сервером и попробуйте снова.";
+        }
+    }
 
     /// <summary>
     /// Переключает режим редактирования на противоположный.
@@ -49,8 +114,7 @@ public class AppStateService
     /// <summary>
     /// Делает указанные настройки текущими и уведомляет подписчиков.
     /// </summary>
-    /// <param name="settings">Настройки dashboard, полученные с сервера.</param>
-    public void SetSettings(SiteSettings settings)
+    public void SetSettings(AppSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
 

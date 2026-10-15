@@ -17,7 +17,7 @@ public sealed class SiteSettingsService(DashboardDb db, ILogger<SiteSettingsServ
     /// </summary>
     /// <param name="cancellationToken">Токен отмены операции.</param>
     /// <returns>Настройки; значения по умолчанию, если записи в базе нет.</returns>
-    public async Task<SiteSettings> GetAsync(CancellationToken cancellationToken = default)
+    public async Task<AppSettings> GetAsync(CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Начато чтение настроек dashboard.");
 
@@ -28,18 +28,18 @@ public sealed class SiteSettingsService(DashboardDb db, ILogger<SiteSettingsServ
         if (entity is null)
         {
             logger.LogWarning("Настройки dashboard не найдены в базе данных. Возвращены значения по умолчанию.");
-            return new SiteSettings();
+            return new AppSettings();
         }
 
         logger.LogDebug("Настройки dashboard прочитаны.");
-        return entity.Adapt<SiteSettings>();
+        return entity.Adapt<AppSettings>();
     }
 
     /// <summary>
     /// Обновляет настройки dashboard. Если записи нет, она создаётся.
     /// </summary>
     public async Task<OperationResult> UpdateAsync(
-        SiteSettings settings,
+        AppSettings settings,
         CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Начато обновление настроек dashboard.");

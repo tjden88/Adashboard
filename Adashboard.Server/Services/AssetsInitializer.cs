@@ -1,3 +1,5 @@
+using Adashboard.Domain.Reference;
+
 namespace Adashboard.Server.Services;
 
 /// <summary>
@@ -10,7 +12,7 @@ internal sealed class AssetsInitializer(DashboardPaths paths, ILogger<AssetsInit
     private readonly string _sourceDirectory = paths.AssetsPath;
 
     // Каталог статики, доступный по адресу /uploads/assets.
-    private readonly string _targetDirectory = Path.Combine(paths.UploadsPath, "assets");
+    private readonly string _targetDirectory = Path.Combine(paths.UploadsPath, DomainConstants.AssetsFolderName);
 
     /// <summary>
     /// Создаёт каталог статики и копирует в него отсутствующие стандартные файлы.

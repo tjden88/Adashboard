@@ -1,6 +1,19 @@
+@inject AppStateService AppStateService
+
+@*
+    Корень приложения: маршрутизация и начальная загрузка общих данных.
+
+    Настройки dashboard (тема, логотип, интервал проверки статуса) нужны всему приложению,
+    поэтому грузим их до первого рендера: оформление применится сразу, без мигания.
+*@
+
 <Router AppAssembly="typeof(Program).Assembly">
     <Found Context="routeData">
         <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
 </Router>
+
+@code {
+    protected override Task OnInitializedAsync() => AppStateService.LoadSettingsAsync();
+}

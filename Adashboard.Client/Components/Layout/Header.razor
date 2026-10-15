@@ -1,14 +1,12 @@
 @inject NavigationManager Navigation
-@inject ILogger<Header> Logger
 
 @*
     Шапка dashboard. Живёт внутри Home.razor (а не в layout): её содержимое относится
     к конкретной странице dashboard.
 
-    Режим редактирования приходит из AppState, данные страницы — из каскадной модели
-    DashboardPageModel (обе задаёт Home). Пока страница грузится, вместо текста рисуется
-    скелет заголовка, а кнопки остаются на месте. Логотип из настроек сайта подключит
-    часть theme/site-settings-dialog.
+    Режим редактирования и настройки сайта приходят из AppState, данные страницы — из каскадной
+    модели DashboardPageModel (обе задаёт Home). Пока страница грузится, вместо текста рисуется
+    скелет заголовка, а кнопки и логотип остаются на месте.
 
     Окна диалогов рисуются здесь же: состояние открытости ведёт шапка, содержимое передаётся
     контейнеру как RenderFragment, а закрывает окно сам диалог через каскадный контейнер.
@@ -20,6 +18,11 @@
 
 <header class="dashboard-header">
     <div class="dashboard-header-brand">
+        @if (AppStateService.Settings.ShowLogo)
+        {
+            <img class="dashboard-logo" src="@DomainConstants.LogoAsset" alt="" />
+        }
+
         <div>
             @if (IsLoading)
             {
@@ -49,11 +52,6 @@
                 <span class="header-button-label">Настройки</span>
             </button>
 
-            @* ВРЕМЕННО: проверка диалога подтверждения. Удалить вместе с подключением удаления страницы в части page-view. *@
-            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => _isConfirmOpen = true" aria-label="Проверить диалог подтверждения" title="Проверить диалог подтверждения">
-                <i class="fa-solid fa-vial" aria-hidden="true"></i>
-                <span class="header-button-label">Проверка</span>
-            </button>
         }
 
         <button type="button"
@@ -71,20 +69,13 @@
     <PageDialog Saved="OnPageCreated" />
 </DialogContainer>
 
-@* ВРЕМЕННО: второе окно нужно только для проверки ConfirmDialog, пока его не подключит удаление страницы. *@
-<DialogContainer @bind-Open="_isConfirmOpen"
-                 Title="Подтверждение"
-                 Size="DialogContainer.DialogSize.ConfirmDialog"
-                 CloseOnOverlayClick="true">
-    <ConfirmDialog Message="Это проверка диалога подтверждения. Продолжить?"
-                   ConfirmLabel="Подтвердить"
-                   Action="ConfirmDialog.ConfirmDialogAction.Primary"
-                   Confirmed="OnConfirmChecked" />
+<DialogContainer @bind-Open="_isSettingsOpen" Title="Настройки приложения">
+    <SiteSettingsDialog />
 </DialogContainer>
 
 @code {
     private bool _isAddPageOpen;
-    private bool _isConfirmOpen;
+    private bool _isSettingsOpen;
 
     /// <summary>
     /// Идёт загрузка страницы: вместо заголовка и описания рисуется скелет.
@@ -101,12 +92,9 @@
     // Созданную страницу открываем: Home загрузит её по новому адресу, а окно закроет сам диалог.
     private void OnPageCreated(DashboardPage page) => Navigation.NavigateTo("/" + page.Path);
 
-    private void OpenSiteSettings()
-    {
-    }
-
-    // ВРЕМЕННО: проверка ConfirmDialog, пока его не подключит удаление страницы (часть page-view).
-    private void OnConfirmChecked() => Logger.LogInformation("Проверка диалога подтверждения: подтверждено.");
+    // Настройки сайта сохраняет сам диалог: владелец настроек — AppStateService,
+    // а шапка только открывает окно.
+    private void OpenSiteSettings() => _isSettingsOpen = true;
 
     private void ToggleEditMode() => AppStateService.ToggleEditMode();
 }

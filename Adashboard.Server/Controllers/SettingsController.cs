@@ -15,8 +15,8 @@ public class SettingsController(SiteSettingsService settingsService, ILogger<Set
     /// Возвращает текущие настройки dashboard.
     /// </summary>
     [HttpGet(Name = "GetSettings")]
-    [ProducesResponseType<SiteSettings>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<SiteSettings>> Get(CancellationToken cancellationToken)
+    [ProducesResponseType<AppSettings>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<AppSettings>> Get(CancellationToken cancellationToken)
     {
         var settings = await settingsService.GetAsync(cancellationToken);
         return settings;
@@ -28,7 +28,7 @@ public class SettingsController(SiteSettingsService settingsService, ILogger<Set
     [HttpPut(Name = "SaveSettings")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Put([FromBody] SiteSettings? settings, CancellationToken cancellationToken)
+    public async Task<IActionResult> Put([FromBody] AppSettings? settings, CancellationToken cancellationToken)
     {
         if (settings is null)
         {

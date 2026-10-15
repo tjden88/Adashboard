@@ -16,11 +16,11 @@
     /* Шаг колонок сетки dashboard: расстояние между колонками (категориями) сетки.
        Из него же считается высота карточки, поэтому значение вынесено в общую переменную. */
     --dashboard-gap: 1rem;
-    /* Фоновые изображения страницы. Значения по умолчанию рассчитаны на режим одного
-       origin (клиент раздаёт API). Если клиент запущен отдельно от сервера, эти переменные
-       перезаписывает js/dashboard.js на абсолютные адреса API — см. setBackgroundImages. */
-    --dashboard-background-light: url("/uploads/assets/bg-light.jpg");
-    --dashboard-background-dark: url("/uploads/assets/bg-dark.jpg");
+    /* Фоновые изображения страницы. Адреса файлов заданы в DomainConstants и подставляются
+       из C# (см. MainLayout и js/dashboard.js): в CSS-переменную строку из C# не положить.
+       Пока адреса не подставлены, фон не рисуется — виден только цвет основы. */
+    --dashboard-background-light: none;
+    --dashboard-background-dark: none;
 }
 
 html[data-theme="dark"] {
