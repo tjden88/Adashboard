@@ -1,0 +1,1 @@
+//NAS/home/Obsidian/Моё/Проекты/Adashboard-small-tasks.md

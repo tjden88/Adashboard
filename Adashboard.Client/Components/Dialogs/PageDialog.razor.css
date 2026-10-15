@@ -1,22 +1,17 @@
 .page-dialog {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1.25rem;
 }
 
 .page-dialog__field {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.35rem;
 }
 
 .page-dialog__label {
     font-weight: 600;
-}
-
-.page-dialog__actions {
-    display: flex;
-    justify-content: flex-end;
 }
 
 .page-dialog__hint {
@@ -24,4 +19,17 @@
     color: var(--text-muted);
     font-size: 0.78rem;
     line-height: 1.35;
+}
+
+.page-dialog__error {
+    margin: 0;
+    font-size: 0.85rem;
+}
+
+.page-dialog__actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--surface-border);
 }

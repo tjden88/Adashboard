@@ -16,11 +16,11 @@
     /* Шаг колонок сетки dashboard: расстояние между колонками (категориями) сетки.
        Из него же считается высота карточки, поэтому значение вынесено в общую переменную. */
     --dashboard-gap: 1rem;
-    /* Фоновые изображения страницы. Значения по умолчанию рассчитаны на режим одного
-       origin (клиент раздаёт API). Если клиент запущен отдельно от сервера, эти переменные
-       перезаписывает js/dashboard.js на абсолютные адреса API — см. setBackgroundImages. */
-    --dashboard-background-light: url("/uploads/assets/bg-light.jpg");
-    --dashboard-background-dark: url("/uploads/assets/bg-dark.jpg");
+    /* Фоновые изображения страницы. Адреса файлов заданы в DomainConstants и подставляются
+       из C# (см. MainLayout и js/dashboard.js): в CSS-переменную строку из C# не положить.
+       Пока адреса не подставлены, фон не рисуется — виден только цвет основы. */
+    --dashboard-background-light: none;
+    --dashboard-background-dark: none;
 }
 
 html[data-theme="dark"] {
@@ -74,6 +74,137 @@ button,
 select,
 input {
     font: inherit;
+}
+
+/* Пока открыт диалог, прокрутка фона заблокирована (класс ставит js/dialog.js). */
+body.dialog-open {
+    overflow: hidden;
+}
+
+/* Палитра Coloris рисуется поверх затемнения диалога. Её собственный z-index (1000) ниже,
+   чем у окна (1500), поэтому палитра уходила под него: поднимаем её выше окна.
+   Оформление задаём здесь же: палитра живёт в body, вне области видимости компонентов,
+   поэтому стили ей пишем глобально, а не в ColorPicker.razor.css. */
+.clr-picker,
+.clr-picker.clr-dark {
+    z-index: 2000;
+    width: 300px;
+    border: 1px solid var(--surface-border);
+    border-radius: 16px;
+    /* Поверхность и тень — как у остальных панелей проекта. Фон полупрозрачный, поэтому
+       размываем подложку: иначе сквозь палитру читалось бы содержимое диалога. */
+    background-color: var(--surface-strong);
+    backdrop-filter: blur(8px);
+    box-shadow: var(--shadow-soft);
+    color: var(--text-main);
+    /* Область выбора цвета занимает всю ширину палитры: скругление срезает её углы. */
+    overflow: hidden;
+}
+
+/* Поле значения цвета: как поля ввода проекта. */
+.clr-picker input.clr-color,
+.clr-picker.clr-dark input.clr-color {
+    border: 1px solid var(--surface-border);
+    border-radius: 12px;
+    background-color: var(--surface);
+    color: var(--text-main);
+    font-family: var(--font-main);
+}
+
+.clr-picker input.clr-color:focus,
+.clr-picker.clr-dark input.clr-color:focus {
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--surface-border));
+    box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* Область выбора цвета крупнее библиотечной: выбранный оттенок видно лучше. */
+.clr-picker .clr-gradient {
+    height: 140px;
+    margin-bottom: 14px;
+    border-radius: 0;
+}
+
+/* Полоса оттенка: толще и с нашими отступами. */
+.clr-picker .clr-hue {
+    width: calc(100% - 32px);
+    height: 10px;
+    margin: 6px 16px;
+    border-radius: 6px;
+}
+
+.clr-picker .clr-hue input[type="range"] {
+    height: 20px;
+    top: -5px;
+}
+
+.clr-picker .clr-hue div {
+    width: 18px;
+    height: 18px;
+}
+
+/* Кружок текущего цвета. */
+.clr-picker .clr-preview {
+    width: 36px;
+    height: 36px;
+    margin: 14px 0 16px 16px;
+}
+
+/* Набор образцов: цвета проекта чуть крупнее библиотечных. */
+.clr-picker .clr-swatches {
+    width: calc(100% - 24px);
+    margin: 0 12px;
+}
+
+.clr-picker .clr-swatches button {
+    width: 22px;
+    height: 22px;
+    margin: 0 4px 8px;
+}
+
+.clr-picker .clr-swatches button:after {
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+}
+
+.clr-picker.clr-dark .clr-swatches button:after {
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+}
+
+/* Точка выбора на области цвета. */
+.clr-picker .clr-marker {
+    width: 16px;
+    height: 16px;
+    margin: -8px 0 0 -8px;
+    border-width: 2px;
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.45);
+}
+
+/* Подтверждение выбора — акцентная кнопка, как основные кнопки проекта. */
+.clr-picker .clr-close,
+.clr-picker .clr-clear {
+    height: 32px;
+    margin: 0 16px 16px auto;
+    padding: 0 18px;
+    border-radius: 12px;
+    background-color: var(--accent);
+    color: #ffffff;
+    font-family: var(--font-main);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.clr-picker .clr-close:hover,
+.clr-picker .clr-clear:hover {
+    background-color: color-mix(in srgb, var(--accent) 88%, #ffffff);
+}
+
+/* Сообщения валидации формы (Blazor) в оформлении проекта. */
+.validation-message {
+    color: #dc2626;
+    font-size: 0.8rem;
+}
+
+html[data-theme="dark"] .validation-message {
+    color: #fca5a5;
 }
 
 /* Поля ввода в оформлении проекта: следуют выбранной теме. */
@@ -214,17 +345,26 @@ input {
     background: color-mix(in srgb, #16a34a 88%, #ffffff);
 }
 
-/* Перетаскивание доступно только в режиме редактирования. */
-html:not(.dashboard-edit-mode) .drag-handle,
-html:not(.dashboard-edit-mode) .category-actions {
+/* Перетаскивание категории, её действия и изменение ширины доступны только в режиме
+   редактирования. Признак режима — класс dashboard-edit-mode на корневом элементе
+   приложения (ставит MainLayout). */
+.main-shell:not(.dashboard-edit-mode) .drag-handle,
+.main-shell:not(.dashboard-edit-mode) .category-actions {
     display: none;
 }
 
-/* В режиме редактирования клик по карточке открывает окно редактирования. */
-html.dashboard-edit-mode .dashboard-card {
-    cursor: pointer;
+.main-shell.dashboard-edit-mode .category-resize-handle {
+    display: grid;
 }
 
+/* Карточка в режиме редактирования переносится целиком, поэтому показываем «захват», а системное
+   меню ссылки по долгому нажатию подавляем: на тач-устройстве долгое нажатие — начало переноса. */
+.main-shell.dashboard-edit-mode .dashboard-card {
+    cursor: grab;
+    -webkit-touch-callout: none;
+}
+
+/* Место, куда встанет перетаскиваемая категория. */
 .dnd-placeholder {
     box-sizing: border-box;
     pointer-events: none;
@@ -237,10 +377,27 @@ html.dashboard-edit-mode .dashboard-card {
     border-radius: 18px;
 }
 
+/* Placeholder карточки: стоит в сетке карточек категории и занимает столько же колонок,
+   сколько сама карточка (span-переменные переносит из неё скрипт). */
 .dnd-placeholder-card {
-    grid-column: span var(--card-span-desktop, 1);
+    --card-span-current: var(--card-span-desktop, 1);
+    grid-column: span var(--card-span-current);
+    border-radius: 14px;
 }
 
+@media (max-width: 1200px) and (min-width: 901px) {
+    .dnd-placeholder-card {
+        --card-span-current: var(--card-span-medium, 1);
+    }
+}
+
+@media (max-width: 900px) {
+    .dnd-placeholder-card {
+        --card-span-current: var(--card-span-mobile, 1);
+    }
+}
+
+/* Фантом перетаскиваемой категории: следует за указателем. */
 .dnd-clone {
     position: fixed;
     margin: 0;
@@ -259,16 +416,4 @@ body.dnd-active {
 body.category-resizing {
     user-select: none;
     cursor: ew-resize;
-}
-
-@media (max-width: 900px) {
-    .dnd-placeholder-card {
-        grid-column: span var(--card-span-mobile, 1);
-    }
-}
-
-@media (max-width: 1200px) and (min-width: 901px) {
-    .dnd-placeholder-card {
-        grid-column: span var(--card-span-medium, 1);
-    }
 }

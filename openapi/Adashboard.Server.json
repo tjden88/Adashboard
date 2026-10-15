@@ -20,7 +20,7 @@
                     "type": "null"
                   },
                   {
-                    "$ref": "#/components/schemas/DashboardCard"
+                    "$ref": "#/components/schemas/SaveCardRequest"
                   }
                 ]
               }
@@ -32,7 +32,7 @@
                     "type": "null"
                   },
                   {
-                    "$ref": "#/components/schemas/DashboardCard"
+                    "$ref": "#/components/schemas/SaveCardRequest"
                   }
                 ]
               }
@@ -44,7 +44,7 @@
                     "type": "null"
                   },
                   {
-                    "$ref": "#/components/schemas/DashboardCard"
+                    "$ref": "#/components/schemas/SaveCardRequest"
                   }
                 ]
               }
@@ -91,26 +91,6 @@
                 }
               }
             }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
           }
         }
       },
@@ -128,7 +108,7 @@
                     "type": "null"
                   },
                   {
-                    "$ref": "#/components/schemas/DashboardCard"
+                    "$ref": "#/components/schemas/SaveCardRequest"
                   }
                 ]
               }
@@ -140,7 +120,7 @@
                     "type": "null"
                   },
                   {
-                    "$ref": "#/components/schemas/DashboardCard"
+                    "$ref": "#/components/schemas/SaveCardRequest"
                   }
                 ]
               }
@@ -152,7 +132,7 @@
                     "type": "null"
                   },
                   {
-                    "$ref": "#/components/schemas/DashboardCard"
+                    "$ref": "#/components/schemas/SaveCardRequest"
                   }
                 ]
               }
@@ -160,31 +140,28 @@
           }
         },
         "responses": {
-          "204": {
-            "description": "No Content"
-          },
-          "400": {
-            "description": "Bad Request",
+          "200": {
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/DashboardCard"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/DashboardCard"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/DashboardCard"
                 }
               }
             }
           },
-          "404": {
-            "description": "Not Found",
+          "400": {
+            "description": "Bad Request",
             "content": {
               "text/plain": {
                 "schema": {
@@ -227,97 +204,6 @@
         "responses": {
           "204": {
             "description": "No Content"
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/cards/{cardId}/image": {
-      "post": {
-        "tags": [
-          "Cards"
-        ],
-        "operationId": "UploadImage",
-        "parameters": [
-          {
-            "name": "cardId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": [
-                "integer",
-                "string"
-              ],
-              "format": "int32"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "type": "string",
-                    "format": "byte"
-                  }
-                ]
-              }
-            },
-            "text/json": {
-              "schema": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "type": "string",
-                    "format": "byte"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "type": "string",
-                    "format": "byte"
-                  }
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK"
           },
           "400": {
             "description": "Bad Request",
@@ -482,26 +368,6 @@
           },
           "400": {
             "description": "Bad Request",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
             "content": {
               "text/plain": {
                 "schema": {
@@ -747,8 +613,8 @@
               }
             }
           },
-          "404": {
-            "description": "Not Found",
+          "400": {
+            "description": "Bad Request",
             "content": {
               "text/plain": {
                 "schema": {
@@ -792,26 +658,6 @@
           },
           "400": {
             "description": "Bad Request",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
             "content": {
               "text/plain": {
                 "schema": {
@@ -902,26 +748,6 @@
                 }
               }
             }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
           }
         }
       }
@@ -967,26 +793,6 @@
           },
           "400": {
             "description": "Bad Request",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
             "content": {
               "text/plain": {
                 "schema": {
@@ -1079,17 +885,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/SiteSettings"
+                  "$ref": "#/components/schemas/AppSettings"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SiteSettings"
+                  "$ref": "#/components/schemas/AppSettings"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SiteSettings"
+                  "$ref": "#/components/schemas/AppSettings"
                 }
               }
             }
@@ -1110,7 +916,7 @@
                     "type": "null"
                   },
                   {
-                    "$ref": "#/components/schemas/SiteSettings"
+                    "$ref": "#/components/schemas/AppSettings"
                   }
                 ]
               }
@@ -1122,7 +928,7 @@
                     "type": "null"
                   },
                   {
-                    "$ref": "#/components/schemas/SiteSettings"
+                    "$ref": "#/components/schemas/AppSettings"
                   }
                 ]
               }
@@ -1134,7 +940,7 @@
                     "type": "null"
                   },
                   {
-                    "$ref": "#/components/schemas/SiteSettings"
+                    "$ref": "#/components/schemas/AppSettings"
                   }
                 ]
               }
@@ -1171,6 +977,25 @@
   },
   "components": {
     "schemas": {
+      "AppSettings": {
+        "type": "object",
+        "properties": {
+          "themeMode": {
+            "$ref": "#/components/schemas/ThemeMode"
+          },
+          "showLogo": {
+            "type": "boolean"
+          },
+          "healthCheckIntervalSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "CardStatusMode": {
         "type": "integer"
       },
@@ -1194,7 +1019,7 @@
             "format": "int32"
           },
           "title": {
-            "maxLength": 30,
+            "maxLength": 120,
             "type": "string"
           },
           "url": {
@@ -1374,22 +1199,18 @@
           }
         }
       },
-      "SiteSettings": {
+      "SaveCardRequest": {
         "type": "object",
         "properties": {
-          "themeMode": {
-            "$ref": "#/components/schemas/ThemeMode"
+          "card": {
+            "$ref": "#/components/schemas/DashboardCard"
           },
-          "showLogo": {
-            "type": "boolean"
-          },
-          "healthCheckIntervalSeconds": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
+          "imageContent": {
             "type": [
-              "integer",
+              "null",
               "string"
             ],
-            "format": "int32"
+            "format": "byte"
           }
         }
       },

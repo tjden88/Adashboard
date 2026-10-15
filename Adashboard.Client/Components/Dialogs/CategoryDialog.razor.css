@@ -1,0 +1,55 @@
+.category-dialog {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.category-dialog__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.category-dialog__label {
+    font-weight: 600;
+}
+
+/* Подпись и текущее значение ширины в одной строке: ползунок должен занимать всю ширину. */
+.category-dialog__slider-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.category-dialog__width {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.category-dialog__hint {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    line-height: 1.35;
+}
+
+.category-dialog__error {
+    margin: 0;
+    font-size: 0.85rem;
+}
+
+.category-dialog__actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--surface-border);
+}
+
+/* Ползунок ширины в оформлении проекта: следует выбранной теме. */
+.category-dialog input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+}

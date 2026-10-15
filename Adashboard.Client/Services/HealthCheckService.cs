@@ -1,71 +1,35 @@
+using System.Net;
 using Adashboard.Domain.Enums;
-using Refit;
+using Adashboard.Domain.ReadModels;
 
 namespace Adashboard.Client.Services;
-
-/// <summary>
-/// Состояние доступности сервиса карточки, определённое последней проверкой.
-/// </summary>
-public enum ServiceHealthState
-{
-    /// <summary>Проверка ещё не выполнялась или невозможна.</summary>
-    Unknown,
-
-    /// <summary>Сервис доступен согласно выбранному режиму проверки.</summary>
-    Online,
-
-    /// <summary>Сервис недоступен или не ответил.</summary>
-    Offline
-}
-
-/// <summary>
-/// Результат одной проверки доступности: состояние и пояснение для подсказки на карточке.
-/// </summary>
-/// <param name="State">Состояние доступности сервиса.</param>
-/// <param name="Message">Пояснение исхода от API или <c>null</c>, если пояснения нет.</param>
-public sealed record ServiceHealthResult(ServiceHealthState State, string? Message)
-{
-    /// <summary>
-    /// Нейтральный результат по умолчанию: состояние неизвестно, пояснения нет.
-    /// </summary>
-    public static ServiceHealthResult Unknown { get; } = new(ServiceHealthState.Unknown, null);
-}
 
 /// <summary>
 /// Сервис проверки доступности сервисов, на которые ведут карточки dashboard.
 /// </summary>
 /// <remarks>
-/// Проверку выполняет Adashboard.Server: браузер не может обращаться к целевым сервисам напрямую
-/// из-за политики CORS (см. <c>ProbeService</c> в API). Клиент только запрашивает результат.
-/// Вся сетевая работа (поиск карточки, запрос к её сервису, оценка режима <c>StatusMode</c>)
-/// живёт в Adashboard.Server; клиент лишь переводит состояние сервиса из ответа в <see cref="ServiceHealthState"/>.
+/// Проверку выполняет Adashboard.Server (браузер не может обращаться к целевым сервисам напрямую
+/// из-за политики CORS): клиент только запрашивает готовый результат и отдаёт его как есть.
 /// </remarks>
-public sealed class HealthCheckService(
-    IDashboardApi dashboardApi,
-    ILogger<HealthCheckService> logger)
+public sealed class HealthCheckService(IDashboardApi dashboardApi, ILogger<HealthCheckService> logger)
 {
-    private const string ErrorMessage = "Не удалось проверить статус сервиса.";
-
-    /// <summary>Максимальное число одновременных проверок доступности.</summary>
+    /// <summary>
+    /// Максимальное число одновременных проверок доступности.
+    /// </summary>
     private const int MaxConcurrentChecks = 6;
 
-    /// <summary>
-    /// Общий ограничитель параллельных проверок внутри одного circuit.
-    /// </summary>
-    /// <remarks>
-    /// Каждая карточка проверяет себя сама и независимо от остальных, поэтому без ограничения
-    /// десятки карточек начали бы опрашивать сервер одновременно. Семафор сдерживает поток
-    /// запросов, чтобы не перегружать сеть и API.
-    /// </remarks>
+    // Пояснение для индикатора при сбое проверки: детали health-check в UI не показываем.
+    private const string ErrorMessage = "Не удалось проверить статус сервиса.";
+
+    // Каждая карточка проверяет себя сама и независимо от остальных, поэтому без ограничения
+    // десятки карточек начали бы опрашивать сервер одновременно. Семафор сдерживает поток запросов.
     private readonly SemaphoreSlim _concurrencyLimiter = new(MaxConcurrentChecks, MaxConcurrentChecks);
 
     /// <summary>
-    /// Выполняет одну проверку доступности карточки по её идентификатору.
+    /// Выполняет одну проверку доступности карточки по её идентификатору. Возвращает
+    /// <c>null</c>, если карточки на сервере больше нет: проверять её не нужно.
     /// </summary>
-    /// <param name="cardId">Идентификатор карточки.</param>
-    /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns>Результат проверки: состояние и пояснение от API.</returns>
-    public async Task<ServiceHealthResult> CheckAsync(int cardId, CancellationToken cancellationToken = default)
+    public async Task<HealthCheckResult?> CheckAsync(int cardId, CancellationToken cancellationToken = default)
     {
         // Занимаем «слот» до начала запроса: проверок одновременно не больше MaxConcurrentChecks.
         await _concurrencyLimiter.WaitAsync(cancellationToken);
@@ -73,45 +37,35 @@ public sealed class HealthCheckService(
         {
             var response = await dashboardApi.CheckHealthAsync(cardId, cancellationToken);
 
-            if (response is null)
+            // Карточки на сервере больше нет (её удалили, например, в другой вкладке): проверять нечего.
+            if (response.StatusCode == HttpStatusCode.NotFound)
             {
-                logger.LogWarning("API не вернуло результат проверки карточки {CardId}.", cardId);
-                return ServiceHealthResult.Unknown;
+                logger.LogWarning("Карточка {CardId} не найдена на сервере. Проверки для неё прекращены.", cardId);
+                return null;
             }
 
-            return new ServiceHealthResult(MapState(response.Status), response.Message);
+            var result = response.Content;
+            if (!response.IsSuccessStatusCode || result is null)
+            {
+                logger.LogWarning("Проверка карточки {CardId} завершилась ошибкой API. Код: {StatusCode}. Ответ: {Error}", cardId, (int?)response.StatusCode, response.ErrorText());
+                return new HealthCheckResult(HealthStatus.Unknown, ErrorMessage);
+            }
+
+            return result;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             // Отмена всего цикла проверок: пробрасываем, чтобы корректно завершить работу.
             throw;
         }
-        catch (ApiException ex)
+        catch (Exception ex)
         {
-            logger.LogWarning(
-                "Проверка карточки {CardId} завершилась ошибкой API. Код: {StatusCode}.",
-                cardId,
-                ex.StatusCode);
-            return new ServiceHealthResult(ServiceHealthState.Unknown, ErrorMessage);
-        }
-        catch (HttpRequestException ex)
-        {
-            logger.LogWarning("Проверка карточки {CardId} завершилась сетевой ошибкой: {Message}", cardId, ex.Message);
-            return new ServiceHealthResult(ServiceHealthState.Unknown, ErrorMessage);
+            logger.LogWarning(ex, "Проверка карточки {CardId} завершилась ошибкой.", cardId);
+            return new HealthCheckResult(HealthStatus.Unknown, ErrorMessage);
         }
         finally
         {
             _concurrencyLimiter.Release();
         }
     }
-
-    /// <summary>
-    /// Переводит состояние сервиса из ответа API в состояние индикатора на клиенте.
-    /// </summary>
-    private static ServiceHealthState MapState(HealthStatus status) => status switch
-    {
-        HealthStatus.Online => ServiceHealthState.Online,
-        HealthStatus.Offline => ServiceHealthState.Offline,
-        _ => ServiceHealthState.Unknown
-    };
 }

@@ -1,0 +1,79 @@
+@*
+    Диалог подтверждения действия.
+
+    Ничего не выполняет сам: сообщает параметром Confirmed, что действие подтверждено,
+    а само действие (в том числе запрос к API) выполняет вызывающий. Отмена и закрытие окна
+    результата не несут.
+*@
+
+<div class="confirm-dialog">
+    <p class="confirm-dialog__message">@Message</p>
+
+    <div class="confirm-dialog__actions">
+        <button type="button" class="btn btn-outline-secondary" @onclick="CancelAsync">
+            Отмена
+        </button>
+        <button type="button" class="@ConfirmButtonClass" @onclick="ConfirmAsync">
+            <i class="fa-solid @ConfirmIconClass" aria-hidden="true"></i>@ConfirmLabel
+        </button>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    private DialogContainer Dialog { get; set; } = null!;
+
+    /// <summary>
+    /// Текст вопроса о подтверждении.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public string Message { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Подпись кнопки подтверждения.
+    /// </summary>
+    [Parameter]
+    public string ConfirmLabel { get; set; } = "Удалить";
+
+    /// <summary>
+    /// Вид кнопки подтверждения: опасное действие или обычное.
+    /// </summary>
+    [Parameter]
+    public ConfirmDialogAction Action { get; set; } = ConfirmDialogAction.Danger;
+
+    /// <summary>
+    /// Уведомление о подтверждении: вызывающий выполняет само действие.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback Confirmed { get; set; }
+
+    private string ConfirmButtonClass => Action == ConfirmDialogAction.Danger ? "btn btn-danger" : "btn btn-primary";
+
+    private string ConfirmIconClass => Action == ConfirmDialogAction.Danger ? "fa-trash" : "fa-check";
+
+    private Task CancelAsync() => Dialog.CloseAsync();
+
+    // Сначала закрываем окно, потом выполняем действие: оно может увести на другую страницу.
+    private async Task ConfirmAsync()
+    {
+        await Dialog.CloseAsync();
+        await Confirmed.InvokeAsync();
+    }
+
+    /// <summary>
+    /// Вид основной кнопки диалога подтверждения.
+    /// </summary>
+    public enum ConfirmDialogAction
+    {
+        /// <summary>
+        /// Опасное действие: красная кнопка с иконкой корзины.
+        /// </summary>
+        Danger,
+
+        /// <summary>
+        /// Обычное действие: основная кнопка с иконкой подтверждения.
+        /// </summary>
+        Primary
+    }
+
+}

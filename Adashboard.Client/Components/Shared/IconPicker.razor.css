@@ -7,6 +7,23 @@
     align-items: stretch;
 }
 
+.icon-picker__preview {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 2.7rem;
+    border: 1px solid var(--surface-border);
+    border-right: none;
+    border-radius: 12px 0 0 12px;
+    background: var(--surface);
+    color: var(--accent);
+    font-size: 1rem;
+}
+
+.icon-picker__input {
+    border-radius: 0 12px 12px 0;
+}
+
 .icon-picker__search-link {
     flex-shrink: 0;
     display: grid;
@@ -25,23 +42,7 @@
     background: var(--surface-strong);
 }
 
-.icon-picker__preview {
-    width: 2.7rem;
-    flex-shrink: 0;
-    display: grid;
-    place-items: center;
-    border: 1px solid var(--surface-border);
-    border-right: none;
-    border-radius: 12px 0 0 12px;
-    background: var(--surface);
-    color: var(--accent);
-    font-size: 1rem;
-}
-
-.icon-picker__input {
-    border-radius: 0 12px 12px 0;
-}
-
+/* Список подсказок лежит поверх формы: он не должен сдвигать поля диалога. */
 .icon-picker__list {
     position: absolute;
     top: 100%;
@@ -54,6 +55,9 @@
     max-height: 210px;
     overflow-y: auto;
     background: var(--surface-strong);
+    /* Поверхность полупрозрачная, как у остальных панелей, поэтому подложку размываем:
+       без размытия сквозь список читался бы текст полей под ним. */
+    backdrop-filter: blur(6px);
     border: 1px solid var(--surface-border);
     border-radius: 12px;
     box-shadow: var(--shadow-soft);
@@ -70,7 +74,8 @@
     font-size: 0.9rem;
 }
 
-.icon-picker__item:hover {
+.icon-picker__item:hover,
+.icon-picker__item.is-active {
     background: var(--accent-soft);
 }
 

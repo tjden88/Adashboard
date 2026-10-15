@@ -1,18 +1,21 @@
-// Взаимодействие с Coloris: привязка палитры к конкретному input и обновление набора образцов.
+// Взаимодействие с Coloris: привязка палитры к конкретному полю выбора цвета и обновление
+// набора образцов. Сам выбор цвета рисует библиотека, поэтому Blazor нужен только мост.
+
 const instances = new Map();
 
 function isColorisAvailable() {
     return typeof window.Coloris !== "undefined";
 }
 
-/**
- * Инициализирует Coloris для конкретного поля и запоминает состояние привязки.
- * @param {string} inputId Идентификатор input.
- * @param {object} options Параметры Coloris (theme, alpha, swatches и т.д.).
- * @param {string} themeMode Режим темы: light, dark или auto.
- * @param {object} dotNetRef Ссылка на .NET-объект для обратного вызова.
- */
-export function initializeColoris(inputId, options, themeMode, dotNetRef) {
+// Тему палитры берём из оформления приложения (атрибут data-theme на <html>), а не из
+// системных настроек: при явно выбранной теме палитра иначе выпадала бы из оформления.
+function resolveThemeMode() {
+    const theme = document.documentElement.getAttribute("data-theme");
+    return theme === "dark" || theme === "light" ? theme : "auto";
+}
+
+// Инициализирует Coloris для конкретного поля и запоминает состояние привязки.
+export function initializeColoris(inputId, options, dotNetRef) {
     const input = document.getElementById(inputId);
     if (!input) {
         return;
@@ -24,7 +27,7 @@ export function initializeColoris(inputId, options, themeMode, dotNetRef) {
     }
 
     const instanceOptions = Object.assign({}, options, {
-        themeMode: themeMode || "auto"
+        themeMode: resolveThemeMode()
     });
 
     const onChanged = () => {
@@ -43,11 +46,7 @@ export function initializeColoris(inputId, options, themeMode, dotNetRef) {
     Coloris.setInstance(`#${inputId}`, instanceOptions);
 }
 
-/**
- * Обновляет набор образцов цвета для поля.
- * @param {string} inputId Идентификатор input.
- * @param {string[]} swatches Новый набор цветов.
- */
+// Обновляет набор образцов цвета у поля.
 export function updateSwatches(inputId, swatches) {
     const state = instances.get(inputId);
     if (!state || !isColorisAvailable()) {
@@ -58,10 +57,7 @@ export function updateSwatches(inputId, swatches) {
     Coloris.setInstance(`#${inputId}`, state.options);
 }
 
-/**
- * Освобождает ресурсы Coloris, связанные с полем.
- * @param {string} inputId Идентификатор input.
- */
+// Освобождает ресурсы Coloris, связанные с полем.
 export function disposeColoris(inputId) {
     const state = instances.get(inputId);
     if (!state) {

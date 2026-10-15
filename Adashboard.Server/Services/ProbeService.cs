@@ -5,7 +5,9 @@ using Adashboard.Data;
 using Adashboard.Domain.Enums;
 using Adashboard.Domain.Extensions;
 using Adashboard.Domain.ReadModels;
+using Adashboard.Domain.Reference;
 using Microsoft.EntityFrameworkCore;
+using WPR.Operations;
 
 namespace Adashboard.Server.Services;
 
@@ -13,44 +15,25 @@ namespace Adashboard.Server.Services;
 /// <summary>
 /// Сервис серверной проверки карточек: доступность сервисов и заголовки страниц.
 /// </summary>
-/// <remarks>
-/// <para>
-/// Запросы выполняются из backend, а не из браузера, поэтому политика CORS целевых сервисов
-/// не мешает проверке статуса и получению заголовка.
-/// </para>
-/// <para>
-/// Фильтрация диапазонов адресов (защита от SSRF) здесь намеренно <b>не применяется</b>: карточки
-/// ведут на локальные и частные домашние сервисы, и доступ к ним — смысл дашборда. Это сознательный
-/// отказ от защиты, обратный логике <c>ImageIconService.EnsurePublicHostAsync</c>. Остаются
-/// ограничения: только схемы http/https, без следования редиректам, ограниченные таймауты и размер
-/// вычитываемого тела.
-/// </para>
-/// </remarks>
-public sealed class ProbeService(
-    DashboardDb db,
-    HttpClient client,
-    ILogger<ProbeService> logger)
+public sealed class ProbeService(DashboardDb db, HttpClient client, ILogger<ProbeService> logger)
 {
     private const int MaxHtmlBytes = 256 * 1024;
-    private const int MaxTitleLength = 120;
 
-    private static readonly TimeSpan HealthRequestTimeout = TimeSpan.FromSeconds(5);
-    private static readonly TimeSpan TitleRequestTimeout = TimeSpan.FromSeconds(8);
+    private static readonly TimeSpan _HealthRequestTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan _TitleRequestTimeout = TimeSpan.FromSeconds(8);
 
     // Захватываем содержимое тега title без учёта регистра и переносов строк.
-    private static readonly Regex TitleRegex = new(
-        @"<title[^>]*>(?<title>.*?)</title>",
-        RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
+    private static readonly Regex _TitleRegex = new(@"<title[^>]*>(?<title>.*?)</title>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
 
-    private static readonly Regex WhitespaceRegex = new(@"\s+", RegexOptions.Compiled);
+    private static readonly Regex _WhitespaceRegex = new(@"\s+", RegexOptions.Compiled);
 
     /// <summary>
     /// Проверяет доступность сервиса карточки по её идентификатору.
     /// </summary>
     /// <param name="cardId">Идентификатор карточки.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns>Результат проверки или <c>null</c>, если карточка не найдена.</returns>
-    public async Task<HealthCheckResult?> CheckCardAsync(int cardId, CancellationToken cancellationToken = default)
+    /// <returns>Результат проверки либо ошибка «карточка не найдена».</returns>
+    public async Task<OperationResult<HealthCheckResult>> CheckCardAsync(int cardId, CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Начата проверка доступности карточки {CardId}.", cardId);
 
@@ -61,7 +44,7 @@ public sealed class ProbeService(
         if (card is null)
         {
             logger.LogWarning("Проверка доступности карточки {CardId} пропущена: карточка не найдена.", cardId);
-            return null;
+            return Result.Failure<HealthCheckResult>("Карточка не найдена.");
         }
 
         // Режим «Не проверять»: запрос не делаем, сообщаем клиенту нейтральное состояние.
@@ -86,17 +69,14 @@ public sealed class ProbeService(
 
             // Таймаут через отдельный токен: так его можно отличить от отмены всего цикла проверок.
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeoutCts.CancelAfter(HealthRequestTimeout);
+            timeoutCts.CancelAfter(_HealthRequestTimeout);
 
             using var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token);
             var result = Evaluate(card.StatusMode, (int)response.StatusCode);
 
             if (result.Status == HealthStatus.Offline)
             {
-                logger.LogWarning(
-                    "Сервис карточки {CardId} недоступен. Код ответа: {StatusCode}.",
-                    cardId,
-                    (int)response.StatusCode);
+                logger.LogWarning("Сервис карточки {CardId} недоступен. Код ответа: {StatusCode}.", cardId, (int)response.StatusCode);
             }
             else
             {
@@ -113,16 +93,11 @@ public sealed class ProbeService(
         catch (OperationCanceledException)
         {
             logger.LogWarning("Проверка доступности карточки {CardId} не завершилась за отведённое время.", cardId);
-            return new HealthCheckResult(
-                HealthStatus.Offline,
-                $"Превышено время ожидания ({HealthRequestTimeout.TotalSeconds:0} с).");
+            return new HealthCheckResult(HealthStatus.Offline, $"Превышено время ожидания ({_HealthRequestTimeout.TotalSeconds:0} с).");
         }
         catch (HttpRequestException ex)
         {
-            logger.LogWarning(
-                "Проверка доступности карточки {CardId} завершилась сетевой ошибкой: {Message}",
-                cardId,
-                ex.Message);
+            logger.LogWarning("Проверка доступности карточки {CardId} завершилась сетевой ошибкой: {Message}", cardId, ex.Message);
 
             var message = ex.HttpRequestError == HttpRequestError.NameResolutionError
                 ? "Не удалось разрешить адрес сервиса."
@@ -137,13 +112,13 @@ public sealed class ProbeService(
     /// </summary>
     /// <param name="url">Абсолютная HTTP(S)-ссылка на страницу.</param>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns>Заголовок страницы или <c>null</c>, если он не найден либо страница недоступна.</returns>
-    public async Task<string?> GetTitleAsync(string url, CancellationToken cancellationToken = default)
+    /// <returns>Заголовок страницы, <c>null</c> если он не найден либо страница недоступна, или ошибка некорректной ссылки.</returns>
+    public async Task<OperationResult<string?>> GetTitleAsync(string url, CancellationToken cancellationToken = default)
     {
         if (!TryBuildAbsoluteUri(url, out var uri))
         {
             logger.LogWarning("Получение заголовка отклонено: адрес не является абсолютным HTTP(S)-адресом.");
-            throw new InvalidOperationException("Укажите корректную HTTP(S)-ссылку.");
+            return Result.Failure("Укажите корректную HTTP(S)-ссылку.").As<string?>();
         }
 
         logger.LogDebug("Начато получение заголовка страницы на хосте {Host}.", uri.Host);
@@ -152,15 +127,12 @@ public sealed class ProbeService(
         {
 
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeoutCts.CancelAfter(TitleRequestTimeout);
+            timeoutCts.CancelAfter(_TitleRequestTimeout);
 
             using var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token);
             if (!response.IsSuccessStatusCode)
             {
-                logger.LogWarning(
-                    "Получение заголовка завершилось неудачно. Код ответа: {StatusCode}.",
-                    (int)response.StatusCode);
-                return null;
+                logger.LogWarning("Получение заголовка завершилось неудачно. Код ответа: {StatusCode}.", (int)response.StatusCode); return null;
             }
 
             var content = await ReadLimitedAsync(response.Content, cancellationToken);
@@ -170,7 +142,7 @@ public sealed class ProbeService(
             if (title is null)
             {
                 logger.LogWarning("На странице хоста {Host} не найден тег title.", uri.Host);
-                return null;
+                return Result.Failure("Заголовок не найден на странице").As<string?>();
             }
 
             logger.LogDebug("Заголовок страницы на хосте {Host} успешно получен.", uri.Host);
@@ -183,12 +155,12 @@ public sealed class ProbeService(
         catch (OperationCanceledException)
         {
             logger.LogWarning("Получение заголовка не завершилось за отведённое время.");
-            return null;
+            return Result.Failure("Время запроса истекло").As<string?>();
         }
         catch (HttpRequestException ex)
         {
             logger.LogWarning("Получение заголовка завершилось сетевой ошибкой: {Message}", ex.Message);
-            return null;
+            return Result.Failure($"Ошибка ответа: {ex.StatusCode}").As<string?>();
         }
     }
 
@@ -259,21 +231,21 @@ public sealed class ProbeService(
     /// </summary>
     private static string? ExtractTitle(string html)
     {
-        var match = TitleRegex.Match(html);
+        var match = _TitleRegex.Match(html);
         if (!match.Success)
         {
             return null;
         }
 
         var title = WebUtility.HtmlDecode(match.Groups["title"].Value);
-        title = WhitespaceRegex.Replace(title, " ").Trim();
+        title = _WhitespaceRegex.Replace(title, " ").Trim();
 
         if (title.Length == 0)
         {
             return null;
         }
 
-        return title.Length > MaxTitleLength ? title[..MaxTitleLength] : title;
+        return title.Length > DomainConstants.CardTitleMaxLength ? title[..DomainConstants.CardTitleMaxLength] : title;
     }
 
     /// <summary>

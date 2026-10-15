@@ -9,46 +9,34 @@ namespace Adashboard.Server.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/settings")]
-public class SettingsController(
-    SiteSettingsService settingsService,
-    ILogger<SettingsController> logger) : ControllerBase
+public class SettingsController(SiteSettingsService settingsService, ILogger<SettingsController> logger) : ControllerBase
 {
     /// <summary>
     /// Возвращает текущие настройки dashboard.
     /// </summary>
     [HttpGet(Name = "GetSettings")]
-    [ProducesResponseType<SiteSettings>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<SiteSettings>> Get(CancellationToken cancellationToken)
+    [ProducesResponseType<AppSettings>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<AppSettings>> Get(CancellationToken cancellationToken)
     {
         var settings = await settingsService.GetAsync(cancellationToken);
-        return Ok(settings);
+        return settings;
     }
 
     /// <summary>
     /// Обновляет настройки dashboard.
     /// </summary>
-    /// <param name="settings">Тело запроса с новыми настройками.</param>
-    /// <param name="cancellationToken">Токен отмены операции.</param>
     [HttpPut(Name = "SaveSettings")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Put(
-        [FromBody] SiteSettings? settings,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> Put([FromBody] AppSettings? settings, CancellationToken cancellationToken)
     {
         if (settings is null)
         {
             logger.LogWarning("Обновление настроек отклонено: тело запроса пустое.");
-            return BadRequest(new { error = "Тело запроса с настройками обязательно." });
+            return BadRequest("Тело запроса с настройками обязательно.");
         }
 
-        if (settings.HealthCheckIntervalSeconds < 0)
-        {
-            logger.LogWarning("Обновление настроек отклонено: некорректный интервал проверки статуса.");
-            return BadRequest(new { error = "Интервал проверки статуса должен быть больше либо равен нулю." });
-        }
-
-        await settingsService.UpdateAsync(settings, cancellationToken);
-        return NoContent();
+        var result = await settingsService.UpdateAsync(settings, cancellationToken);
+        return result.IsSuccess ? NoContent() : BadRequest(result.Error);
     }
 }

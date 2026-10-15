@@ -16,51 +16,43 @@ public class CategoriesController(
     /// <summary>
     /// Создаёт новую категорию на указанной странице.
     /// </summary>
-    /// <param name="category">Тело запроса с данными категории.</param>
-    /// <param name="cancellationToken">Токен отмены операции.</param>
     [HttpPost(Name = "CreateCategory")]
     [ProducesResponseType<DashboardCategory>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<DashboardCategory>> Create(
-        [FromBody] DashboardCategory? category,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<DashboardCategory>> Create([FromBody] DashboardCategory? category, CancellationToken cancellationToken)
     {
         if (category is null || string.IsNullOrWhiteSpace(category.Title))
         {
             logger.LogWarning("Создание категории отклонено: некорректное тело запроса.");
-            return BadRequest(new { error = "Укажите название категории." });
+            return BadRequest("Укажите название категории.");
         }
 
-        var created = await pageService.CreateCategoryAsync(category, cancellationToken);
-        if (created is null)
+        var result = await pageService.CreateCategoryAsync(category, cancellationToken);
+        if (!result.IsSuccess)
         {
-            return BadRequest();
+            return BadRequest(result.Error);
         }
 
+        var created = result.Value;
         return Created($"/api/categories/{created.Id}", created);
     }
 
     /// <summary>
     /// Изменяет существующую категорию.
     /// </summary>
-    /// <param name="category">Тело запроса с новыми данными категории.</param>
-    /// <param name="cancellationToken">Токен отмены операции.</param>
     [HttpPut(Name = "UpdateCategory")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Update(
-        [FromBody] DashboardCategory? category,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> Update([FromBody] DashboardCategory? category, CancellationToken cancellationToken)
     {
         if (category is null || string.IsNullOrWhiteSpace(category.Title))
         {
             logger.LogWarning("Изменение категории {CategoryId} отклонено: некорректное тело запроса.", category?.Id);
-            return BadRequest(new { error = "Укажите название категории." });
+            return BadRequest("Укажите название категории.");
         }
 
-        var updated = await pageService.UpdateCategoryAsync(category, cancellationToken);
-        return updated ? NoContent() : NotFound();
+        var result = await pageService.UpdateCategoryAsync(category, cancellationToken);
+        return result.IsSuccess ? NoContent() : BadRequest(result.Error);
     }
 
     /// <summary>
@@ -73,7 +65,7 @@ public class CategoriesController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
-        var deleted = await pageService.DeleteCategoryAsync(id, cancellationToken);
-        return deleted ? NoContent() : NotFound();
+        var result = await pageService.DeleteCategoryAsync(id, cancellationToken);
+        return result.IsSuccess ? NoContent() : BadRequest(result.Error);
     }
 }

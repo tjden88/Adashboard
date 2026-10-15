@@ -1,22 +1,18 @@
+using Adashboard.Domain.Reference;
+
 namespace Adashboard.Server.Services;
 
 /// <summary>
 /// Наполняет каталог статики приложения стандартными файлами (фон, логотип и т.п.),
 /// если их там ещё нет.
 /// </summary>
-/// <remarks>
-/// Оригиналы хранятся вне публичных папок (в каталоге <c>Assets</c>) и служат резервом:
-/// пользователь может заменять файлы в каталоге статики, но оригиналы этим не затрагиваются.
-/// </remarks>
-internal sealed class AssetsInitializer(
-    DashboardPaths paths,
-    ILogger<AssetsInitializer> logger)
+internal sealed class AssetsInitializer(DashboardPaths paths, ILogger<AssetsInitializer> logger)
 {
     // Оригиналы стандартных файлов, поставляемые вместе с приложением.
     private readonly string _sourceDirectory = paths.AssetsPath;
 
     // Каталог статики, доступный по адресу /uploads/assets.
-    private readonly string _targetDirectory = Path.Combine(paths.UploadsPath, "assets");
+    private readonly string _targetDirectory = Path.Combine(paths.UploadsPath, DomainConstants.AssetsFolderName);
 
     /// <summary>
     /// Создаёт каталог статики и копирует в него отсутствующие стандартные файлы.
@@ -27,10 +23,8 @@ internal sealed class AssetsInitializer(
 
         if (!Directory.Exists(_sourceDirectory))
         {
-            logger.LogWarning(
-                "Каталог оригинальных ассетов {SourceDirectory} не найден. Наполнение пропущено.",
-                _sourceDirectory);
-            return;
+            logger.LogCritical("Каталог оригинальных ассетов {SourceDirectory} не найден. Наполнение пропущено.", _sourceDirectory);
+            throw new InvalidOperationException("Каталог оригинальных ассетов не найден.");
         }
 
         Directory.CreateDirectory(_targetDirectory);
@@ -48,8 +42,6 @@ internal sealed class AssetsInitializer(
             copiedCount++;
         }
 
-        logger.LogInformation(
-            "Наполнение каталога статики завершено. Скопировано стандартных файлов: {FileCount}.",
-            copiedCount);
+        logger.LogInformation("Наполнение каталога статики завершено. Скопировано стандартных файлов: {FileCount}.", copiedCount);
     }
 }

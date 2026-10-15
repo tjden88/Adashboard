@@ -13,7 +13,7 @@ namespace Adashboard.Domain.Reference;
 public static class PagePathRules
 {
     /// <summary>Максимальная длина пути (совпадает с ограничением модели).</summary>
-    public const int MaxLength = 120;
+    public const int MaxLength = DomainConstants.PagePathMaxLength;
 
     // Соответствие русских букв латинице для генерации пути из заголовка.
     private static readonly Dictionary<char, string> Transliteration = new()

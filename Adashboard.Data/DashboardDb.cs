@@ -4,12 +4,12 @@ using Microsoft.EntityFrameworkCore;
 namespace Adashboard.Data;
 
 /// <summary>
-/// Контекст базы данных dashboard.
+/// Контекст базы данных приложения.
 /// </summary>
 public sealed class DashboardDb(DbContextOptions<DashboardDb> options) : DbContext(options)
 {
     /// <summary>
-    /// Страницы dashboard.
+    /// Страницы приложения.
     /// </summary>
     public DbSet<DashboardPageEntity> Pages => Set<DashboardPageEntity>();
 
@@ -24,9 +24,9 @@ public sealed class DashboardDb(DbContextOptions<DashboardDb> options) : DbConte
     public DbSet<DashboardCardEntity> Cards => Set<DashboardCardEntity>();
 
     /// <summary>
-    /// Общие настройки dashboard (одиночная строка).
+    /// Общие настройки приложения (одиночная строка).
     /// </summary>
-    public DbSet<SiteSettingsEntity> SiteSettings => Set<SiteSettingsEntity>();
+    public DbSet<AppSettingsEntity> AppSettings => Set<AppSettingsEntity>();
 
     /// <summary>
     /// Настраивает схему БД, которую не выразить атрибутами сущностей.
@@ -34,9 +34,9 @@ public sealed class DashboardDb(DbContextOptions<DashboardDb> options) : DbConte
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        modelBuilder.Entity<SiteSettingsEntity>(entity =>
+        modelBuilder.Entity<AppSettingsEntity>(entity =>
         {
-            entity.HasData(new SiteSettingsEntity
+            entity.HasData(new AppSettingsEntity
             {
                 Id = 1,
             });

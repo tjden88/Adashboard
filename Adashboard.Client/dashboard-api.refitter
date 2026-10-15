@@ -10,14 +10,12 @@
   "addAcceptHeaders": false,
   "addContentTypeHeaders": false,
   "useCancellationTokens": true,
+  "returnIApiResponse": true,
   "operationNameTemplate": "{operationName}Async",
   "outputFolder": "Generated",
   "outputFilename": "IDashboardApi.g.cs",
   "additionalNamespaces": [
     "Adashboard.Domain.Contracts",
     "Adashboard.Domain.ReadModels"
-  ],
-  "responseTypeOverride": {
-    "UploadImage": "System.Net.Http.HttpResponseMessage"
-  }
+  ]
 }

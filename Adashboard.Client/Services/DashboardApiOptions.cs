@@ -1,18 +1,18 @@
 namespace Adashboard.Client.Services;
 
 /// <summary>
-/// Настройки подключения WASM-клиента к API dashboard.
+/// Настройки подключения клиента к API dashboard: базовый адрес и преобразование относительных путей загрузок.
 /// </summary>
 /// <remarks>
-/// Используется, чтобы относительные пути загрузок (например, <c>/uploads/card-icons/x.png</c>),
-/// которые возвращает API, превращать в абсолютные адреса API при отображении в браузере.
+/// Относительные пути загрузок (<c>/uploads/...</c>), которые возвращает API, нужно превращать в
+/// абсолютные адреса API: в режиме разработки клиент и API живут на разных портах, поэтому «сырой»
+/// путь открывался бы на стороне клиента и картинки не загружались бы.
 /// </remarks>
-public sealed record DashboardApiOptions
+public sealed class DashboardApiOptions
 {
     /// <summary>
     /// Создаёт настройки с базовым адресом API без завершающего слэша.
     /// </summary>
-    /// <param name="baseAddress">Базовый адрес API, например <c>http://localhost:5024</c>.</param>
     public DashboardApiOptions(string baseAddress)
     {
         BaseAddress = baseAddress.TrimEnd('/');
@@ -24,10 +24,8 @@ public sealed record DashboardApiOptions
     public string BaseAddress { get; }
 
     /// <summary>
-    /// Преобразует относительный путь загрузки в абсолютный адрес API.
+    /// Преобразует относительный путь загрузки в абсолютный адрес для использования в разметке.
     /// </summary>
-    /// <param name="path">Относительный путь загрузки или уже абсолютный адрес либо data URL.</param>
-    /// <returns>Абсолютный адрес для использования в разметке, либо исходное значение.</returns>
     public string? ResolveUploadPath(string? path)
     {
         if (string.IsNullOrWhiteSpace(path))

@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Adashboard.Domain.ReadModels;
+using Adashboard.Domain.Reference;
 
 namespace Adashboard.Domain.Contracts;
 
@@ -27,7 +28,7 @@ public sealed class DashboardCategory
     /// <summary>
     /// Отображаемое название категории.
     /// </summary>
-    [MaxLength(120)]
+    [MaxLength(DomainConstants.CategoryTitleMaxLength)]
     public string Title { get; set; } = string.Empty;
 
     /// <summary>

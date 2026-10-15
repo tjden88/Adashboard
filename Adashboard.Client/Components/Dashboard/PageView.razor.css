@@ -1,47 +1,82 @@
-.dashboard-loading {
-    display: grid;
-    place-items: center;
-    min-height: 68vh;
-    padding: 2rem 1rem;
-}
-
-/* Круговой индикатор загрузки в стиле Material Design. */
-.dashboard-loading__spinner {
-    width: 2.75rem;
-    height: 2.75rem;
-    border-radius: 50%;
-    border: 3px solid color-mix(in srgb, var(--accent) 20%, transparent);
-    border-top-color: var(--accent);
-    animation: loader-spin 0.9s linear infinite;
-}
-
 .dashboard-shell {
     display: grid;
     gap: 1.1rem;
 }
 
-/* Отдельный блок действий над страницей: добавление категории, настройки и удаление
-   самой страницы. Показывается только в режиме редактирования. */
+/* Панель действий страницы. Отдельная рамка с акцентным пунктиром: в режиме редактирования
+   сразу видно, что страница настраивается. Показывается только в режиме редактирования
+   (условие — в разметке). */
 .page-actions {
     display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem 1rem;
+    padding: 0.7rem 0.95rem;
+    border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--surface-border));
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+    box-shadow: var(--shadow-soft);
+}
+
+.page-actions__title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0;
+    color: var(--accent);
+    font-weight: 700;
+}
+
+.page-actions__buttons {
+    display: flex;
+    align-items: center;
     flex-wrap: wrap;
     gap: 0.5rem;
 }
 
-.page-actions .btn {
-    display: inline-flex;
+/* Пустое состояние страницы: когда категорий ещё нет. */
+.dashboard-empty {
+    display: flex;
     align-items: center;
-    gap: 0.4rem;
-    border-radius: 10px;
+    justify-content: center;
+    gap: 0.6rem;
+    margin: 0;
+    padding: 2rem 1rem;
+    border: 1px dashed var(--surface-border);
+    border-radius: 16px;
+    color: var(--text-muted);
+    text-align: center;
 }
 
+.dashboard-empty i {
+    font-size: 1.25rem;
+}
+
+/* Сетка категорий. В управляемом режиме (класс dashboard-grid--managed ставит модуль
+   js/dashboard.js) это обычный позиционированный блок: категории расставляет скрипт.
+   column-gap задаём всегда: из него модуль берёт шаг колонок. */
 .dashboard-grid {
     position: relative;
     column-gap: var(--dashboard-gap);
 }
 
-@keyframes loader-spin {
-    to {
-        transform: rotate(360deg);
+/* Пока модуль раскладки не подключился (или не загрузился), категории укладывает CSS-grid:
+   12 колонок на широких экранах, 6 и 4 — на средних и узких. */
+.dashboard-grid:not(.dashboard-grid--managed) {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    row-gap: var(--dashboard-gap);
+}
+
+@media (max-width: 1200px) and (min-width: 901px) {
+    .dashboard-grid:not(.dashboard-grid--managed) {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 900px) {
+    .dashboard-grid:not(.dashboard-grid--managed) {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 }

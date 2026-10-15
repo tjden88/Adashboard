@@ -1,15 +1,23 @@
 .dashboard-category {
+    /* Число колонок карточек совпадает с шириной категории: карточки получаются одного
+       размера во всех категориях, а категория — нужной ширины. */
     --cards-current: var(--cards-desktop, 4);
-    /* Внутренний отступ панели и его учёт вместе с рамкой. Отступы одинаковы для всех
-       категорий; по этим переменным карточка вычисляет свою высоту (эталонный квадрат). */
+    /* Внутренний отступ панели и его учёт вместе с рамкой: по этим значениям карточка
+       вычисляет свою высоту (эталонный квадрат). */
     --category-pad: 0.95rem;
     --category-frame: calc(var(--category-pad) + 1px);
-    position: absolute;
     min-width: 0;
 }
 
-/* Визуальная часть панели вынесена во вложенный блок: маркер изменения ширины лежит
-   снаружи панели и не обрезается её overflow. */
+/* Пока раскладку ведёт CSS-grid (модуль js/dashboard.js ещё не подключился), ширину
+   категории задаёт число занятых колонок. В управляемом режиме категории позиционируются
+   абсолютно, и grid-размещение не задаётся вовсе: в Firefox оно превращает grid-область
+   в контейнер позиционирования, из-за чего left/top отсчитываются от неё, а не от сетки,
+   и категории уезжают вправо за экран. */
+.dashboard-grid:not(.dashboard-grid--managed) .dashboard-category {
+    grid-column: span var(--span-desktop, 1);
+}
+
 .category-frame {
     display: grid;
     /* Одна колонка по ширине категории, чтобы длинный заголовок обрезался, а не растягивал блок. */
@@ -29,16 +37,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 0.7rem;
-    flex-wrap: wrap;
     min-width: 0;
-}
-
-.category-title-wrap {
-    display: flex;
-    align-items: center;
-    gap: 0.55rem;
-    min-width: 0;
-    flex: 1 1 auto;
 }
 
 .category-header h2 {
@@ -51,6 +50,15 @@
     text-overflow: ellipsis;
 }
 
+.category-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+/* Маркер перетаскивания категории: виден только в режиме редактирования (см. app.css). */
 .drag-handle {
     width: 1.9rem;
     height: 1.9rem;
@@ -61,55 +69,28 @@
     background: var(--accent-soft);
     color: var(--accent);
     cursor: grab;
+    /* Жесты указателя обрабатывает модуль раскладки, а не браузер. */
     touch-action: none;
 }
 
+/* Действия категории: добавить ссылку, изменить и удалить категорию. Показываются только
+   в режиме редактирования (см. app.css). */
 .category-actions {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
     gap: 0.45rem;
     margin-left: auto;
     flex-shrink: 0;
-    flex-wrap: wrap;
-    justify-content: flex-end;
 }
 
 .category-actions .btn {
     border-radius: 10px;
 }
 
-.category-cards {
-    display: grid;
-    --cards-gap: 0.8rem;
-    gap: var(--cards-gap);
-    grid-template-columns: repeat(var(--cards-current), minmax(0, 1fr));
-    container-type: inline-size;
-}
-
-@media (max-width: 900px) {
-    .dashboard-category {
-        --cards-current: var(--cards-mobile, 1);
-    }
-}
-
-@media (max-width: 1200px) and (min-width: 901px) {
-    .dashboard-category {
-        --cards-current: var(--cards-medium, 1);
-    }
-
-    .category-cards {
-        --cards-gap: 0.7rem;
-    }
-}
-
-@media (max-width: 640px) {
-    .category-cards {
-        --cards-gap: 0.6rem;
-    }
-}
-
-/* Маркер изменения ширины категории — круглый «хват» на правой рамке панели: тянем
-   мышью вправо/влево. Половина круга выходит за рамку, поэтому он не обрезается. */
+/* Маркер изменения ширины — круглый «хват» на правой рамке панели: тянем вправо/влево.
+   Половина круга выходит за рамку, поэтому лежит поверх неё и не обрезается. */
 .category-resize-handle {
     position: absolute;
     top: 50%;
@@ -135,16 +116,61 @@
     color: color-mix(in srgb, #ffffff 88%, transparent);
 }
 
-html.dashboard-edit-mode .category-resize-handle {
-    display: grid;
-}
-
 .category-resize-handle:hover {
     background: var(--accent);
     border-color: color-mix(in srgb, #ffffff 45%, transparent);
 }
 
-/* В фантоме при перетаскивании категории маркер не нужен. */
-.dnd-clone .category-resize-handle {
+/* В фантоме при перетаскивании ручки не нужны. */
+.dnd-clone .category-resize-handle,
+.dnd-clone .drag-handle,
+.dnd-clone .category-actions {
     display: none;
+}
+
+.category-empty {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.category-cards {
+    display: grid;
+    --cards-gap: 0.8rem;
+    gap: var(--cards-gap);
+    grid-template-columns: repeat(var(--cards-current), minmax(0, 1fr));
+    /* Контейнер по ширине нужен карточке: от неё она считает свою высоту (100cqw). */
+    container-type: inline-size;
+}
+
+/* ---------------- Адаптив: 12 / 6 / 4 колонки ---------------- */
+
+@media (max-width: 1200px) and (min-width: 901px) {
+    .dashboard-category {
+        --cards-current: var(--cards-medium, 1);
+    }
+
+    .dashboard-grid:not(.dashboard-grid--managed) .dashboard-category {
+        grid-column: span var(--span-medium, 1);
+    }
+
+    .category-cards {
+        --cards-gap: 0.7rem;
+    }
+}
+
+@media (max-width: 900px) {
+    .dashboard-category {
+        --cards-current: var(--cards-mobile, 1);
+    }
+
+    .dashboard-grid:not(.dashboard-grid--managed) .dashboard-category {
+        grid-column: span var(--span-mobile, 1);
+    }
+}
+
+@media (max-width: 640px) {
+    .category-cards {
+        --cards-gap: 0.6rem;
+    }
 }

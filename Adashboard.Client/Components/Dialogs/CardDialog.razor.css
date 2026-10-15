@@ -4,6 +4,12 @@
     gap: 0.8rem;
 }
 
+.card-dialog__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
 .card-dialog__row {
     display: flex;
     align-items: flex-end;
@@ -21,36 +27,7 @@
     width: 100%;
 }
 
-/* Переключатель «широкая карточка» в строке с цветом.
-   Повторяет вертикальные метрики .form-control, чтобы совпадать по высоте. */
-.card-dialog__toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.55rem 0.75rem;
-    border: 1px solid var(--surface-border);
-    border-radius: 12px;
-    background: var(--surface);
-    color: var(--text-main);
-    white-space: nowrap;
-    cursor: pointer;
-    transition: background-color 0.18s ease;
-}
-
-.card-dialog__toggle:hover {
-    background: var(--surface-strong);
-}
-
-.card-dialog__toggle input {
-    width: 1.05rem;
-    height: 1.05rem;
-    accent-color: var(--accent);
-    cursor: pointer;
-}
-
 .card-dialog__label {
-    display: block;
-    margin-bottom: 0.35rem;
     color: var(--text-muted);
     font-size: 0.82rem;
     font-weight: 600;
@@ -66,17 +43,19 @@
     min-width: 0;
 }
 
-.card-dialog__fetch-title {
+.card-dialog__fetch-title,
+.card-dialog__fetch-title:disabled {
     flex-shrink: 0;
 }
 
+/* Схема ссылки — часть поля адреса: кнопка и поле стыкуются в одно целое. */
 .card-dialog__url {
     display: flex;
 }
 
 .card-dialog__scheme {
     flex-shrink: 0;
-    min-width: 4.6rem;
+    min-width: 6.4rem;
     padding: 0.55rem 0.7rem;
     border: 1px solid var(--surface-border);
     border-right: none;
@@ -84,6 +63,8 @@
     background: var(--surface);
     color: var(--accent);
     font-weight: 600;
+    font-size: 0.85rem;
+    white-space: nowrap;
     cursor: pointer;
     transition: background-color 0.18s ease;
 }
@@ -119,6 +100,7 @@
     cursor: pointer;
 }
 
+/* Изображение-иконка: предпросмотр и управление рядом с ним. */
 .card-dialog__image {
     display: flex;
     gap: 0.9rem;
@@ -159,8 +141,10 @@
     gap: 0.5rem;
 }
 
+/* Подпись кнопки выбора файла: скрытое поле ввода внутри метки. */
 .card-dialog__image-upload {
     margin: 0;
+    cursor: pointer;
 }
 
 .card-dialog__hint {
@@ -170,6 +154,28 @@
     line-height: 1.35;
 }
 
+/* Переключатель «Широкая» стоит в одной строке с полем цвета: выравниваем его по нижнему краю
+   поля, иначе он «висит» посередине строки. */
+.card-dialog__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-shrink: 0;
+    padding-bottom: 0.55rem;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.card-dialog__toggle input {
+    width: 1.05rem;
+    height: 1.05rem;
+    margin: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+/* Варианты проверки доступности: карточка с подписью и пояснением. */
 .card-dialog__status-options {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -213,7 +219,7 @@
     line-height: 1.2;
 }
 
-.card-dialog__status-description {
+.card-dialog__status-hint {
     color: var(--text-muted);
     font-size: 0.72rem;
     line-height: 1.2;
@@ -225,7 +231,25 @@
     font-size: 0.85rem;
 }
 
-/* На узких экранах статусы выстраиваются в один столбец, чтобы текст не сжимался. */
+html[data-theme="dark"] .card-dialog__error {
+    color: #fca5a5;
+}
+
+.card-dialog__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    /* Отступ от содержимого до кнопок: общий gap строки мал, добавляем ещё немного. */
+    margin-top: 0.6rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--surface-border);
+}
+
+.card-dialog__actions .btn-primary {
+    margin-left: auto;
+}
+
+/* На узких экранах варианты статуса и строка с цветом выстраиваются в один столбец. */
 @media (max-width: 440px) {
     .card-dialog__status-options {
         grid-template-columns: 1fr;
@@ -234,15 +258,4 @@
     .card-dialog__row {
         flex-wrap: wrap;
     }
-}
-
-.card-dialog__actions {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-top: 0.2rem;
-}
-
-.card-dialog__actions .btn-primary {
-    margin-left: auto;
 }

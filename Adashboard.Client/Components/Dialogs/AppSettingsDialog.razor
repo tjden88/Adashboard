@@ -1,0 +1,136 @@
+@inject AppStateService AppStateService
+
+@*
+    Диалог общих настроек dashboard: тема оформления, показ логотипа и интервал проверки
+    статуса карточек. Нулевой интервал отключает проверки статуса для всех карточек
+    (правило — в HealthCheckRules).
+
+    Настройки сохраняет сам диалог: их владелец — AppStateService, поэтому после успешного
+    сохранения тема и логотип применяются сразу, без перезагрузки страницы. При отказе
+    сохранения окно остаётся открытым и показывает понятный текст ошибки.
+*@
+
+<EditForm Model="_model" OnValidSubmit="SaveAsync" class="settings-dialog">
+    <DataAnnotationsValidator />
+
+    <div class="settings-dialog__field">
+        <span class="settings-dialog__label">Тема оформления</span>
+        <InputRadioGroup @bind-Value="_model.ThemeMode" Name="settingsThemeMode" aria-label="Тема оформления">
+            @foreach (var option in _ThemeOptions)
+            {
+                <label class="settings-dialog__option">
+                    <InputRadio Value="option.Mode" />
+                    <span>@option.Title</span>
+                </label>
+            }
+        </InputRadioGroup>
+    </div>
+
+    <div class="settings-dialog__field">
+        <label class="settings-dialog__toggle" for="settingsShowLogo">
+            <InputCheckbox id="settingsShowLogo" @bind-Value="_model.ShowLogo" />
+            <span>Показывать логотип в шапке</span>
+        </label>
+    </div>
+
+    <div class="settings-dialog__field">
+        <label class="settings-dialog__label" for="settingsHealthInterval">Интервал проверки статуса, сек.</label>
+        <InputNumber id="settingsHealthInterval"
+                     class="form-control"
+                     min="0"
+                     max="@DomainConstants.HealthCheckIntervalMaxSeconds"
+                     step="1"
+                     ParsingErrorMessage="Введите целое число секунд."
+                     @bind-Value="_model.HealthCheckIntervalSeconds" />
+        <p class="settings-dialog__hint">Как часто проверять доступность сервисов карточек. Ноль отключает проверки. Изменение действует без перезагрузки страницы.</p>
+        @if (_model.HealthCheckIntervalSeconds == 0)
+        {
+            <p class="settings-dialog__hint settings-dialog__hint--warning">Проверки отключены: статусы карточек обновляться не будут.</p>
+        }
+
+        <ValidationMessage For="() => _model.HealthCheckIntervalSeconds" />
+    </div>
+
+    @if (_error is not null)
+    {
+        <p class="settings-dialog__error text-danger" role="alert">@_error</p>
+    }
+
+    <div class="settings-dialog__actions">
+        <button type="submit" class="btn btn-primary" disabled="@_isSaving">
+            <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>@(_isSaving ? "Сохранение..." : "Сохранить")
+        </button>
+    </div>
+</EditForm>
+
+@code {
+    private static readonly (ThemeMode Mode, string Title)[] _ThemeOptions =
+    [
+        (ThemeMode.Auto, "Автоматически"),
+        (ThemeMode.Dark, "Тёмная"),
+        (ThemeMode.Light, "Светлая")
+    ];
+
+    private EditModel _model = new();
+    private string? _error;
+    private bool _isSaving;
+
+    [CascadingParameter]
+    private DialogContainer Dialog { get; set; } = null!;
+
+    // Диалог создаётся заново на каждое открытие окна, поэтому текущие настройки
+    // читаем один раз при инициализации.
+    protected override void OnInitialized() => _model = EditModel.FromSettings(AppStateService.Settings);
+
+    private async Task SaveAsync()
+    {
+        _error = null;
+        _isSaving = true;
+        Dialog.SetBusy(true);
+
+        try
+        {
+            var error = await AppStateService.SaveSettingsAsync(_model.ToSettings());
+            if (error is not null)
+            {
+                _error = error;
+                return;
+            }
+
+            await Dialog.CloseAsync();
+        }
+        finally
+        {
+            _isSaving = false;
+            Dialog.SetBusy(false);
+        }
+    }
+
+    /// <summary>
+    /// Редактируемые поля настроек сайта.
+    /// </summary>
+    private sealed class EditModel
+    {
+        public ThemeMode ThemeMode { get; set; } = ThemeMode.Auto;
+
+        public bool ShowLogo { get; set; } = true;
+
+        // Ноль отключает проверки статуса для всех карточек (см. HealthCheckRules).
+        [Range(0, DomainConstants.HealthCheckIntervalMaxSeconds, ErrorMessage = "Допустимый интервал проверки: от 0 до 3600 секунд.")]
+        public int HealthCheckIntervalSeconds { get; set; } = DomainConstants.DefaultHealthCheckIntervalSeconds;
+
+        public static EditModel FromSettings(AppSettings settings) => new()
+        {
+            ThemeMode = settings.ThemeMode,
+            ShowLogo = settings.ShowLogo,
+            HealthCheckIntervalSeconds = settings.HealthCheckIntervalSeconds
+        };
+
+        public AppSettings ToSettings() => new()
+        {
+            ThemeMode = ThemeMode,
+            ShowLogo = ShowLogo,
+            HealthCheckIntervalSeconds = HealthCheckIntervalSeconds
+        };
+    }
+}

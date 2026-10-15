@@ -1,0 +1,217 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@*
+    Окно диалога: затемнение, рамка с заголовком и содержимое, которое передаёт вызывающий.
+    Окно рисуется по месту вызова, никакого сервиса и «реестра» диалогов нет.
+    Пока окно открыто, содержимое отдаётся вниз каскадом (сам контейнер), поэтому диалог
+    закрывает окно через Dialog.CloseAsync() и сообщает о занятости через Dialog.SetBusy(...).
+
+    Состояние открытости ведёт вызывающий: @bind-Open. Пока идёт сохранение (SetBusy),
+    окно не закрывается ни крестиком, ни Esc, ни кликом вне окна.
+*@
+
+@if (Open)
+{
+    <div class="dialog-overlay"
+         tabindex="-1"
+         @onclick="HandleOverlayClickAsync"
+         @onkeydown="HandleKeyDownAsync">
+        <section class="dialog-window @SizeClass"
+                 data-dialog-id="@_dialogId"
+                 role="dialog"
+                 aria-modal="true"
+                 aria-labelledby="@_dialogId"
+                 tabindex="-1"
+                 @onclick:stopPropagation="true">
+            <header class="dialog-window__header">
+                <h2 class="dialog-window__title" id="@_dialogId">@Title</h2>
+                <button type="button"
+                        class="dialog-window__close"
+                        aria-label="Закрыть окно"
+                        disabled="@_isBusy"
+                        @onclick="RequestCloseAsync">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
+            </header>
+            <div class="dialog-window__body" data-dialog-body>
+                <CascadingValue Value="this" IsFixed="true">
+                    @ChildContent
+                </CascadingValue>
+            </div>
+        </section>
+    </div>
+}
+
+@code {
+    // Идентификатор нужен браузеру для работы с фокусом и для уникального aria-labelledby.
+    private readonly string _dialogId = Guid.NewGuid().ToString();
+
+    private IJSObjectReference? _module;
+    private bool _isBusy;
+    private bool _isFocused;
+    private bool _wasOpen;
+
+    /// <summary>
+    /// Открыто ли окно; состояние ведёт вызывающий через <c>@bind-Open</c>.
+    /// </summary>
+    [Parameter]
+    public bool Open { get; set; }
+
+    /// <summary>
+    /// Уведомление об изменении открытости: вызывающий закрывает окно, принимая это значение.
+    /// </summary>
+    [Parameter]
+    public EventCallback<bool> OpenChanged { get; set; }
+
+    /// <summary>
+    /// Заголовок окна.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Размер окна.
+    /// </summary>
+    [Parameter]
+    public DialogSize Size { get; set; } = DialogSize.Medium;
+
+    /// <summary>
+    /// Закрывать ли окно кликом вне его области.
+    /// </summary>
+    [Parameter]
+    public bool CloseOnOverlayClick { get; set; }
+
+    /// <summary>
+    /// Содержимое окна: компонент диалога, которому передаются обычные параметры.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Просит вызывающего закрыть окно.
+    /// </summary>
+    public Task CloseAsync() => OpenChanged.InvokeAsync(false);
+
+    /// <summary>
+    /// Помечает диалог занятым или свободным.
+    /// </summary>
+    public void SetBusy(bool isBusy)
+    {
+        if (_isBusy == isBusy)
+        {
+            return;
+        }
+
+        _isBusy = isBusy;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    protected override void OnParametersSet()
+    {
+        // Каждое открытие окна начинается заново: занятость прошлого раза сбрасываем.
+        if (Open && !_wasOpen)
+        {
+            _isBusy = false;
+        }
+
+        _wasOpen = Open;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/dialog.js");
+        }
+
+        if (_module is null)
+        {
+            return;
+        }
+
+        // Открытие и закрытие окна — это появление и исчезновение элемента в DOM:
+        // браузерной части модуля сообщаем, когда забрать фокус и когда его вернуть.
+        if (Open && !_isFocused)
+        {
+            _isFocused = true;
+            await _module.InvokeVoidAsync("focusDialog", _dialogId);
+        }
+        else if (!Open && _isFocused)
+        {
+            _isFocused = false;
+            await _module.InvokeVoidAsync("releaseDialog", _dialogId);
+        }
+    }
+
+    private string SizeClass => Size switch
+    {
+        DialogSize.Small => "dialog-window--small",
+        DialogSize.Large => "dialog-window--large",
+        _ => "dialog-window--medium"
+    };
+
+    // Окно, занятое сохранением, не закрывается ни одним из способов.
+    private Task RequestCloseAsync() => _isBusy ? Task.CompletedTask : CloseAsync();
+
+    private Task HandleOverlayClickAsync() => CloseOnOverlayClick ? RequestCloseAsync() : Task.CompletedTask;
+
+    private Task HandleKeyDownAsync(KeyboardEventArgs args) => args.Key == "Escape" ? RequestCloseAsync() : Task.CompletedTask;
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module is null)
+        {
+            return;
+        }
+
+        if (_isFocused)
+        {
+            _isFocused = false;
+
+            try
+            {
+                await _module.InvokeVoidAsync("releaseDialog", _dialogId);
+            }
+            catch (Exception)
+            {
+                // Соединение с JS потеряно: возвращать фокус больше некуда.
+            }
+        }
+
+        try
+        {
+            await _module.DisposeAsync();
+        }
+        catch (Exception)
+        {
+            // Соединение с JS потеряно: модуль освобождать не нужно.
+        }
+    }
+
+    /// <summary>
+    /// Размер окна диалога.
+    /// </summary>
+    public enum DialogSize
+    {
+        /// <summary>
+        /// Узкое окно: короткие подтверждения и вопросы.
+        /// </summary>
+        Small,
+
+        /// <summary>
+        /// Обычное окно: размер по умолчанию.
+        /// </summary>
+        Medium,
+
+        /// <summary>
+        /// Широкое окно: формы с несколькими полями и списками.
+        /// </summary>
+        Large,
+
+        /// <summary>
+        /// Ширина для диалогов подтверждения
+        /// </summary>
+        ConfirmDialog
+    }
+}

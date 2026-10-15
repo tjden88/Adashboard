@@ -20,6 +20,6 @@ public sealed class DashboardPaths(string rootPath)
     public string UploadsPath => Path.Combine(DataPath, "uploads");
 
     /// <summary>Оригиналы стандартных файлов, поставляемые вместе с приложением.</summary>
-    public string AssetsPath => Path.Combine(UploadsPath, "assets");
+    public string AssetsPath => Path.Combine(rootPath, "assets");
 
 }

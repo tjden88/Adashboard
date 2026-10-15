@@ -1,6 +1,8 @@
 using Adashboard.Data;
+using Adashboard.Domain.Reference;
 using Adashboard.Server.Mapping;
 using Adashboard.Server.Services;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Scalar.AspNetCore;
@@ -25,6 +27,21 @@ services.AddSingleton(paths);
 // Подключаем контроллеры и генерацию OpenAPI-документа.
 
 services.AddControllers();
+
+// Контракт ошибок API: любой отказ отдаётся кодом 400/404 и текстом ошибки в теле
+// (text/plain), без обёрток вроде { error: ... }. Автоматический 400 от валидации
+// модели приводит к тому же виду, чтобы клиент разбирал один формат и не показывал
+// в UI технические детали разбора запроса.
+services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = _ => new ContentResult
+    {
+        StatusCode = StatusCodes.Status400BadRequest,
+        ContentType = "text/plain; charset=utf-8",
+        Content = "Некорректный запрос."
+    };
+});
+
 services.AddOpenApi();
 
 services.AddDbContext<DashboardDb>(options => options.UseSqlite($"Data Source={paths.DatabasePath}"));
@@ -62,6 +79,10 @@ var app = builder.Build();
 // OpenAPI-документ и интерактивную документацию отдаём только в среде разработки.
 if (app.Environment.IsDevelopment())
 {
+    // Прокси отладки Blazor WASM: браузер подключается к /_framework/debug/ws-proxy,
+    // иначе точки останова в коде клиента недостижимы при запуске через сервер.
+    app.UseWebAssemblyDebugging();
+
     app.MapOpenApi();
 
     // Scalar — современная замена Swagger UI: интерактивная веб-морда для проверки
@@ -76,11 +97,14 @@ app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 
 // Раздаём каталог пользовательских загрузок. Провайдер наведён только на uploads,
-// поэтому файл БД из каталога данных наружу не отдаётся.
+// поэтому файл БД из каталога данных наружу не отдаётся. Каталог создаём заранее:
+// PhysicalFileProvider требует, чтобы он уже существовал (важно, например, при
+// генерации OpenAPI на сборке, когда каталог данных ещё пуст).
+Directory.CreateDirectory(paths.UploadsPath);
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(paths.UploadsPath),
-    RequestPath = "/uploads"
+    RequestPath = DomainConstants.UploadsUrl
 });
 
 app.UseCors(corsPolicyName);

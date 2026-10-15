@@ -47,14 +47,14 @@ public sealed class DbInitializer(DashboardDb db, ILogger<DbInitializer> logger)
         }
 
         // Настройки сидируем отдельно: наличие страницы не означает, что запись настроек есть.
-        var hasSettings = await db.SiteSettings.AnyAsync(cancellationToken);
+        var hasSettings = await db.AppSettings.AnyAsync(cancellationToken);
         if (hasSettings)
         {
             logger.LogInformation("Настройки сайта уже существуют. Стартовое наполнение не требуется.");
         }
         else
         {
-            db.SiteSettings.Add(new SiteSettingsEntity
+            db.AppSettings.Add(new AppSettingsEntity
             {
                 Id = 1,
                 ThemeMode = ThemeMode.Auto,

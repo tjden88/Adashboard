@@ -1,0 +1,124 @@
+@inject NavigationManager Navigation
+@inject DashboardApiOptions ApiOptions
+@implements IDisposable
+
+@*
+    Шапка dashboard. Живёт внутри Home.razor (а не в layout): её содержимое относится
+    к конкретной странице dashboard.
+
+    Режим редактирования и настройки сайта приходят из AppState (каскадное значение), данные
+    страницы — параметром Page от Home: заголовок и описание обновляются сразу после правки
+    страницы в диалоге. Пока страница грузится, вместо текста рисуется скелет заголовка,
+    а кнопки и логотип остаются на месте.
+
+    Окна диалогов рисуются здесь же: состояние открытости ведёт шапка, содержимое передаётся
+    контейнеру как RenderFragment, а закрывает окно сам диалог через каскадный контейнер.
+*@
+
+@{
+    var isEditMode = AppStateService.IsEditMode;
+}
+
+<header class="dashboard-header">
+    <div class="dashboard-header-brand">
+        @if (AppStateService.Settings.ShowLogo)
+        {
+            <img class="dashboard-logo" src="@LogoSource" alt="" />
+        }
+
+        <div>
+            @if (IsLoading)
+            {
+                <span class="header-skeleton header-skeleton--title" aria-hidden="true"></span>
+                <span class="header-skeleton header-skeleton--subtitle" aria-hidden="true"></span>
+            }
+            else
+            {
+                <h1>@Model.DisplayTitle</h1>
+                @if (!string.IsNullOrWhiteSpace(Model.Page.Description))
+                {
+                    <p>@Model.Page.Description</p>
+                }
+            }
+        </div>
+    </div>
+    <div class="dashboard-header-actions">
+        @if (isEditMode)
+        {
+            <button type="button" class="btn btn-sm btn-success" @onclick="() => _isAddPageOpen = true" aria-label="Добавить страницу" title="Добавить страницу">
+                <i class="fa-solid fa-file-circle-plus" aria-hidden="true"></i>
+                <span class="header-button-label">Добавить страницу</span>
+            </button>
+
+            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="OpenSiteSettings" aria-label="Настройки приложения" title="Настройки приложения">
+                <i class="fa-solid fa-sliders" aria-hidden="true"></i>
+                <span class="header-button-label">Настройки</span>
+            </button>
+
+        }
+
+        <button type="button"
+                class="px-4 btn btn-icon btn-sm @(isEditMode ? "btn-primary" : "btn-outline-secondary")"
+                @onclick="ToggleEditMode"
+                aria-pressed="@(isEditMode ? "true" : "false")"
+                aria-label="Переключить режим редактирования"
+                title="@(isEditMode ? "Завершить редактирование" : "Редактировать")">
+            <i class="fa-solid @(isEditMode ? "fa-check" : "fa-pen-nib")" aria-hidden="true"></i>
+        </button>
+    </div>
+</header>
+
+<DialogContainer @bind-Open="_isAddPageOpen" Title="Создать страницу">
+    <PageDialog Saved="OnPageCreated" />
+</DialogContainer>
+
+<DialogContainer @bind-Open="_isSettingsOpen" Title="Настройки приложения">
+    <AppSettingsDialog />
+</DialogContainer>
+
+
+@code {
+    private bool _isAddPageOpen;
+    private bool _isSettingsOpen;
+
+    /// <summary>
+    /// Идёт загрузка страницы: вместо заголовка и описания рисуется скелет.
+    /// </summary>
+    [Parameter]
+    public bool IsLoading { get; set; }
+
+    /// <summary>
+    /// Информационная часть открытой страницы: заголовок и описание в шапке.
+    /// </summary>
+    [CascadingParameter]
+    public DashboardPageModel Model { get; set; } = new();
+
+    [CascadingParameter]
+    private AppStateService AppStateService { get; set; } = null!;
+
+    // Логотип лежит в загрузках API: путь строим абсолютным, иначе при раздельном запуске
+    // клиента и сервера изображение запрашивалось бы у клиента.
+    private string? LogoSource => ApiOptions.ResolveUploadPath(DomainConstants.LogoAsset);
+
+    // Созданную страницу открываем: Home загрузит её по новому адресу, а окно закроет сам диалог.
+    private void OnPageCreated(DashboardPage page) => Navigation.NavigateTo("/" + page.Path);
+
+    // Настройки сайта сохраняет сам диалог: владелец настроек — AppStateService,
+    // а шапка только открывает окно.
+    private void OpenSiteSettings() => _isSettingsOpen = true;
+
+    private void ToggleEditMode() => AppStateService.ToggleEditMode();
+
+    protected override void OnInitialized()
+    {
+        Model.PageInfoChanged += ModelOnPageInfoChanged;
+    }
+
+    private void ModelOnPageInfoChanged() => StateHasChanged();
+
+    public void Dispose()
+    {
+        Model.PageInfoChanged -= ModelOnPageInfoChanged;
+    }
+
+}

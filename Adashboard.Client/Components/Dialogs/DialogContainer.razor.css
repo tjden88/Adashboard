@@ -1,0 +1,89 @@
+.dialog-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    z-index: 1500;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    /* Затемнение само получает фокус при клике, но рамку фокуса не показываем. */
+    outline: none;
+}
+
+.dialog-window {
+    display: flex;
+    flex-direction: column;
+    width: min(500px, 100%);
+    /* Окно не растягивается на всю высоту: длинное содержимое прокручивается в теле окна. */
+    max-height: min(80vh, 100%);
+    overflow: hidden;
+    background-color: var(--surface-strong);
+    color: var(--text-main);
+    border: 1px solid var(--surface-border);
+    border-radius: 16px;
+    box-shadow: var(--shadow-soft);
+    outline: none;
+}
+
+.dialog-window--small {
+    width: min(360px, 100%);
+}
+
+.dialog-window--large {
+    width: min(720px, 100%);
+}
+
+.dialog-window__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--surface-border);
+}
+
+.dialog-window__title {
+    margin: 0;
+    font-family: var(--font-title);
+    font-size: 1.15rem;
+    font-weight: 600;
+}
+
+.dialog-window__close {
+    background: none;
+    border: none;
+    color: inherit;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0.25rem;
+    cursor: pointer;
+    opacity: 0.7;
+}
+
+.dialog-window__close:hover,
+.dialog-window__close:focus-visible {
+    opacity: 1;
+}
+
+.dialog-window__close:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.dialog-window__body {
+    padding: 1rem 1.25rem 1.25rem;
+    overflow-y: auto;
+}
+
+/* На узких экранах окно занимает всю ширину, а отступы уменьшаются. */
+@media (max-width: 480px) {
+    .dialog-overlay {
+        padding: 0.5rem;
+    }
+
+    .dialog-window {
+        max-height: calc(100vh - 1rem);
+    }
+}

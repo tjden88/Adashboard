@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Adashboard.Domain.Enums;
+using Adashboard.Domain.Reference;
 
 namespace Adashboard.Domain.Contracts;
 
@@ -26,13 +27,13 @@ public sealed class DashboardCard
     /// <summary>
     /// Отображаемое название карточки.
     /// </summary>
-    [MaxLength(30)]
+    [MaxLength(DomainConstants.CardTitleMaxLength)]
     public string Title { get; set; } = string.Empty;
 
     /// <summary>
     /// Адрес перехода по карточке (без схемы).
     /// </summary>
-    [MaxLength(500)]
+    [MaxLength(DomainConstants.CardUrlMaxLength)]
     public string Url { get; set; } = string.Empty;
 
     /// <summary>
@@ -50,12 +51,12 @@ public sealed class DashboardCard
     /// CSS-класс иконки Font Awesome.
     /// Либо относительный путь к загруженному изображению-иконке
     /// </summary>
-    public string IconSource { get; set; } = "fa-solid fa-link";
+    public string IconSource { get; set; } = DomainConstants.DefaultCardIcon;
 
     /// <summary>
     /// Цвет фона карточки в формате CSS (например, #1e293b).
     /// </summary>
-    public string BackgroundColor { get; set; } = "#1e40af";
+    public string BackgroundColor { get; set; } = DomainConstants.DefaultCardBackgroundColor;
 
     /// <summary>
     /// Признак широкой карточки: занимает две колонки вместо одной.

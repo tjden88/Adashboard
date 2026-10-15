@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Adashboard.Domain.ReadModels;
+using Adashboard.Domain.Reference;
 
 namespace Adashboard.Domain.Contracts;
 
@@ -25,19 +26,19 @@ public sealed class DashboardPage
     /// Заголовок, отображаемый в шапке dashboard.
     /// </summary>
     [Required]
-    [MaxLength(120)]
+    [MaxLength(DomainConstants.PageTitleMaxLength)]
     public string Title { get; set; } = string.Empty;
 
     /// <summary>
     /// Подзаголовок (описание), отображаемый в шапке dashboard.
     /// </summary>
-    [MaxLength(300)]
+    [MaxLength(DomainConstants.PageDescriptionMaxLength)]
     public string Description { get; set; } = string.Empty;
 
     /// <summary>
     /// Относительный путь, по которому открывается страница.
     /// У основной страницы путь пустой.
     /// </summary>
-    [MaxLength(120)]
+    [MaxLength(DomainConstants.PagePathMaxLength)]
     public string Path { get; set; } = string.Empty;
 }

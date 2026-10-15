@@ -1,22 +1,9 @@
 using Adashboard.Domain.Contracts;
 
-namespace Adashboard.Client.Services;
+namespace Adashboard.Domain.Extensions;
 
-/// <summary>
-/// Логика отображения карточки, зависящая только от её данных: подбор цвета иконки и текста под фон.
-/// </summary>
-/// <remarks>
-/// <para>
-/// Это UI-логика, поэтому она живёт на клиенте, а не в контрактной модели <see cref="DashboardCard"/>:
-/// контракт описывает только данные, которыми обмениваются фронтенд и API.
-/// </para>
-/// <para>
-/// Методы оформлены как методы-расширения, чтобы вызываться прямо у карточки:
-/// <c>card.GetTextColor()</c>. Для этого в компоненте достаточно подключить это пространство имён
-/// (<c>@using Adashboard.Client.Services</c>).
-/// </para>
-/// </remarks>
-public static class CardPresentation
+
+public static class CardPresentationExtensions
 {
     /// <summary>Цвет иконки по умолчанию (тёмный) для светлого фона.</summary>
     private const string DarkForeground = "#0f172a";
