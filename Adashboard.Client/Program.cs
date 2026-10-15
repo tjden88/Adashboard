@@ -21,11 +21,18 @@ var refitSettings = new RefitSettings
 };
 
 builder.Services.AddTransient<NetworkErrorHandler>();
+builder.Services.AddTransient<ApiKeyHandler>();
 
 // Базовый адрес API хранится в одном месте: из него строится HTTP-клиент и через него
 // относительные пути загрузок превращаются в абсолютные адреса (см. DashboardApiOptions).
 var apiOptions = new DashboardApiOptions(apiBaseAddress);
 builder.Services.AddSingleton(apiOptions);
+
+// Ключ доступа к API: хранится в браузере и подставляется в запросы обработчиком ApiKeyHandler.
+// Состояние доступа отдаём как корневое каскадное значение, как и состояние приложения.
+builder.Services.AddSingleton<ApiKeyStore>();
+builder.Services.AddScoped<AuthStateService>();
+builder.Services.AddCascadingValue(sp => sp.GetRequiredService<AuthStateService>().Source);
 
 // Прикладные сервисы клиента.
 // Состояние приложения отдаём как корневое каскадное значение: любой компонент получает его
@@ -37,6 +44,7 @@ builder.Services.AddScoped<HealthCheckService>();
 builder.Services
     .AddRefitGeneratedClient<IDashboardApi>(refitSettings)
     .ConfigureHttpClient(client => client.BaseAddress = new Uri(apiOptions.BaseAddress))
-    .AddHttpMessageHandler<NetworkErrorHandler>();
+    .AddHttpMessageHandler<NetworkErrorHandler>()
+    .AddHttpMessageHandler<ApiKeyHandler>();
 
 await builder.Build().RunAsync();

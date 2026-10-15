@@ -1,0 +1,45 @@
+/* Экран ввода ключа доступа: карточка по центру окна, как диалоги проекта. */
+.auth-screen {
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    min-height: 100vh;
+    padding: 1.5rem;
+}
+
+.auth-card {
+    display: grid;
+    gap: 0.5rem;
+    width: min(24rem, 100%);
+    padding: 1.75rem;
+    border: 1px solid var(--surface-border);
+    border-radius: 20px;
+    background-color: var(--surface-strong);
+    backdrop-filter: blur(8px);
+    box-shadow: var(--shadow-soft);
+}
+
+.auth-card__title {
+    margin: 0;
+    font-family: var(--font-title);
+    font-size: 1.4rem;
+}
+
+.auth-card__text {
+    margin: 0 0 0.5rem;
+    color: var(--text-muted);
+}
+
+.auth-card__label {
+    font-weight: 600;
+}
+
+.auth-card__error {
+    margin: 0.25rem 0 0;
+    color: color-mix(in srgb, #dc2626 85%, var(--text-main));
+    font-size: 0.85rem;
+}
+
+.auth-card__submit {
+    margin-top: 0.75rem;
+}

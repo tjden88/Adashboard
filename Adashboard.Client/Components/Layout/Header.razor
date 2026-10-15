@@ -57,6 +57,16 @@
 
         }
 
+        @if (AuthState.HasKey)
+        {
+            <button type="button" class="px-4 btn btn-icon btn-sm btn-outline-secondary"
+                    @onclick="ChangeKeyAsync"
+                    aria-label="Сменить ключ доступа"
+                    title="Сменить ключ доступа">
+                <i class="fa-solid fa-key" aria-hidden="true"></i>
+            </button>
+        }
+
         <button type="button"
                 class="px-4 btn btn-icon btn-sm @(isEditMode ? "btn-primary" : "btn-outline-secondary")"
                 @onclick="ToggleEditMode"
@@ -96,6 +106,9 @@
     [CascadingParameter]
     private AppStateService AppStateService { get; set; } = null!;
 
+    [CascadingParameter]
+    private AuthStateService AuthState { get; set; } = null!;
+
     // Логотип лежит в загрузках API: путь строим абсолютным, иначе при раздельном запуске
     // клиента и сервера изображение запрашивалось бы у клиента.
     private string? LogoSource => ApiOptions.ResolveUploadPath(DomainConstants.LogoAsset);
@@ -108,6 +121,9 @@
     private void OpenSiteSettings() => _isSettingsOpen = true;
 
     private void ToggleEditMode() => AppStateService.ToggleEditMode();
+
+    // Смена ключа доступа — это выход: приложение вернётся к экрану входа (см. AuthStateService).
+    private Task ChangeKeyAsync() => AuthState.SignOutAsync();
 
     protected override void OnInitialized()
     {

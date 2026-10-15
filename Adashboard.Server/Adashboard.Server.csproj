@@ -4,6 +4,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Позволяет хранить ключ доступа (ApiKey) в пользовательских секретах, а не в репозитории. -->
+    <UserSecretsId>9f0167db-679a-4d5c-baec-d7eab0fecb50</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

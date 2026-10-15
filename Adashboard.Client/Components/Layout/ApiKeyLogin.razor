@@ -1,0 +1,81 @@
+@inject AuthStateService AuthState
+
+@*
+    Экран ввода ключа доступа: показывается, когда сервер требует ключ, а подходящего
+    сохранённого ключа нет. После успешного входа приложение загружает настройки и
+    открывает dashboard (см. Routes).
+*@
+
+<div class="auth-screen">
+    <form class="auth-card" @onsubmit="SubmitAsync" @onsubmit:preventDefault>
+        <h1 class="auth-card__title">Доступ к dashboard</h1>
+        <p class="auth-card__text">Введите ключ доступа, заданный в настройках сервера.</p>
+
+        <label class="auth-card__label" for="apiKeyInput">Ключ доступа</label>
+        <input id="apiKeyInput"
+               @ref="_keyInput"
+               class="form-control"
+               type="password"
+               autocomplete="off"
+               spellcheck="false"
+               @bind="_key"
+               @bind:event="oninput" />
+
+        @if (_error is not null)
+        {
+            <p class="auth-card__error" role="alert">@_error</p>
+        }
+
+        <button type="submit" class="btn btn-primary auth-card__submit" disabled="@_isSubmitting">
+            <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>@(_isSubmitting ? "Проверка..." : "Войти")
+        </button>
+    </form>
+</div>
+
+@code {
+    private string _key = string.Empty;
+    private string? _error;
+    private bool _isSubmitting;
+    private ElementReference _keyInput;
+
+    /// <summary>
+    /// Уведомление об успешном входе: приложение загружает общие настройки.
+    /// </summary>
+    [Parameter]
+    public EventCallback OnAuthenticated { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await _keyInput.FocusAsync();
+        }
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (_isSubmitting)
+        {
+            return;
+        }
+
+        _error = null;
+        _isSubmitting = true;
+
+        try
+        {
+            var error = await AuthState.SignInAsync(_key);
+            if (error is not null)
+            {
+                _error = error;
+                return;
+            }
+
+            await OnAuthenticated.InvokeAsync();
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+}
