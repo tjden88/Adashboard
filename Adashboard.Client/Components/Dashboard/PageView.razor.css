@@ -53,26 +53,30 @@
     font-size: 1.25rem;
 }
 
-/* Сетка категорий. Пока раскладка не включена, категории укладывает CSS-grid: 12 колонок на
-   широких экранах, 6 и 4 — на средних и узких (категория занимает столько колонок, сколько
-   задано её шириной). После первого рендера раскладку берёт на себя модуль js/dashboard.js:
-   он позиционирует категории абсолютно и задаёт высоту сетки (masonry). */
+/* Сетка категорий. В управляемом режиме (класс dashboard-grid--managed ставит модуль
+   js/dashboard.js) это обычный позиционированный блок: категории расставляет скрипт.
+   column-gap задаём всегда: из него модуль берёт шаг колонок. */
 .dashboard-grid {
     position: relative;
+    column-gap: var(--dashboard-gap);
+}
+
+/* Пока модуль раскладки не подключился (или не загрузился), категории укладывает CSS-grid:
+   12 колонок на широких экранах, 6 и 4 — на средних и узких. */
+.dashboard-grid:not(.dashboard-grid--managed) {
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
-    column-gap: var(--dashboard-gap);
     row-gap: var(--dashboard-gap);
 }
 
 @media (max-width: 1200px) and (min-width: 901px) {
-    .dashboard-grid {
+    .dashboard-grid:not(.dashboard-grid--managed) {
         grid-template-columns: repeat(6, minmax(0, 1fr));
     }
 }
 
 @media (max-width: 900px) {
-    .dashboard-grid {
+    .dashboard-grid:not(.dashboard-grid--managed) {
         grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 }

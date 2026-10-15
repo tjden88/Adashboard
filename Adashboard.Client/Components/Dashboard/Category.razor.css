@@ -7,8 +7,14 @@
     --category-pad: 0.95rem;
     --category-frame: calc(var(--category-pad) + 1px);
     min-width: 0;
-    /* Ширина категории в колонках сетки: пока раскладка не включена, её задаёт CSS-grid,
-       а после — модуль js/dashboard.js (абсолютное позиционирование). */
+}
+
+/* Пока раскладку ведёт CSS-grid (модуль js/dashboard.js ещё не подключился), ширину
+   категории задаёт число занятых колонок. В управляемом режиме категории позиционируются
+   абсолютно, и grid-размещение не задаётся вовсе: в Firefox оно превращает grid-область
+   в контейнер позиционирования, из-за чего left/top отсчитываются от неё, а не от сетки,
+   и категории уезжают вправо за экран. */
+.dashboard-grid:not(.dashboard-grid--managed) .dashboard-category {
     grid-column: span var(--span-desktop, 1);
 }
 
@@ -42,6 +48,67 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.category-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+/* Маркер перетаскивания категории: виден только в режиме редактирования (см. app.css). */
+.drag-handle {
+    width: 1.9rem;
+    height: 1.9rem;
+    flex-shrink: 0;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 10px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    cursor: grab;
+    /* Жесты указателя обрабатывает модуль раскладки, а не браузер. */
+    touch-action: none;
+}
+
+/* Маркер изменения ширины — круглый «хват» на правой рамке панели: тянем вправо/влево.
+   Половина круга выходит за рамку, поэтому лежит поверх неё и не обрезается. */
+.category-resize-handle {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    z-index: 3;
+    display: none;
+    place-items: center;
+    width: 1.7rem;
+    height: 1.7rem;
+    transform: translate(50%, -50%);
+    border-radius: 50%;
+    border: 1px solid color-mix(in srgb, #ffffff 26%, transparent);
+    background: color-mix(in srgb, #0c0c14 72%, transparent);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+    cursor: ew-resize;
+    touch-action: none;
+    transition: background-color 0.18s ease;
+}
+
+.category-resize-handle i {
+    font-size: 0.85rem;
+    line-height: 1;
+    color: color-mix(in srgb, #ffffff 88%, transparent);
+}
+
+.category-resize-handle:hover {
+    background: var(--accent);
+    border-color: color-mix(in srgb, #ffffff 45%, transparent);
+}
+
+/* В фантоме при перетаскивании ручки не нужны. */
+.dnd-clone .category-resize-handle,
+.dnd-clone .drag-handle {
+    display: none;
 }
 
 .category-empty {
@@ -156,6 +223,9 @@
 @media (max-width: 1200px) and (min-width: 901px) {
     .dashboard-category {
         --cards-current: var(--cards-medium, 1);
+    }
+
+    .dashboard-grid:not(.dashboard-grid--managed) .dashboard-category {
         grid-column: span var(--span-medium, 1);
     }
 
@@ -176,6 +246,9 @@
 @media (max-width: 900px) {
     .dashboard-category {
         --cards-current: var(--cards-mobile, 1);
+    }
+
+    .dashboard-grid:not(.dashboard-grid--managed) .dashboard-category {
         grid-column: span var(--span-mobile, 1);
     }
 }
