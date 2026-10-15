@@ -234,6 +234,7 @@
     // ---------------------------------------------------------------
     // Перетаскивание категорий и изменение их ширины (из модуля js/dashboard.js).
     // Изменения сразу уходят в API по одному элементу: серверного батча нет.
+    // Сохраняем только то, что действительно изменилось.
     // ---------------------------------------------------------------
 
     /// <summary>
@@ -250,16 +251,18 @@
         await _reorderLock.WaitAsync();
         try
         {
+            // Сначала считаем желаемый порядок, не трогая модель: иначе не отличить реальное
+            // изменение от перетаскивания на прежнее место (такой drop уже отсекает модуль,
+            // но проверка защищает и от совпадающего итогового порядка).
+            var target = new List<(DashboardCategory Category, int Order)>();
             var order = 0;
-            var changed = new List<DashboardCategory>();
 
             foreach (var id in orderedCategoryIds)
             {
                 var category = Model.Categories.FirstOrDefault(x => x.Id == id);
                 if (category is not null)
                 {
-                    category.Order = order;
-                    changed.Add(category);
+                    target.Add((category, order));
                     order++;
                 }
             }
@@ -269,14 +272,25 @@
             {
                 if (Array.IndexOf(orderedCategoryIds, category.Id) < 0)
                 {
-                    category.Order = order;
-                    changed.Add(category);
+                    target.Add((category, order));
                     order++;
                 }
             }
 
-            Logger.LogDebug("Применён новый порядок категорий. Категорий: {Count}.", changed.Count);
-            await PersistCategoryChangesAsync(changed);
+            var changed = target.Where(x => x.Category.Order != x.Order).ToList();
+            if (changed.Count == 0)
+            {
+                Logger.LogDebug("Порядок категорий не изменился: сохранение не требуется.");
+                return;
+            }
+
+            foreach (var (category, newOrder) in target)
+            {
+                category.Order = newOrder;
+            }
+
+            Logger.LogDebug("Применён новый порядок категорий. Изменено категорий: {Count}.", changed.Count);
+            await PersistCategoryChangesAsync(changed.Select(x => x.Category).ToList());
         }
         finally
         {

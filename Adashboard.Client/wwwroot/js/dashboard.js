@@ -67,16 +67,20 @@ export function setBackgroundImages(lightUrl, darkUrl) {
 }
 
 // ---------------------------------------------------------------------------
-// Раскладка и перетаскивание категорий.
+// Раскладка категорий (masonry) и перетаскивание.
 //
 // Категории позиционируются абсолютно: модуль измеряет их высоты и укладывает по колонкам
 // сетки, подбирая каждой самое верхнее подходящее место. Число колонок зависит от ширины
 // экрана (12 / 6 / 4), ширину категории задают её CSS-переменные --span-* (см. Category).
-// До вызова initializeLayout категории укладывает CSS-grid, поэтому при недоступном модуле
-// страница остаётся рабочей.
 //
-// Перетаскивание и изменение ширины работают только в режиме редактирования (флаг приходит
-// из PageView через setEditMode), а перетаскивание идёт с Pointer Events — мыши и касания.
+// Порядок укладки ведёт сам модуль (orderIds), а не порядок узлов в DOM. Это важно: после
+// перетаскивания новый порядок применяется сразу, а узлы в DOM Blazor переставляет уже потом —
+// если бы укладка читала DOM, между отпусканием и перерисовкой порядок успевал откатиться назад
+// и категория на кадр мелькала на прежнем месте.
+//
+// До вызова initializeLayout категории укладывает CSS-grid, поэтому при недоступном модуле
+// страница остаётся рабочей. Перетаскивание и изменение ширины работают только в режиме
+// редактирования (флаг приходит из PageView через setEditMode).
 // ---------------------------------------------------------------------------
 
 const GRID_ELEMENT_ID = "dashboard-grid";
@@ -88,16 +92,15 @@ let gridMutationObserver = null;
 let layoutFrame = 0;
 const observedCategories = new Set();
 
+// Порядок категорий для укладки. Модуль ведёт его сам: после перетаскивания сюда попадает
+// порядок, который выбрал пользователь, и укладка сразу считается по нему.
+let orderIds = [];
+
 let dotNetRef = null;
 let dragState = null;
 let editModeEnabled = false;
 let syncQueue = [];
 let syncInProgress = false;
-
-// После drop категории превью держится до перерисовки Blazor, чтобы не было видимого
-// отката к старому порядку.
-let pendingCategoryDrop = null;
-let pendingCategoryDropTimer = 0;
 
 function getGrid() {
     return document.getElementById(GRID_ELEMENT_ID);
@@ -146,18 +149,68 @@ function getColumnGap(grid) {
     return Number.isFinite(gap) ? gap : 16;
 }
 
-// Элементы раскладки: скрытая при перетаскивании категория в укладке не участвует.
-function getCategories() {
+function getCategoryElements() {
     const grid = getGrid();
     if (!grid) {
         return [];
     }
 
-    return Array.from(grid.children).filter(
-        (child) => child.classList.contains("dashboard-category") && child.style.display !== "none");
+    return Array.from(grid.children).filter((child) => child.classList.contains("dashboard-category"));
 }
 
-// Определяет, перед каким элементом вставить placeholder. Скан в порядке чтения:
+// Идентификаторы категорий в порядке узлов DOM — это порядок модели, каким его отрисовал Blazor.
+function collectCategoryIds() {
+    return getCategoryElements()
+        .map((element) => parseId(element.dataset.categoryId))
+        .filter((id) => id !== null);
+}
+
+// Приводит порядок укладки в соответствие с набором категорий: исчезнувшие убирает,
+// новые (только что добавленные) дописывает в конец — они и в модели идут последними.
+function reconcileOrder() {
+    const ids = collectCategoryIds();
+    const existing = new Set(ids);
+
+    orderIds = orderIds.filter((id) => existing.has(id));
+
+    const known = new Set(orderIds);
+    for (const id of ids) {
+        if (!known.has(id)) {
+            known.add(id);
+            orderIds.push(id);
+        }
+    }
+}
+
+// Категории в порядке укладки: известные — по порядку модуля, остальные — в конце.
+function getOrderedCategories() {
+    const byId = new Map();
+
+    for (const element of getCategoryElements()) {
+        const id = parseId(element.dataset.categoryId);
+        if (id !== null && !byId.has(id)) {
+            byId.set(id, element);
+        }
+    }
+
+    const ordered = [];
+
+    for (const id of orderIds) {
+        const element = byId.get(id);
+        if (element) {
+            ordered.push(element);
+            byId.delete(id);
+        }
+    }
+
+    for (const element of byId.values()) {
+        ordered.push(element);
+    }
+
+    return ordered;
+}
+
+// Определяет, перед каким элементом встанет перетаскиваемая категория. Скан в порядке чтения:
 // сначала сравниваем по строкам, затем по горизонтали внутри строки.
 function findInsertBefore(elements, x, y) {
     for (const element of elements) {
@@ -243,14 +296,9 @@ function layout() {
         return;
     }
 
-    // Во время перетаскивания позиции задаёт превью/placeholder, а не общий layout.
+    // Во время перетаскивания позиции задаёт превью, а не общая укладка.
     // При изменении ширины категории порядок, наоборот, нужно пересчитывать.
     if (dragState && dragState.active && dragState.kind !== "resize") {
-        return;
-    }
-
-    // Пока держится превью после drop, старый порядок не перестраиваем.
-    if (pendingCategoryDrop) {
         return;
     }
 
@@ -262,9 +310,8 @@ function layout() {
     const columns = getColumnCount();
     const gap = getColumnGap(grid);
     const columnWidth = (width - (columns - 1) * gap) / columns;
-    const categories = getCategories();
 
-    const entries = categories.map((element) => {
+    const entries = getOrderedCategories().map((element) => {
         const span = Math.min(Math.max(readSpan(element), 1), columns);
         const itemWidth = span * columnWidth + (span - 1) * gap;
 
@@ -294,6 +341,8 @@ function layout() {
     }
 }
 
+// Укладку откладываем до кадра отрисовки: так несколько изменений подряд (например, серия
+// мутаций DOM) вызывают один пересчёт, но он всё равно успевает до отрисовки кадра.
 function scheduleLayout() {
     if (layoutFrame !== 0) {
         return;
@@ -362,6 +411,9 @@ export function initializeLayout() {
     // grid-область контейнером позиционирования и категории уезжают вправо (см. Category).
     grid.classList.add("dashboard-grid--managed");
 
+    // Отправная точка порядка укладки — порядок, в котором категории отрисовал Blazor.
+    orderIds = collectCategoryIds();
+
     // Ширина сетки меняется при ресайзе и повороте экрана — раскладываем заново.
     gridResizeObserver = new ResizeObserver(() => scheduleLayout());
     gridResizeObserver.observe(grid);
@@ -369,13 +421,10 @@ export function initializeLayout() {
     // Высота категории меняется от содержимого (например, добавили ссылку) — тоже перекладываем.
     itemResizeObserver = new ResizeObserver(() => scheduleLayout());
 
-    // Появление и удаление категорий: раскладываем и заводим наблюдение за новыми.
+    // Появление, удаление и перестановка категорий. Перестановку делает Blazor уже по порядку
+    // модуля, поэтому после перерисовки достаточно пересчитать укладку.
     gridMutationObserver = new MutationObserver(() => {
-        if (pendingCategoryDrop) {
-            finalizeCategoryDrop();
-            return;
-        }
-
+        reconcileOrder();
         syncObservedCategories();
         scheduleLayout();
     });
@@ -410,12 +459,27 @@ export function disposeLayout() {
     }
 
     observedCategories.clear();
+    orderIds = [];
     clearManagedLayout();
 }
 
 // ---------------------------------------------------------------------------
 // Перетаскивание и изменение ширины категорий.
 // ---------------------------------------------------------------------------
+
+function sameOrder(a, b) {
+    if (a.length !== b.length) {
+        return false;
+    }
+
+    for (let i = 0; i < a.length; i++) {
+        if (a[i] !== b[i]) {
+            return false;
+        }
+    }
+
+    return true;
+}
 
 function createPlaceholder(rect) {
     const placeholder = document.createElement("div");
@@ -441,11 +505,10 @@ function createClone(item, rect) {
     return clone;
 }
 
-function startSession(item, container, event) {
+function startSession(item, event) {
     dragState = {
         kind: "category",
         item,
-        container,
         pointerId: event.pointerId,
         startX: event.clientX,
         startY: event.clientY,
@@ -595,23 +658,47 @@ function onPointerDown(event) {
     if (handle) {
         const category = handle.closest(".dashboard-category");
         if (category) {
-            startSession(category, category.parentElement, event);
+            startSession(category, event);
         }
     }
 }
 
+// Убирает превью перетаскивания: placeholder и фантом, возвращает категорию в раскладку.
+// Позиции после этого расставляет layout() — он же возвращает прежнее место при отмене.
+function cleanup() {
+    const state = dragState;
+    if (!state) {
+        return;
+    }
+
+    if (state.placeholder && state.placeholder.parentElement) {
+        state.placeholder.remove();
+    }
+
+    if (state.clone && state.clone.parentElement) {
+        state.clone.remove();
+    }
+
+    if (state.item) {
+        state.item.style.display = "";
+    }
+
+    document.body.classList.remove("dnd-active");
+    state.placeholder = null;
+    state.clone = null;
+}
+
 function activateDrag(event) {
     const state = dragState;
-    const rect = state.rect;
     const grid = getGrid();
 
     state.active = true;
-    state.offsetX = event.clientX - rect.left;
-    state.offsetY = event.clientY - rect.top;
+    state.offsetX = event.clientX - state.rect.left;
+    state.offsetY = event.clientY - state.rect.top;
     state.sourceSpan = readSpan(state.item);
     state.sourceHeight = state.item.offsetHeight;
 
-    const placeholder = createPlaceholder(rect);
+    const placeholder = createPlaceholder(state.rect);
     if (grid) {
         grid.appendChild(placeholder);
     }
@@ -619,7 +706,7 @@ function activateDrag(event) {
     state.placeholder = placeholder;
 
     // Фантом создаём до скрытия источника, иначе он унаследует display:none.
-    const clone = createClone(state.item, rect);
+    const clone = createClone(state.item, state.rect);
     document.body.appendChild(clone);
     state.clone = clone;
 
@@ -630,6 +717,8 @@ function activateDrag(event) {
     updateDrag(event);
 }
 
+// Пересобирает раскладку под указатель: placeholder встаёт на место, куда попадёт категория,
+// а остальные разъезжаются по колонкам. Порядок при этом берётся из порядка укладки модуля.
 function updateCategoryTarget(x, y) {
     const state = dragState;
     const grid = getGrid();
@@ -637,9 +726,9 @@ function updateCategoryTarget(x, y) {
         return;
     }
 
-    const categories = getCategories();
-    const before = findInsertBefore(categories, x, y);
-    const index = before ? categories.indexOf(before) : categories.length;
+    const others = getOrderedCategories().filter((element) => element !== state.item);
+    const before = findInsertBefore(others, x, y);
+    const index = before ? others.indexOf(before) : others.length;
 
     const columns = getColumnCount();
     const gap = getColumnGap(grid);
@@ -653,16 +742,16 @@ function updateCategoryTarget(x, y) {
     };
 
     const entries = [];
-    for (let i = 0; i < categories.length; i++) {
+    for (let i = 0; i < others.length; i++) {
         if (i === index) {
             entries.push(placeholderEntry);
         }
 
-        const element = categories[i];
+        const element = others[i];
         entries.push({ element, span: readSpan(element), height: element.offsetHeight });
     }
 
-    if (index >= categories.length) {
+    if (index >= others.length) {
         entries.push(placeholderEntry);
     }
 
@@ -692,101 +781,32 @@ function updateDrag(event) {
     updateCategoryTarget(x, y);
 }
 
-function cleanup() {
-    const state = dragState;
-    if (!state) {
-        return;
-    }
-
-    if (state.placeholder && state.placeholder.parentElement) {
-        state.placeholder.remove();
-    }
-
-    if (state.clone && state.clone.parentElement) {
-        state.clone.remove();
-    }
-
-    if (state.item) {
-        state.item.style.display = "";
-    }
-
-    document.body.classList.remove("dnd-active");
-    state.placeholder = null;
-    state.clone = null;
-}
-
-function collectCategoryOrder(grid) {
-    const ids = [];
-
-    for (const child of grid.children) {
-        if (child.classList.contains("dashboard-category")) {
-            const id = parseId(child.dataset.categoryId);
-            if (id !== null) {
-                ids.push(id);
-            }
-        }
-    }
-
-    return ids;
-}
-
-function finalizeCategoryDrop() {
-    if (!pendingCategoryDrop) {
-        return;
-    }
-
-    const { item, placeholder } = pendingCategoryDrop;
-    pendingCategoryDrop = null;
-
-    if (pendingCategoryDropTimer !== 0) {
-        window.clearTimeout(pendingCategoryDropTimer);
-        pendingCategoryDropTimer = 0;
-    }
-
-    if (item && placeholder) {
-        if (placeholder.style.left !== "") {
-            item.style.left = placeholder.style.left;
-            item.style.top = placeholder.style.top;
-            item.style.width = placeholder.style.width;
-        }
-
-        item.style.display = "";
-    }
-
-    if (placeholder && placeholder.parentElement) {
-        placeholder.remove();
-    }
-
-    scheduleLayout();
-}
-
 function finishDrag() {
     const state = dragState;
     if (!state) {
         return;
     }
 
-    const { item, placeholder } = state;
-    const grid = getGrid();
+    const currentIds = getOrderedCategories()
+        .map((element) => parseId(element.dataset.categoryId))
+        .filter((id) => id !== null);
 
-    const orderedIds = state.previewIds ?? (grid ? collectCategoryOrder(grid) : []);
+    const orderedIds = state.previewIds ?? currentIds;
+    const changed = !sameOrder(orderedIds, currentIds);
 
-    // Фантом убираем сразу, а placeholder и скрытый источник — после того,
-    // как Blazor применит новый порядок (чтобы не было отката позиций).
-    if (state.clone && state.clone.parentElement) {
-        state.clone.remove();
+    if (changed) {
+        // Новый порядок становится порядком укладки: layout() ниже сразу расставит категории
+        // по нему, не дожидаясь перерисовки Blazor (узлы в DOM она переставит следом).
+        orderIds = orderedIds;
     }
 
-    document.body.classList.remove("dnd-active");
-    state.placeholder = null;
-    state.clone = null;
-
-    pendingCategoryDrop = { item, placeholder };
-    pendingCategoryDropTimer = window.setTimeout(finalizeCategoryDrop, 800);
-
+    cleanup();
     endSession();
 
-    if (dotNetRef && orderedIds.length > 0) {
+    // Укладка в том же кадре: на экране остаётся ровно то, что показало превью.
+    layout();
+
+    if (changed && dotNetRef) {
         enqueueSync(() => dotNetRef.invokeMethodAsync("OnCategoriesReordered", orderedIds));
     }
 }
@@ -846,6 +866,7 @@ function onPointerCancel(event) {
 
     cleanup();
     endSession();
+    layout();
 }
 
 function onDragStart(event) {
@@ -868,7 +889,7 @@ function onKeyDown(event) {
 
     cleanup();
     endSession();
-    scheduleLayout();
+    layout();
 }
 
 function enqueueSync(task) {
@@ -917,12 +938,9 @@ export function setEditMode(enabled) {
 
     // При выключении режима активное перетаскивание немедленно отменяется.
     if (!editModeEnabled && dragState) {
-        if (dragState.active) {
-            cleanup();
-        }
-
+        cleanup();
         endSession();
-        scheduleLayout();
+        layout();
     }
 }
 
@@ -933,7 +951,6 @@ export function disposeDragAndDrop() {
 
     cleanup();
     endSession();
-    finalizeCategoryDrop();
     document.body.classList.remove("category-resizing");
 
     dotNetRef = null;
