@@ -34,4 +34,9 @@ public sealed class DashboardPageModel
     /// а при пустом значении — имя приложения.
     /// </summary>
     public string DisplayTitle => string.IsNullOrWhiteSpace(Page.Title) ? DomainConstants.AppTitle : Page.Title;
+
+    /// <summary>
+    /// Признак главной страницы
+    /// </summary>
+    public bool IsMainPage => Page.Id == 1;
 }

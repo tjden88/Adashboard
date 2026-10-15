@@ -37,9 +37,9 @@
                 <button type="button" class="btn" @onclick="() => _isPageSettingsOpen = true">
                     <i class="fa-solid fa-gear" aria-hidden="true"></i> Настройки страницы
                 </button>
-                @if (!IsMainPage)
+                @if (!Model.IsMainPage)
                 {
-                    <button type="button" class="btn btn-danger" @onclick="() => _isDeletePageOpen = true">
+                    <button type="button" class="btn btn-danger" @onclick="RequestOrDeletePage">
                         <i class="fa-solid fa-trash" aria-hidden="true"></i> Удалить страницу
                     </button>
                 }
@@ -79,7 +79,7 @@
     <PageDialog Page="Model.Page" Saved="OnPageSavedAsync" />
 </DialogContainer>
 
-<DialogContainer @bind-Open="_isDeletePageOpen" Title="Удаление страницы" Size="DialogContainer.DialogSize.Small">
+<DialogContainer @bind-Open="_isDeletePageOpen" Title="Удаление страницы" Size="DialogContainer.DialogSize.ConfirmDialog">
     <ConfirmDialog Message="@DeletePageMessage" ConfirmLabel="Удалить" Confirmed="DeletePageAsync" />
 </DialogContainer>
 
@@ -109,8 +109,6 @@
     // Порядковый номер новой категории: она добавляется в конец списка.
     private int NextCategoryOrder => Model.Categories.Count > 0 ? Model.Categories.Max(x => x.Order) + 1 : 0;
 
-    // Основная страница имеет пустой путь и не удаляется.
-    private bool IsMainPage => Model.Page.Path.Length == 0;
 
     private string DeletePageMessage => $"Удалить страницу «{Model.DisplayTitle}» вместе со всеми категориями и ссылками?";
 
@@ -170,6 +168,15 @@
         }
 
         await InvokeAsync(StateHasChanged);
+    }
+
+    // Если категорий нет - не запрашивать подтверждение
+    private async Task RequestOrDeletePage()
+    {
+        if (Model.Categories.Any())
+            _isDeletePageOpen = true;
+        else
+            await DeletePageAsync();
     }
 
     private async Task DeletePageAsync()

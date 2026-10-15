@@ -41,21 +41,22 @@
 
     <div class="page-dialog__field">
         <label for="pageDialogPath" class="page-dialog__label">Путь</label>
-        <input id="pageDialogPath"
-               class="form-control"
-               type="text"
-               maxlength="@DomainConstants.PagePathMaxLength"
-               autocomplete="off"
-               placeholder="path-to-page"
-               disabled="@IsMainPage"
-               value="@_model.Path"
-               @oninput="OnPathInput" />
         @if (IsMainPage)
         {
-            <p class="page-dialog__hint">Основная страница открывается по корневому адресу, путь изменить нельзя.</p>
+            <p class="page-dialog__hint">Основная страница открывается по корневому адресу.</p>
         }
         else
         {
+            <input id="pageDialogPath"
+                   class="form-control"
+                   type="text"
+                   maxlength="@DomainConstants.PagePathMaxLength"
+                   autocomplete="off"
+                   placeholder="path-to-page"
+                   disabled="@IsMainPage"
+                   value="@_model.Path"
+                   @oninput="OnPathInput" />
+
             <p class="page-dialog__hint">Латиница, цифры и дефис. Страница будет доступна по адресу /путь.</p>
         }
     </div>
@@ -101,7 +102,7 @@
     private bool IsCreate => Page is null;
 
     // У основной страницы путь пустой и не меняется.
-    private bool IsMainPage => Page is { Path.Length: 0 };
+    private bool IsMainPage => Page is { Id: 1 };
 
     // Пути всех существующих страниц нужны диалогу для проверки уникальности пути.
     private IEnumerable<string> ExistingPaths => PageModel.Pages.Select(x => x.Path);
