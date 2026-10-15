@@ -1,5 +1,6 @@
 @implements IAsyncDisposable
 @inject IDashboardApi DashboardApi
+@inject DashboardApiOptions ApiOptions
 @inject IJSRuntime JS
 @inject ILogger<CardDialog> Logger
 
@@ -250,8 +251,9 @@
     };
 
     // Предпросмотр иконки: выбранный файл (или вставка из буфера), иначе уже сохранённое изображение.
+    // Путь сохранённого изображения относительный, поэтому приводим его к адресу API.
     private string? PreviewSource => _uploadedPreview
-        ?? (string.IsNullOrWhiteSpace(_model.ExistingImagePath) ? null : _model.ExistingImagePath);
+        ?? (string.IsNullOrWhiteSpace(_model.ExistingImagePath) ? null : ApiOptions.ResolveUploadPath(_model.ExistingImagePath));
 
     protected override void OnInitialized()
     {

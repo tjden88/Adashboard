@@ -3,7 +3,9 @@
     образец выбранной иконки и ссылка на поиск иконок на сайте библиотеки.
 
     Справочник классов лежит в домене (FontAwesomeIcons), поэтому поиск идёт по нему,
-    а не по разметке Font Awesome.
+    а не по разметке Font Awesome. Список управляется с клавиатуры: стрелки перемещают
+    подсветку, Enter выбирает вариант, Esc закрывает подсказки; роли combobox/listbox/option
+    и aria-activedescendant описывают это скринридеру.
 *@
 
 <div class="icon-picker">
@@ -15,11 +17,16 @@
                type="text"
                autocomplete="off"
                spellcheck="false"
+               role="combobox"
+               aria-autocomplete="list"
+               aria-expanded="@(_matches.Count > 0 ? "true" : "false")"
+               aria-controls="@_listId"
+               aria-activedescendant="@ActiveOptionId"
                placeholder="Например: house, docker, github"
                value="@_searchText"
                aria-label="@AriaLabel"
                @oninput="OnSearchInput"
-               @onkeydown="OnKeyDown" />
+               @onkeydown="OnKeyDownAsync" />
         <a class="icon-picker__search-link"
            href="https://fontawesome.com/v6/search"
            target="_blank"
@@ -32,10 +39,17 @@
 
     @if (_matches.Count > 0)
     {
-        <ul class="icon-picker__list" role="listbox">
-            @foreach (var icon in _matches)
+        <ul class="icon-picker__list" id="@_listId" role="listbox">
+            @for (var index = 0; index < _matches.Count; index++)
             {
-                <li class="icon-picker__item" role="option" @onclick="() => SelectIconAsync(icon)">
+                var optionIndex = index;
+                var icon = _matches[optionIndex];
+
+                <li id="@OptionId(optionIndex)"
+                    class="icon-picker__item @(optionIndex == _activeIndex ? "is-active" : null)"
+                    role="option"
+                    aria-selected="@(optionIndex == _activeIndex ? "true" : "false")"
+                    @onclick="() => SelectIconAsync(icon)">
                     <i class="@icon" aria-hidden="true"></i>
                     <span>@icon</span>
                 </li>
@@ -47,8 +61,12 @@
 @code {
     private const int MaxResults = 30;
 
+    // Идентификаторы списка и вариантов уникальны: по ним поле связывается со списком для скринридера.
+    private readonly string _listId = $"icon-list-{Guid.NewGuid():N}";
+
     private string _searchText = string.Empty;
     private IReadOnlyList<string> _matches = [];
+    private int _activeIndex = -1;
 
     /// <summary>
     /// Текущий CSS-класс выбранной иконки.
@@ -68,6 +86,11 @@
     [Parameter]
     public string AriaLabel { get; set; } = "Поиск иконки";
 
+    // Подсвеченный вариант: по нему поле сообщает скринридеру активный пункт списка.
+    private string? ActiveOptionId => _activeIndex >= 0 && _activeIndex < _matches.Count ? OptionId(_activeIndex) : null;
+
+    private string OptionId(int index) => $"{_listId}-{index}";
+
     private void OnSearchInput(ChangeEventArgs args)
     {
         _searchText = args.Value?.ToString() ?? string.Empty;
@@ -80,14 +103,37 @@
                 .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
                 .Take(MaxResults)
                 .ToList();
+
+        // Список изменился: прежняя подсветка к нему уже не относится.
+        _activeIndex = -1;
     }
 
-    // Esc закрывает список подсказок, не меняя выбранную иконку.
-    private void OnKeyDown(KeyboardEventArgs args)
+    private async Task OnKeyDownAsync(KeyboardEventArgs args)
     {
-        if (args.Key == "Escape")
+        if (_matches.Count == 0)
         {
-            _matches = [];
+            return;
+        }
+
+        switch (args.Key)
+        {
+            case "ArrowDown":
+                _activeIndex = (_activeIndex + 1) % _matches.Count;
+                break;
+            case "ArrowUp":
+                _activeIndex = _activeIndex <= 0 ? _matches.Count - 1 : _activeIndex - 1;
+                break;
+            case "Enter":
+                if (_activeIndex >= 0)
+                {
+                    await SelectIconAsync(_matches[_activeIndex]);
+                }
+
+                break;
+            case "Escape":
+                _matches = [];
+                _activeIndex = -1;
+                break;
         }
     }
 
@@ -96,6 +142,7 @@
         Value = icon;
         _searchText = icon;
         _matches = [];
+        _activeIndex = -1;
         await ValueChanged.InvokeAsync(icon);
     }
 }

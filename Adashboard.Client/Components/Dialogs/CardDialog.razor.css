@@ -154,6 +154,27 @@
     line-height: 1.35;
 }
 
+/* Переключатель «Широкая» стоит в одной строке с полем цвета: выравниваем его по нижнему краю
+   поля, иначе он «висит» посередине строки. */
+.card-dialog__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-shrink: 0;
+    padding-bottom: 0.55rem;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.card-dialog__toggle input {
+    width: 1.05rem;
+    height: 1.05rem;
+    margin: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
 /* Варианты проверки доступности: карточка с подписью и пояснением. */
 .card-dialog__status-options {
     display: grid;
@@ -218,7 +239,10 @@ html[data-theme="dark"] .card-dialog__error {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    margin-top: 0.2rem;
+    /* Отступ от содержимого до кнопок: общий gap строки мал, добавляем ещё немного. */
+    margin-top: 0.6rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--surface-border);
 }
 
 .card-dialog__actions .btn-primary {

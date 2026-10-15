@@ -26,7 +26,7 @@
         </InputRadioGroup>
     </div>
 
-    <div class="settings-dialog__field py-3">
+    <div class="settings-dialog__field">
         <label class="settings-dialog__toggle" for="settingsShowLogo">
             <InputCheckbox id="settingsShowLogo" @bind-Value="_model.ShowLogo" />
             <span>Показывать логотип в шапке</span>
@@ -56,7 +56,7 @@
         <p class="settings-dialog__error text-danger" role="alert">@_error</p>
     }
 
-    <div class="settings-dialog__actions pt-3">
+    <div class="settings-dialog__actions">
         <button type="submit" class="btn btn-primary" disabled="@_isSaving">
             <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>@(_isSaving ? "Сохранение..." : "Сохранить")
         </button>

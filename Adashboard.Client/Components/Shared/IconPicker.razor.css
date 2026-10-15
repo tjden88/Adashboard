@@ -74,7 +74,8 @@
     font-size: 0.9rem;
 }
 
-.icon-picker__item:hover {
+.icon-picker__item:hover,
+.icon-picker__item.is-active {
     background: var(--accent-soft);
 }
 

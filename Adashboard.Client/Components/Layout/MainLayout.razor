@@ -1,6 +1,7 @@
 @inherits LayoutComponentBase
 @implements IAsyncDisposable
 @inject IJSRuntime JS
+@inject DashboardApiOptions ApiOptions
 @inject ILogger<MainLayout> Logger
 
 @*
@@ -43,13 +44,14 @@
 
     // Подключает модуль оформления и передаёт ему адреса фона. Файлы фона лежат в загрузках
     // сервера, поэтому адреса заданы в DomainConstants и ставятся из кода: CSS-переменная
-    // не может взять их из C#.
+    // не может взять их из C#. Пути делаем абсолютными — иначе при раздельном запуске
+    // клиента и сервера фон запрашивался бы у клиента.
     private async Task InitializeThemeAsync()
     {
         try
         {
             _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/dashboard.js");
-            await _module.InvokeVoidAsync("setBackgroundImages", DomainConstants.LightBackgroundAsset, DomainConstants.DarkBackgroundAsset);
+            await _module.InvokeVoidAsync("setBackgroundImages", ApiOptions.ResolveUploadPath(DomainConstants.LightBackgroundAsset), ApiOptions.ResolveUploadPath(DomainConstants.DarkBackgroundAsset));
         }
         catch (JSException ex)
         {

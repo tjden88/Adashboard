@@ -1,4 +1,5 @@
 @inject NavigationManager Navigation
+@inject DashboardApiOptions ApiOptions
 @implements IDisposable
 
 @*
@@ -22,7 +23,7 @@
     <div class="dashboard-header-brand">
         @if (AppStateService.Settings.ShowLogo)
         {
-            <img class="dashboard-logo" src="@DomainConstants.LogoAsset" alt="" />
+            <img class="dashboard-logo" src="@LogoSource" alt="" />
         }
 
         <div>
@@ -33,7 +34,7 @@
             }
             else
             {
-                <h1>@DisplayTitle</h1>
+                <h1>@Model.DisplayTitle</h1>
                 @if (!string.IsNullOrWhiteSpace(Model.Page.Description))
                 {
                     <p>@Model.Page.Description</p>
@@ -95,8 +96,9 @@
     [CascadingParameter]
     private AppStateService AppStateService { get; set; } = null!;
 
-    // Заголовок в шапке: у страницы без названия подставляем имя приложения.
-    private string DisplayTitle => string.IsNullOrWhiteSpace(Model.Page.Title) ? DomainConstants.AppTitle : Model.Page.Title;
+    // Логотип лежит в загрузках API: путь строим абсолютным, иначе при раздельном запуске
+    // клиента и сервера изображение запрашивалось бы у клиента.
+    private string? LogoSource => ApiOptions.ResolveUploadPath(DomainConstants.LogoAsset);
 
     // Созданную страницу открываем: Home загрузит её по новому адресу, а окно закроет сам диалог.
     private void OnPageCreated(DashboardPage page) => Navigation.NavigateTo("/" + page.Path);

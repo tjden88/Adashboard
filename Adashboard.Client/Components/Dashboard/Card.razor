@@ -1,3 +1,8 @@
+@implements IAsyncDisposable
+@inject HealthCheckService HealthCheckService
+@inject DashboardApiOptions ApiOptions
+@inject ILogger<Card> Logger
+
 @*
     Одна карточка-ссылка dashboard: адрес перехода, иконка (встроенная Font Awesome или
     загруженное изображение), цвета из модели и ширина в колонках сетки категории.
@@ -5,10 +10,13 @@
     Ширину карточка отдаёт раскладке CSS-переменными --card-span-*: широкая карточка занимает
     две колонки, но не больше, чем всего колонок в категории, — иначе она вылезла бы за её рамку.
 
+    Карточка сама следит за доступностью своего сервиса: пока она есть на странице, компонент
+    периодически просит API проверить ссылку и показывает индикатор. Цикл живёт вместе с
+    карточкой, поэтому при её удалении проверки прекращаются.
+
     В режиме редактирования переход по ссылке отключён, а клик по карточке открывает её диалог:
     об этом карточка сообщает родителю событием EditRequested. Оверлей с карандашом присутствует
-    всегда, а видимостью управляет CSS (только режим редактирования и только наведение или фокус),
-    поэтому переключение режима карточки не перерисовывает.
+    всегда, а видимостью управляет CSS (только режим редактирования и только наведение или фокус).
 *@
 
 <a class="dashboard-card"
@@ -22,21 +30,52 @@
    @onclick:preventDefault="@IsEditMode">
     <span class="card-title">@Model.Title</span>
     <span class="card-icon" aria-hidden="true">
-        @if (HasCustomImage)
+        @if (HasCustomImage && !_imageFailed)
         {
-            <img class="card-icon__image" src="@Model.IconSource" alt="" loading="lazy" />
+            @* Изображение не загрузилось — показываем встроенную иконку (см. OnImageError). *@
+            <img class="card-icon__image" src="@ImageSource" alt="" loading="lazy" @onerror="OnImageError" />
         }
         else
         {
             <i class="@IconClass"></i>
         }
     </span>
+    @if (Model.StatusMode != CardStatusMode.None)
+    {
+        <span class="status-dot @StatusClass" role="img" aria-label="@StatusLabel" title="@StatusTitle"></span>
+    }
     <span class="card-edit-overlay" aria-hidden="true">
         <i class="fa-solid fa-pen-nib"></i>
     </span>
 </a>
 
 @code {
+    // Разводим карточки по времени: без задержки все проверки стартуют одним залпом после загрузки.
+    private const int InitialCheckJitterMs = 2500;
+    private const int IntervalJitterMs = 500;
+
+    // Нейтральный результат до первой проверки: состояние неизвестно, пояснения нет.
+    private static readonly HealthCheckResult UnknownHealth = new(HealthStatus.Unknown, string.Empty);
+
+    // Результат последней проверки доступности: состояние и пояснение от API.
+    private HealthCheckResult _health = UnknownHealth;
+    private bool _imageFailed;
+
+    private readonly CancellationTokenSource _healthCts = new();
+
+    // «Будильник» цикла: после изменения карточки или настроек проверку делаем, не дожидаясь
+    // конца интервала. Пока счётчик равен нулю, цикл просто спит до тайм-аута.
+    private readonly SemaphoreSlim _wake = new(0);
+
+    private Task? _healthLoop;
+
+    // «Отпечаток» данных карточки, влияющих на проверку и вид иконки: по нему видно, что модель
+    // изменили (например, отредактировали карточку) и статус пора проверить заново.
+    private string? _modelSignature;
+
+    // Последний применённый интервал проверки: изменение настройки будит цикл.
+    private int _appliedIntervalSeconds;
+
     [CascadingParameter]
     private AppStateService AppStateService { get; set; } = null!;
 
@@ -74,10 +113,18 @@
     // со страницы, пока с ней работают.
     private bool IsEditMode => AppStateService.IsEditMode;
 
+    // Как часто повторять проверку статуса: интервал берётся из настроек приложения,
+    // поэтому его изменение вступает в силу без перезагрузки страницы. Ноль отключает проверки.
+    private int HealthCheckIntervalSeconds => AppStateService.Settings.HealthCheckIntervalSeconds;
+
     // Куда ведёт карточка: схема из модели прибавляется к адресу.
     private string Href => Model.UrlScheme.ToSchemeText() + Model.Url;
 
     private bool HasCustomImage => Model.IsCustomIcon && !string.IsNullOrWhiteSpace(Model.IconSource);
+
+    // Путь к изображению-иконке абсолютный: относительный путь API в режиме раздельного запуска
+    // клиента и сервера не открылся бы со стороны клиента.
+    private string? ImageSource => HasCustomImage ? ApiOptions.ResolveUploadPath(Model.IconSource) : null;
 
     // Если пользовательское изображение не задано, показываем встроенную иконку Font Awesome.
     private string IconClass => string.IsNullOrWhiteSpace(Model.IconSource)
@@ -86,6 +133,23 @@
 
     // Если название не задано, для скринридера подставляем адрес ссылки.
     private string AccessibleLabel => string.IsNullOrWhiteSpace(Model.Title) ? Model.Url : Model.Title;
+
+    private string StatusClass => _health.Status switch
+    {
+        HealthStatus.Online => "online",
+        HealthStatus.Offline => "offline",
+        _ => "unknown"
+    };
+
+    private string StatusLabel => _health.Status switch
+    {
+        HealthStatus.Online => "Сервис доступен",
+        HealthStatus.Offline => "Сервис недоступен",
+        _ => "Статус проверяется"
+    };
+
+    // В подсказке показываем пояснение API, а при его отсутствии — обычную подпись состояния.
+    private string StatusTitle => string.IsNullOrWhiteSpace(_health.Message) ? StatusLabel : _health.Message;
 
     private int CardSpanDesktop => GetCardSpan(Model.IsWide, DesktopColumns);
 
@@ -96,11 +160,158 @@
     // Клик вне режима редактирования оставляем браузеру: он откроет ссылку в новой вкладке.
     private Task OnClickAsync() => IsEditMode ? EditRequested.InvokeAsync(Model) : Task.CompletedTask;
 
+    // Изображение-иконка не открылась: переходим на запасную встроенную иконку.
+    private void OnImageError() => _imageFailed = true;
+
+    protected override void OnParametersSet()
+    {
+        var isFirst = _modelSignature is null;
+        var wake = false;
+
+        var signature = $"{Model.StatusMode}|{Model.UrlScheme}|{Model.Url}|{Model.IconSource}";
+        if (!string.Equals(signature, _modelSignature, StringComparison.Ordinal))
+        {
+            _modelSignature = signature;
+
+            // Изображение могло измениться: разрешаем запасной иконке показаться снова.
+            _imageFailed = false;
+
+            if (!isFirst)
+            {
+                _health = UnknownHealth;
+                wake = true;
+            }
+        }
+
+        // Интервал берётся из настроек: при изменении будим цикл, чтобы он перечитал значение.
+        if (_appliedIntervalSeconds != HealthCheckIntervalSeconds)
+        {
+            _appliedIntervalSeconds = HealthCheckIntervalSeconds;
+            wake |= !isFirst;
+        }
+
+        if (wake)
+        {
+            Wake();
+        }
+    }
+
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _healthLoop = RunHealthLoopAsync(_healthCts.Token);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    // Периодическая проверка: после случайной задержки и далее с заданным интервалом.
+    // Цикл один на карточку, поэтому одновременных проверок не бывает.
+    private async Task RunHealthLoopAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Первую проверку разводим случайной задержкой: иначе после загрузки страницы все
+            // карточки обратились бы к API одновременно.
+            await _wake.WaitAsync(TimeSpan.FromMilliseconds(Random.Shared.Next(0, InitialCheckJitterMs + 1)), cancellationToken);
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await CheckHealthAsync(cancellationToken);
+
+                var intervalSeconds = HealthCheckIntervalSeconds;
+                if (intervalSeconds <= 0)
+                {
+                    // Проверки выключены: ждём изменения настроек, а не крутимся вхолостую.
+                    await _wake.WaitAsync(cancellationToken);
+                    continue;
+                }
+
+                var delay = TimeSpan.FromSeconds(intervalSeconds) + TimeSpan.FromMilliseconds(Random.Shared.Next(0, IntervalJitterMs + 1));
+                await _wake.WaitAsync(delay, cancellationToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Штатное завершение цикла: карточка удалена или страница ушла.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Цикл проверки статуса карточки {CardId} остановлен из-за ошибки.", Model.Id);
+        }
+    }
+
+    private async Task CheckHealthAsync(CancellationToken cancellationToken)
+    {
+        // Карточка без индикатора и полностью выключенные проверки не требуют запроса к API.
+        if (Model.StatusMode == CardStatusMode.None || HealthCheckIntervalSeconds <= 0)
+        {
+            return;
+        }
+
+        try
+        {
+            var result = await HealthCheckService.CheckAsync(Model.Id, cancellationToken);
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            // Карточку удалили на сервере (например, в другой вкладке): прекращаем проверки,
+            // чтобы не слать запросы по несуществующей карточке.
+            if (result is null)
+            {
+                Logger.LogDebug("Проверки статуса карточки {CardId} остановлены: карточка удалена на сервере.", Model.Id);
+                await _healthCts.CancelAsync();
+                return;
+            }
+
+            _health = result;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Не удалось обновить статус карточки {CardId}.", Model.Id);
+        }
+    }
+
+    // Будит цикл проверок, если он спит: повторный вызов до обработки не копит счётчик.
+    private void Wake()
+    {
+        if (_wake.CurrentCount == 0)
+        {
+            _wake.Release();
+        }
+    }
+
     // Широкая карточка занимает две колонки, но не больше доступного числа колонок категории.
     private static int GetCardSpan(bool isWide, int categoryColumns)
     {
         var safeColumns = Math.Max(1, categoryColumns);
 
         return isWide ? Math.Min(2, safeColumns) : 1;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _healthCts.CancelAsync();
+
+        if (_healthLoop is not null)
+        {
+            try
+            {
+                await _healthLoop;
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
+        _healthCts.Dispose();
+        _wake.Dispose();
     }
 }

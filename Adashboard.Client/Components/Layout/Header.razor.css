@@ -5,6 +5,8 @@
     flex-wrap: wrap;
     gap: 0.5rem 1rem;
     padding: 0;
+    /* Отступ от шапки до содержимого страницы: шапка и PageView — соседние блоки. */
+    margin-bottom: 1.25rem;
 }
 
 .dashboard-header-brand {

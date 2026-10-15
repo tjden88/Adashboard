@@ -47,4 +47,7 @@
 .settings-dialog__actions {
     display: flex;
     justify-content: flex-end;
+    margin-top: 0.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--surface-border);
 }

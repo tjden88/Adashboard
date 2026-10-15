@@ -125,5 +125,22 @@ public sealed class AppStateService
     /// <summary>
     /// Рассылает подписчикам каскадного значения уведомление об изменении состояния.
     /// </summary>
-    private void NotifyChanged() => _ = _source.NotifyChangedAsync();
+    private void NotifyChanged()
+    {
+        // Уведомление уходит «в никуда»: ошибку доставки подписчикам только логируем,
+        // чтобы она не всплыла как необработанное исключение задачи.
+        _ = NotifyChangedSafeAsync();
+    }
+
+    private async Task NotifyChangedSafeAsync()
+    {
+        try
+        {
+            await _source.NotifyChangedAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Не удалось уведомить подписчиков об изменении состояния приложения.");
+        }
+    }
 }
