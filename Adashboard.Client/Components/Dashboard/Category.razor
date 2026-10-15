@@ -1,0 +1,84 @@
+@*
+    Категория dashboard: заголовок и ссылки-карточки.
+
+    Свою ширину категория отдаёт раскладке CSS-переменными --span-* (в колонках сетки текущего
+    брейкпоинта) — их читает модуль js/dashboard.js. Число колонок карточек внутри категории
+    совпадает с её шириной, поэтому карточки получаются одного размера во всех категориях
+    (см. Category.razor.css).
+
+    Карточки приходят параметром: read-модель API отдаёт их плоским списком, а не внутри категории.
+*@
+
+<section class="dashboard-category"
+         data-category-id="@Model.Id"
+         style="--span-desktop:@DesktopWidth; --span-medium:@MediumWidth; --span-mobile:@MobileWidth; --cards-desktop:@DesktopWidth; --cards-medium:@MediumWidth; --cards-mobile:@MobileWidth;">
+    <div class="category-frame">
+        <header class="category-header">
+            <h2 title="@Model.Title">@Model.Title</h2>
+        </header>
+
+        @if (Cards.Count == 0)
+        {
+            <p class="category-empty">В категории пока нет ссылок.</p>
+        }
+
+        <div class="category-cards" data-category-id="@Model.Id">
+            @foreach (var card in Cards)
+            {
+                <a class="dashboard-card"
+                   data-card-id="@card.Id"
+                   href="@CardHref(card)"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   style="--card-bg:@card.BackgroundColor; --card-icon-color:@card.GetIconColor(); --card-text-color:@card.GetTextColor();"
+                   aria-label="@CardLabel(card)">
+                    <span class="card-title">@CardLabel(card)</span>
+                    <span class="card-icon" aria-hidden="true">
+                        @if (card.IsCustomIcon && !string.IsNullOrWhiteSpace(card.IconSource))
+                        {
+                            <img class="card-icon__image" src="@card.IconSource" alt="" loading="lazy" />
+                        }
+                        else
+                        {
+                            <i class="@CardIconClass(card)"></i>
+                        }
+                    </span>
+                </a>
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    /// <summary>
+    /// Отображаемая категория.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public DashboardCategory Model { get; set; } = null!;
+
+    /// <summary>
+    /// Карточки категории, упорядоченные по положению.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<DashboardCard> Cards { get; set; } = [];
+
+    // Ширину категории ограничиваем допустимым диапазоном сетки (1..12), даже если в данных
+    // оказалось некорректное значение: иначе получилась бы нулевая ширина.
+    private int DesktopWidth => Math.Clamp(Model.Width, 1, 12);
+
+    // Ширина для остальных брейкпоинтов повторяет пропорции сетки: 6 и 4 колонки.
+    private int MediumWidth => Math.Clamp((int)Math.Round(DesktopWidth / 2d, MidpointRounding.AwayFromZero), 1, 6);
+
+    private int MobileWidth => Math.Min(DesktopWidth, 4);
+
+    // Куда ведёт карточка: схема из модели прибавляется к адресу.
+    private static string CardHref(DashboardCard card) => card.UrlScheme.ToSchemeText() + card.Url;
+
+    // Если название не задано, показываем адрес ссылки.
+    private static string CardLabel(DashboardCard card) => string.IsNullOrWhiteSpace(card.Title) ? card.Url : card.Title;
+
+    // Если пользовательское изображение не задано, показываем встроенную иконку Font Awesome.
+    private static string CardIconClass(DashboardCard card) => string.IsNullOrWhiteSpace(card.IconSource)
+        ? DomainConstants.DefaultCardIcon
+        : card.IconSource;
+}

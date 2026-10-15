@@ -1,9 +1,217 @@
+@implements IAsyncDisposable
+@inject IDashboardApi DashboardApi
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject ILogger<PageView> Logger
+
 @*
-    Представление страницы dashboard: сетка категорий. Данные (категории и карточки) приходят
-    каскадной моделью DashboardPageModel из Home. Отрисовку категорий добавит часть category-view,
-    сейчас здесь только контейнер сетки.
+    Содержимое открытой страницы dashboard: панель действий, сетка категорий и пустое состояние.
+
+    Данные приходят каскадной моделью DashboardPageModel из Home: Home — владелец модели и
+    состояний маршрута (загрузка, ошибки, 404), а этот компонент меняет общие списки категорий
+    и карточек прямо в модели и перерисовывает себя.
+
+    Категории укладывает по колонкам модуль js/dashboard.js: он позиционирует их абсолютно,
+    поэтому сетке задаётся высота (см. initializeLayout).
+
+    Окна диалогов рисуются здесь же: открытость ведёт этот компонент, содержимое передаётся
+    контейнеру, а закрывает окно сам диалог через каскадный DialogContainer.
 *@
 
+@{
+    var isEditMode = AppStateService.IsEditMode;
+    var categories = OrderedCategories;
+}
+
 <section class="dashboard-shell">
-    <div class="dashboard-grid"></div>
+    @if (isEditMode)
+    {
+        <div class="page-actions" role="group" aria-label="Действия страницы">
+            <p class="page-actions__title">
+                <i class="fa-solid fa-pen-ruler" aria-hidden="true"></i> Настройка страницы
+            </p>
+            <div class="page-actions__buttons">
+                <button type="button" class="btn btn-success" @onclick="() => _isAddCategoryOpen = true">
+                    <i class="fa-solid fa-layer-plus" aria-hidden="true"></i> Добавить категорию
+                </button>
+                <button type="button" class="btn" @onclick="() => _isPageSettingsOpen = true">
+                    <i class="fa-solid fa-gear" aria-hidden="true"></i> Настройки страницы
+                </button>
+                @if (!IsMainPage)
+                {
+                    <button type="button" class="btn btn-danger" @onclick="() => _isDeletePageOpen = true">
+                        <i class="fa-solid fa-trash" aria-hidden="true"></i> Удалить страницу
+                    </button>
+                }
+            </div>
+        </div>
+    }
+
+    @if (categories.Count == 0)
+    {
+        <p class="dashboard-empty" role="status">
+            <i class="fa-regular fa-rectangle-list" aria-hidden="true"></i>
+            <span>
+                Пока нет категорий.
+                @if (isEditMode)
+                {
+                    <text>Добавьте первую категорию, чтобы наполнить страницу.</text>
+                }
+            </span>
+        </p>
+    }
+
+    @* Сетка есть всегда, даже без категорий: модуль раскладки следит за её появлением
+       и изменениями, поэтому элемент должен существовать с первого рендера. *@
+    <div class="dashboard-grid" id="dashboard-grid">
+        @foreach (var category in categories)
+        {
+            <Category @key="category.Id" Model="category" Cards="GetCards(category.Id)" />
+        }
+    </div>
 </section>
+
+<DialogContainer @bind-Open="_isAddCategoryOpen" Title="Создать категорию">
+    <CategoryDialog DashboardPageId="Model.Page.Id" Order="NextCategoryOrder" Saved="OnCategoryCreatedAsync" />
+</DialogContainer>
+
+<DialogContainer @bind-Open="_isPageSettingsOpen" Title="Настройки страницы">
+    <PageDialog Page="Model.Page" Saved="OnPageSavedAsync" />
+</DialogContainer>
+
+<DialogContainer @bind-Open="_isDeletePageOpen" Title="Удаление страницы" Size="DialogContainer.DialogSize.Small">
+    <ConfirmDialog Message="@DeletePageMessage" ConfirmLabel="Удалить" Confirmed="DeletePageAsync" />
+</DialogContainer>
+
+@code {
+    private bool _isAddCategoryOpen;
+    private bool _isPageSettingsOpen;
+    private bool _isDeletePageOpen;
+
+    // Модуль раскладки категорий; подключается на первом рендере.
+    private IJSObjectReference? _module;
+
+    [CascadingParameter]
+    private AppStateService AppStateService { get; set; } = null!;
+
+    [CascadingParameter]
+    private DashboardPageModel Model { get; set; } = null!;
+
+    /// <summary>
+    /// Уведомление Home об изменении данных страницы: шапка получает страницу параметром
+    /// и должна перерисоваться.
+    /// </summary>
+    [Parameter]
+    public EventCallback PageInfoSaved { get; set; }
+
+    private IReadOnlyList<DashboardCategory> OrderedCategories => Model.Categories.OrderBy(x => x.Order).ToList();
+
+    // Порядковый номер новой категории: она добавляется в конец списка.
+    private int NextCategoryOrder => Model.Categories.Count > 0 ? Model.Categories.Max(x => x.Order) + 1 : 0;
+
+    // Основная страница имеет пустой путь и не удаляется.
+    private bool IsMainPage => Model.Page.Path.Length == 0;
+
+    private string DeletePageMessage => $"Удалить страницу «{Model.DisplayTitle}» вместе со всеми категориями и ссылками?";
+
+    // Карточки указанной категории, упорядоченные по положению. Read-модель отдаёт карточки
+    // плоским списком, поэтому категория получает свои карточки параметром.
+    private IReadOnlyList<DashboardCard> GetCards(int categoryId)
+        => Model.Cards.Where(x => x.DashboardCategoryId == categoryId).OrderBy(x => x.Position).ToList();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        try
+        {
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/dashboard.js");
+            await _module.InvokeVoidAsync("initializeLayout");
+        }
+        catch (JSException ex)
+        {
+            // Без раскладки страница остаётся рабочей: категории идут в одну колонку (CSS).
+            Logger.LogWarning(ex, "Модуль раскладки dashboard не подключён: категории показаны одной колонкой.");
+            _module = null;
+        }
+    }
+
+    // Новая категория создана диалогом: кладём её в общий список, перерисовываем сетку.
+    // Окно закрывает сам диалог через каскадный DialogContainer.
+    private Task OnCategoryCreatedAsync(DashboardCategory category)
+    {
+        Model.Categories.Add(category);
+        return InvokeAsync(StateHasChanged);
+    }
+
+    // Страница изменена диалогом: обновляем её в модели и, если путь изменился, переходим на новый
+    // адрес (Home загрузит страницу заново по нему).
+    private async Task OnPageSavedAsync(DashboardPage page)
+    {
+        var pathChanged = !string.Equals(page.Path, Model.Page.Path, StringComparison.Ordinal);
+        Model.Page = page;
+
+        var index = Model.Pages.FindIndex(x => x.Id == page.Id);
+        if (index >= 0)
+        {
+            Model.Pages[index] = page;
+        }
+
+        // Заголовок и описание страницы показывают шапка и вкладка браузера: сообщаем Home.
+        await PageInfoSaved.InvokeAsync();
+
+        if (pathChanged)
+        {
+            Navigation.NavigateTo(page.Path.Length == 0 ? "/" : "/" + page.Path);
+            return;
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task DeletePageAsync()
+    {
+        Logger.LogDebug("Удаление страницы dashboard {PageId}.", Model.Page.Id);
+
+        try
+        {
+            var response = await DashboardApi.DeletePageAsync(Model.Page.Id);
+            if (!response.IsSuccessStatusCode)
+            {
+                Logger.LogWarning("Удаление страницы {PageId} завершилось ошибкой API. Код: {StatusCode}.", Model.Page.Id, (int?)response.StatusCode);
+                return;
+            }
+
+            Logger.LogInformation("Страница dashboard удалена. Идентификатор: {PageId}.", Model.Page.Id);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Не удалось удалить страницу dashboard {PageId}.", Model.Page.Id);
+            return;
+        }
+
+        // Текущей страницы больше нет: возвращаемся на основную.
+        Navigation.NavigateTo("/");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _module.InvokeVoidAsync("disposeLayout");
+            await _module.DisposeAsync();
+        }
+        catch (Exception)
+        {
+            // Соединение с JS потеряно: освобождать больше нечего.
+        }
+    }
+}

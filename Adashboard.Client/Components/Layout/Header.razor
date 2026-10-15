@@ -4,9 +4,10 @@
     Шапка dashboard. Живёт внутри Home.razor (а не в layout): её содержимое относится
     к конкретной странице dashboard.
 
-    Режим редактирования и настройки сайта приходят из AppState, данные страницы — из каскадной
-    модели DashboardPageModel (обе задаёт Home). Пока страница грузится, вместо текста рисуется
-    скелет заголовка, а кнопки и логотип остаются на месте.
+    Режим редактирования и настройки сайта приходят из AppState (каскадное значение), данные
+    страницы — параметром Page от Home: заголовок и описание обновляются сразу после правки
+    страницы в диалоге. Пока страница грузится, вместо текста рисуется скелет заголовка,
+    а кнопки и логотип остаются на месте.
 
     Окна диалогов рисуются здесь же: состояние открытости ведёт шапка, содержимое передаётся
     контейнеру как RenderFragment, а закрывает окно сам диалог через каскадный контейнер.
@@ -31,10 +32,10 @@
             }
             else
             {
-                <h1>@Model.DisplayTitle</h1>
-                @if (!string.IsNullOrWhiteSpace(Model.Page.Description))
+                <h1>@DisplayTitle</h1>
+                @if (!string.IsNullOrWhiteSpace(Page.Description))
                 {
-                    <p>@Model.Page.Description</p>
+                    <p>@Page.Description</p>
                 }
             }
         </div>
@@ -83,11 +84,17 @@
     [Parameter]
     public bool IsLoading { get; set; }
 
+    /// <summary>
+    /// Информационная часть открытой страницы: заголовок и описание в шапке.
+    /// </summary>
+    [Parameter]
+    public DashboardPage Page { get; set; } = new();
+
     [CascadingParameter]
     private AppStateService AppStateService { get; set; } = null!;
 
-    [CascadingParameter]
-    private DashboardPageModel Model { get; set; } = null!;
+    // Заголовок в шапке: у страницы без названия подставляем имя приложения.
+    private string DisplayTitle => string.IsNullOrWhiteSpace(Page.Title) ? DomainConstants.AppTitle : Page.Title;
 
     // Созданную страницу открываем: Home загрузит её по новому адресу, а окно закроет сам диалог.
     private void OnPageCreated(DashboardPage page) => Navigation.NavigateTo("/" + page.Path);
