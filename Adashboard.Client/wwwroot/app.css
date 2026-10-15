@@ -82,9 +82,119 @@ body.dialog-open {
 }
 
 /* Палитра Coloris рисуется поверх затемнения диалога. Её собственный z-index (1000) ниже,
-   чем у окна (1500), поэтому палитра уходила под него: поднимаем её выше окна. */
-.clr-picker {
+   чем у окна (1500), поэтому палитра уходила под него: поднимаем её выше окна.
+   Оформление задаём здесь же: палитра живёт в body, вне области видимости компонентов,
+   поэтому стили ей пишем глобально, а не в ColorPicker.razor.css. */
+.clr-picker,
+.clr-picker.clr-dark {
     z-index: 2000;
+    width: 300px;
+    border: 1px solid var(--surface-border);
+    border-radius: 16px;
+    /* Поверхность и тень — как у остальных панелей проекта. Фон полупрозрачный, поэтому
+       размываем подложку: иначе сквозь палитру читалось бы содержимое диалога. */
+    background-color: var(--surface-strong);
+    backdrop-filter: blur(8px);
+    box-shadow: var(--shadow-soft);
+    color: var(--text-main);
+    /* Область выбора цвета занимает всю ширину палитры: скругление срезает её углы. */
+    overflow: hidden;
+}
+
+/* Поле значения цвета: как поля ввода проекта. */
+.clr-picker input.clr-color,
+.clr-picker.clr-dark input.clr-color {
+    border: 1px solid var(--surface-border);
+    border-radius: 12px;
+    background-color: var(--surface);
+    color: var(--text-main);
+    font-family: var(--font-main);
+}
+
+.clr-picker input.clr-color:focus,
+.clr-picker.clr-dark input.clr-color:focus {
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--surface-border));
+    box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* Область выбора цвета крупнее библиотечной: выбранный оттенок видно лучше. */
+.clr-picker .clr-gradient {
+    height: 140px;
+    margin-bottom: 14px;
+    border-radius: 0;
+}
+
+/* Полоса оттенка: толще и с нашими отступами. */
+.clr-picker .clr-hue {
+    width: calc(100% - 32px);
+    height: 10px;
+    margin: 6px 16px;
+    border-radius: 6px;
+}
+
+.clr-picker .clr-hue input[type="range"] {
+    height: 20px;
+    top: -5px;
+}
+
+.clr-picker .clr-hue div {
+    width: 18px;
+    height: 18px;
+}
+
+/* Кружок текущего цвета. */
+.clr-picker .clr-preview {
+    width: 36px;
+    height: 36px;
+    margin: 14px 0 16px 16px;
+}
+
+/* Набор образцов: цвета проекта чуть крупнее библиотечных. */
+.clr-picker .clr-swatches {
+    width: calc(100% - 24px);
+    margin: 0 12px;
+}
+
+.clr-picker .clr-swatches button {
+    width: 22px;
+    height: 22px;
+    margin: 0 4px 8px;
+}
+
+.clr-picker .clr-swatches button:after {
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+}
+
+.clr-picker.clr-dark .clr-swatches button:after {
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+}
+
+/* Точка выбора на области цвета. */
+.clr-picker .clr-marker {
+    width: 16px;
+    height: 16px;
+    margin: -8px 0 0 -8px;
+    border-width: 2px;
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.45);
+}
+
+/* Подтверждение выбора — акцентная кнопка, как основные кнопки проекта. */
+.clr-picker .clr-close,
+.clr-picker .clr-clear {
+    height: 32px;
+    margin: 0 16px 16px auto;
+    padding: 0 18px;
+    border-radius: 12px;
+    background-color: var(--accent);
+    color: #ffffff;
+    font-family: var(--font-main);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.clr-picker .clr-close:hover,
+.clr-picker .clr-clear:hover {
+    background-color: color-mix(in srgb, var(--accent) 88%, #ffffff);
 }
 
 /* Сообщения валидации формы (Blazor) в оформлении проекта. */

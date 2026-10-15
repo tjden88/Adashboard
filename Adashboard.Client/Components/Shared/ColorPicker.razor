@@ -28,15 +28,16 @@
 </div>
 
 @code {
-    private const int MaxSwatches = 12;
+    private const int MaxSwatches = 18;
 
     // Набор образцов общий для приложения: недавно выбранные цвета поднимаются наверх.
-    private static readonly object SwatchesLock = new();
-    private static readonly List<string> Swatches =
+    private static readonly Lock _SwatchesLock = new();
+    private static readonly List<string> _Swatches =
     [
-        "#1e40af", "#0369a1", "#0ea5e9", "#15803d",
+        "#ffffff", "#0369a1", "#0ea5e9", "#15803d",
         "#22c55e", "#ea580c", "#f97316", "#b91c1c",
-        "#f43f5e", "#8b5cf6", "#0f172a", "#64748b"
+        "#f43f5e", "#8b5cf6", "#0f172a", "#64748b",
+        "#facc15", "#fef08a", "#eab308", "#f97316", "#f43f5e", "#8b5cf6"
     ];
 
     private readonly string _inputId = $"coloris-{Guid.NewGuid():N}";
@@ -76,6 +77,8 @@
             await _module.InvokeVoidAsync("initializeColoris", _inputId, new
             {
                 format = "hex",
+                // Прозрачность не предлагаем: карточка принимает только цвет вида #RRGGBB.
+                alpha = false,
                 swatches = GetSwatchSnapshot(),
                 closeButton = true,
                 closeLabel = "Выбрать"
@@ -125,22 +128,22 @@
 
     private static string[] GetSwatchSnapshot()
     {
-        lock (SwatchesLock)
+        lock (_SwatchesLock)
         {
-            return Swatches.ToArray();
+            return _Swatches.ToArray();
         }
     }
 
     private static void RememberColor(string color)
     {
-        lock (SwatchesLock)
+        lock (_SwatchesLock)
         {
-            Swatches.RemoveAll(x => string.Equals(x, color, StringComparison.OrdinalIgnoreCase));
-            Swatches.Insert(0, color);
+            _Swatches.RemoveAll(x => string.Equals(x, color, StringComparison.OrdinalIgnoreCase));
+            _Swatches.Insert(0, color);
 
-            if (Swatches.Count > MaxSwatches)
+            if (_Swatches.Count > MaxSwatches)
             {
-                Swatches.RemoveRange(MaxSwatches, Swatches.Count - MaxSwatches);
+                _Swatches.RemoveRange(MaxSwatches, _Swatches.Count - MaxSwatches);
             }
         }
     }
