@@ -1,19 +1,15 @@
 using Refit;
 
-namespace Adashboard.Client.Services;
+namespace Adashboard.Client.Helpers;
 
 /// <summary>
-/// Помощники чтения ответов API, который отдаёт отказы телом-текстом (см. AGENTS.md).
+/// Помощники чтения ответов API, который отдаёт отказы телом-текстом.
 /// </summary>
 public static class ApiResponseExtensions
 {
     /// <summary>
     /// Возвращает понятный текст ошибки из ответа API.
     /// </summary>
-    /// <remarks>
-    /// Сообщение отказа лежит в теле ответа как обычный текст, поэтому сначала берём его,
-    /// а при пустом теле подставляем общий текст с кодом ответа.
-    /// </remarks>
     public static string ErrorText(this IApiResponse response)
     {
         ArgumentNullException.ThrowIfNull(response);

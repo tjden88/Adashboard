@@ -26,7 +26,7 @@
         </InputRadioGroup>
     </div>
 
-    <div class="settings-dialog__field">
+    <div class="settings-dialog__field py-3">
         <label class="settings-dialog__toggle" for="settingsShowLogo">
             <InputCheckbox id="settingsShowLogo" @bind-Value="_model.ShowLogo" />
             <span>Показывать логотип в шапке</span>
@@ -42,7 +42,7 @@
                      step="1"
                      ParsingErrorMessage="Введите целое число секунд."
                      @bind-Value="_model.HealthCheckIntervalSeconds" />
-        <p class="settings-dialog__hint">Как часто проверять доступность сервисов карточек. Ноль отключает проверки. Изменение действует без перезагрузки страницы.</p>
+        <p class="settings-dialog__hint">Как часто проверять доступность сервисов. Ноль отключает проверки.</p>
         @if (_model.HealthCheckIntervalSeconds == 0)
         {
             <p class="settings-dialog__hint settings-dialog__hint--warning">Проверки отключены: статусы карточек обновляться не будут.</p>

@@ -1,7 +1,7 @@
 using System.Net;
 using System.Text;
 
-namespace Adashboard.Client.Services;
+namespace Adashboard.Client.Helpers;
 
 /// <summary>
 /// Превращает сетевой сбой HTTP-запроса в обычный ответ с кодом статуса.

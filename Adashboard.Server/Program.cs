@@ -1,7 +1,9 @@
 using Adashboard.Data;
 using Adashboard.Domain.Reference;
+using Adashboard.Server.Auth;
 using Adashboard.Server.Mapping;
 using Adashboard.Server.Services;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
@@ -23,6 +25,15 @@ var services = builder.Services;
 
 var paths = new DashboardPaths(builder.Environment.ContentRootPath);
 services.AddSingleton(paths);
+
+// Защита API ключом доступа. Ключ задаётся в конфигурации (ApiKey); пустое значение
+// отключает защиту — так локальная разработка и генерация OpenAPI-документа не требуют ключа.
+// Секрет держим вне репозитория: в переменной окружения ApiKey или в пользовательских секретах.
+var apiKeySettings = new ApiKeySettings(builder.Configuration["ApiKey"]);
+services.AddSingleton(apiKeySettings);
+services.AddAuthentication(ApiKeyAuthenticationHandler.SchemeName)
+    .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthenticationHandler.SchemeName, null);
+services.AddAuthorization();
 
 // Подключаем контроллеры и генерацию OpenAPI-документа.
 
@@ -49,7 +60,7 @@ services.AddScoped<DbInitializer>();
 services.AddScoped<AssetsInitializer>();
 
 services.AddScoped<PageService>();
-services.AddScoped<SiteSettingsService>();
+services.AddScoped<AppSettingsService>();
 
 // Сервис хранения изображений-иконок карточек: пишет файлы в каталог загрузок.
 services.AddScoped<ImageIconService>();
@@ -123,9 +134,22 @@ app.UseStaticFiles(new StaticFileOptions
 });
 
 app.UseCors(corsPolicyName);
+app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapControllers();
+var controllers = app.MapControllers();
+
+// Ключ задан — закрываем весь API. Статика клиента, пользовательские загрузки и отдача
+// index.html остаются открытыми: без них приложение не загрузилось бы в браузере.
+if (apiKeySettings.IsEnabled)
+{
+    controllers.RequireAuthorization();
+    app.Logger.LogInformation("Защита API ключом доступа включена.");
+}
+else
+{
+    app.Logger.LogWarning("Ключ доступа (ApiKey) не задан: API работает без авторизации.");
+}
 
 // Клиент — SPA: неизвестные пути отдаём как index.html, чтобы работал клиентский роутинг.
 app.MapFallbackToFile("index.html");

@@ -45,6 +45,9 @@ public static class DomainConstants
     /// <summary>Заголовок dashboard по умолчанию: подставляется, когда у страницы пустой заголовок.</summary>
     public const string AppTitle = "Adashboard";
 
+    /// <summary>Имя HTTP-заголовка, в котором клиент передаёт ключ доступа к API.</summary>
+    public const string ApiKeyHeaderName = "X-Api-Key";
+
     /// <summary>Относительный адрес каталога пользовательских загрузок, который раздаёт сервер.</summary>
     public const string UploadsUrl = "/uploads";
 

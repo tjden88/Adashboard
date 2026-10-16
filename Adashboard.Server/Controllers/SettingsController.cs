@@ -9,7 +9,7 @@ namespace Adashboard.Server.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/settings")]
-public class SettingsController(SiteSettingsService settingsService, ILogger<SettingsController> logger) : ControllerBase
+public class SettingsController(AppSettingsService settingsService, ILogger<SettingsController> logger) : ControllerBase
 {
     /// <summary>
     /// Возвращает текущие настройки dashboard.

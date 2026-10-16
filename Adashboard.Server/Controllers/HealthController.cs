@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Adashboard.Server.Controllers;
@@ -6,6 +7,7 @@ namespace Adashboard.Server.Controllers;
 /// Служебный эндпоинт для проверки, что API запущено и отвечает.
 /// </summary>
 [ApiController]
+[AllowAnonymous]
 [Route("api/health")]
 public class HealthController : ControllerBase
 {
