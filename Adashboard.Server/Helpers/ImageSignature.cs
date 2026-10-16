@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Adashboard.Server.Services;
+namespace Adashboard.Server.Helpers;
 
 /// <summary>
 /// Определение формата изображения по содержимому: используется при приёме файлов
