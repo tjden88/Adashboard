@@ -44,7 +44,7 @@ public sealed class ApiKeyAuthenticationHandler(
         // Отказ фиксируем в логе, но сам ключ не пишем.
         Logger.LogWarning("Запрос к API отклонён: ключ доступа отсутствует или неверен. Путь: {Path}.", Request.Path);
 
-        // Отказ отдаём телом-текстом, как и остальные ответы API (см. AGENTS.md).
+        // Отказ отдаём телом-текстом, как и остальные ответы API.
         Response.StatusCode = StatusCodes.Status401Unauthorized;
         Response.ContentType = "text/plain; charset=utf-8";
         await Response.WriteAsync("Требуется ключ доступа.");

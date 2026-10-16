@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Adashboard.Client.Components;
+using Adashboard.Client.Helpers;
 using Adashboard.Client.Services;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;

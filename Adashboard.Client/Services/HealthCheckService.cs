@@ -1,4 +1,5 @@
 using System.Net;
+using Adashboard.Client.Helpers;
 using Adashboard.Domain.Enums;
 using Adashboard.Domain.ReadModels;
 

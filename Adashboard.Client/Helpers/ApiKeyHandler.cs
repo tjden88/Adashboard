@@ -1,7 +1,8 @@
 using System.Net;
+using Adashboard.Client.Services;
 using Adashboard.Domain.Reference;
 
-namespace Adashboard.Client.Services;
+namespace Adashboard.Client.Helpers;
 
 /// <summary>
 /// Добавляет в запросы к API ключ доступа и сообщает о его отклонении сервером.

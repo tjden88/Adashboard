@@ -34,8 +34,6 @@ public sealed class ApiKeySettings
         }
 
         // Сравнение за постоянное время: иначе ключ можно было бы подобрать посимвольно по времени ответа.
-        return CryptographicOperations.FixedTimeEquals(
-            Encoding.UTF8.GetBytes(Key),
-            Encoding.UTF8.GetBytes(provided));
+        return CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(Key), Encoding.UTF8.GetBytes(provided));
     }
 }
