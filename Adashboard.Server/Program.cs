@@ -60,7 +60,7 @@ services.AddScoped<DbInitializer>();
 services.AddScoped<AssetsInitializer>();
 
 services.AddScoped<PageService>();
-services.AddScoped<SiteSettingsService>();
+services.AddScoped<AppSettingsService>();
 
 // Сервис хранения изображений-иконок карточек: пишет файлы в каталог загрузок.
 services.AddScoped<ImageIconService>();
