@@ -143,10 +143,11 @@ html[data-theme="light"] .dashboard-page-icon {
 }
 
 /* Кнопка редактирования в шапке видна только при скрытом боковом меню: как только
-   меню включено (на десктопе — развёрнутое или автосворачиваемое, на мобильных —
-   drawer), режим переключает дубликат в самом меню (см. SideMenu). Класс режима
-   MainLayout ставит на оболочку независимо от ширины экрана. */
+   меню включено (на десктопе — развёрнутое, свёрнутое или автосворачиваемое, на
+   мобильных — drawer), режим переключает дубликат в самом меню (см. SideMenu).
+   Класс режима MainLayout ставит на оболочку независимо от ширины экрана. */
 .main-shell.shell--menu-expanded .header-edit-toggle,
-.main-shell.shell--menu-auto .header-edit-toggle {
+.main-shell.shell--menu-auto .header-edit-toggle,
+.main-shell.shell--menu-collapsed .header-edit-toggle {
     display: none;
 }

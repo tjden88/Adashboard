@@ -28,18 +28,17 @@
 
     <div class="settings-dialog__field">
         <span class="settings-dialog__label">Меню страниц</span>
-        <InputRadioGroup @bind-Value="_model.SideMenuMode" Name="settingsSideMenuMode" aria-label="Меню страниц">
+        <InputSelect id="settingsSideMenuMode" class="form-select" @bind-Value="_model.SideMenuMode">
             @foreach (var option in _SideMenuOptions)
             {
-                <label class="settings-dialog__option">
-                    <InputRadio Value="option.Mode" />
-                    <span>@option.Title</span>
-                </label>
+                <option value="@((int)option.Mode)">@option.Title</option>
             }
-        </InputRadioGroup>
+        </InputSelect>
         <p class="settings-dialog__hint">
-            Скрыто — без меню на всех ширинах; Автосворачивание — узкая полоса с иконками, раскрывается по наведению;
-            Всегда развёрнуто — меню и названия видны постоянно.
+            Скрыто — без меню на всех ширинах; Свёрнуто — узкая полоса с иконками, никогда не раскрывается,
+            название страницы видно во всплывающей подсказке; Автосворачивание — узкая полоса с иконками, раскрывается по наведению;
+            Всегда развёрнуто — меню и названия видны постоянно. На мобильных (до 900px) режим не действует:
+            меню работает как выдвижное, открывается кнопкой в шапке.
         </p>
     </div>
 
@@ -88,9 +87,11 @@
         (ThemeMode.Light, "Светлая")
     ];
 
+    // Порядок вариантов совпадает с числовыми значениями enum (Hidden = 0 … Collapsed = 3).
     private static readonly (SideMenuMode Mode, string Title)[] _SideMenuOptions =
     [
         (SideMenuMode.Hidden, "Скрыто"),
+        (SideMenuMode.Collapsed, "Свёрнуто"),
         (SideMenuMode.AutoCollapse, "Автосворачивание"),
         (SideMenuMode.Expanded, "Всегда развёрнуто")
     ];

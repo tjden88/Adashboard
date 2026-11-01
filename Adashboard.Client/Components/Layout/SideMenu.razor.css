@@ -196,6 +196,40 @@
     }
 }
 
+/* ── Десктоп · режим «свёрнуто» (постоянно узкая полоса) ──────────── */
+/* Совпадает с автосворачиванием в свёрнутом виде, но без разворачивания
+   по наведению/фокусу и без анимации ширины, поэтому отдельный блок. */
+@media (min-width: 901px) {
+    .side-menu--collapsed {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: var(--side-menu-collapsed-width, 64px);
+        z-index: 1300;
+        overflow-y: auto;
+        border-right: 1px solid var(--surface-border);
+    }
+
+    /* Подпись убираем из раскладки (как в автосворачивании), чтобы иконки
+       встали по центру; при свёрнутом состоянии gap не даём места. */
+    .side-menu--collapsed .side-menu-label {
+        visibility: hidden;
+        flex: 0 0 0;
+        width: 0;
+    }
+
+    .side-menu--collapsed .side-menu-link,
+    .side-menu--collapsed .side-menu-edit-btn {
+        gap: 0;
+    }
+
+    .side-menu--collapsed .side-menu-link i,
+    .side-menu--collapsed .side-menu-edit-btn i {
+        margin-inline: auto;
+    }
+}
+
 /* ── Мобильные: menu — drawer, скрыт до открытия ──────────────────── */
 @media (max-width: 900px) {
     .side-menu {

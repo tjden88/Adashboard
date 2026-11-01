@@ -7,10 +7,12 @@
     Левое боковое меню страниц dashboard.
 
     Режим задаётся в настройках приложения и определяет видимость на десктопе:
-    Hidden — не рисуется, AutoCollapse — узкая полоса, расширяется по наведению,
-    Expanded — всегда развёрнуто. На мобильных (до 900px) меню работает как
-    выдвижной drawer: открывается кнопкой в шапке, закрывается кликом по подложке
-    или клавишей Esc; фокус возвращается к кнопке открытия.
+    Hidden — не рисуется, Collapsed — узкая полоса с иконками, которая никогда не
+    раскрывается (название страницы видно во всплывающей подсказке), AutoCollapse —
+    узкая полоса, расширяется по наведению, Expanded — всегда развёрнуто. На мобильных
+    (до 900px) режимы не действуют: меню работает как выдвижной drawer с полными
+    подписями — открывается кнопкой в шапке, закрывается кликом по подложке или
+    клавишей Esc; фокус возвращается к кнопке открытия.
 *@
 
 @if (AppStateService.Settings.SideMenuMode is not SideMenuMode.Hidden)
@@ -31,9 +33,12 @@
                 var iconStyle = string.IsNullOrWhiteSpace(page.IconColor) ? null : $"color:{page.IconColor}";
 
                 <li class="@GetItemClass(isMain, isActive)">
+                    @* Подпись скрыта в свёрнутом режиме (visibility: hidden), поэтому
+                       скринридеру даём отдельную aria-label той же подписи. *@
                     <a href="@(isMain ? "/" : "/" + page.Path)"
                        class="side-menu-link"
                        title="@label"
+                       aria-label="@label"
                        aria-current="@((isActive ? "page" : null))"
                        @onclick="OnPageLinkClick">
                         <i class="@iconClass" style="@iconStyle" aria-hidden="true"></i>
@@ -66,7 +71,7 @@
     [CascadingParameter]
     private AppStateService AppStateService { get; set; } = null!;
 
-    /// <summary>Класс корневой ветки меню: режим (скрывать/автосворачивание/развёрнуто) + признак открытого мобильного drawer.</summary>
+    /// <summary>Класс корневой ветки меню: режим (скрыто/свёрнуто/автосворачивание/развёрнуто) + признак открытого мобильного drawer.</summary>
     private string NavClass
     {
         get
@@ -79,6 +84,9 @@
                     break;
                 case SideMenuMode.AutoCollapse:
                     cls += " side-menu--auto";
+                    break;
+                case SideMenuMode.Collapsed:
+                    cls += " side-menu--collapsed";
                     break;
             }
             if (AppStateService.IsMobileMenuOpen)
