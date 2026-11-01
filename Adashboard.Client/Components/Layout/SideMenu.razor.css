@@ -152,8 +152,12 @@
         transition: width 0.22s ease;
     }
 
+    /* Меню держит раскрытое состояние и по клавиатурному фокусу внутри себя.
+       Читаем :focus-visible (через :has), а не :focus-within: иначе фокус,
+       оставшийся после клика мышью по пункту, не давал бы меню свернуться,
+       когда курсор уже ушёл. Для пользователя с клавиатуры поведение не меняется. */
     .side-menu--auto:hover,
-    .side-menu--auto:focus-within {
+    .side-menu--auto:has(:focus-visible) {
         width: var(--side-menu-width, 240px);
     }
 
@@ -178,7 +182,7 @@
     }
 
     .side-menu--auto:hover .side-menu-label,
-    .side-menu--auto:focus-within .side-menu-label {
+    .side-menu--auto:has(:focus-visible) .side-menu-label {
         visibility: visible;
         flex: 1;
         width: auto;
@@ -186,8 +190,8 @@
 
     .side-menu--auto:hover .side-menu-link,
     .side-menu--auto:hover .side-menu-edit-btn,
-    .side-menu--auto:focus-within .side-menu-link,
-    .side-menu--auto:focus-within .side-menu-edit-btn {
+    .side-menu--auto:has(:focus-visible) .side-menu-link,
+    .side-menu--auto:has(:focus-visible) .side-menu-edit-btn {
         gap: 0.5rem;
     }
 }

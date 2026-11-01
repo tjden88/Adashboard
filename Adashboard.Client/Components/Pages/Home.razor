@@ -13,16 +13,21 @@
     и складывает данные в изменяемую модель DashboardPageModel, которую каскадным значением
     получают шапка, представление страницы, категории и карточки.
 
-    Состояния загрузки, ошибки, «страница не найдена» и «dashboard не настроен» относятся
-    к маршрутизации и живут здесь.
+    Шапка и боковое меню рисуются вне условий ниже: Blazor сохраняет один и тот же экземпляр
+    компонента, если он остаётся на своём месте в дереве, — при таком разборе переход между
+    страницами обновляет только содержимое, а меню и шапка не пересоздаются (без мерцания и
+    потери своего состояния). Состояния загрузки, ошибки, «страница не найдена» и
+    «dashboard не настроен» относятся к маршрутизации, поэтому живут только в блоке контента.
 *@
 
 <PageTitle>@PageTitleText</PageTitle>
 
 <CascadingValue Value="_model">
+    <SideMenu/>
+    <Header IsLoading="_isLoading" />
+
     @if (_isLoading)
     {
-        <Header IsLoading="true" />
         <div class="page-status" role="status" aria-live="polite" aria-label="Загрузка страницы">
             <span class="page-status__spinner" aria-hidden="true"></span>
         </div>
@@ -57,8 +62,6 @@
     }
     else
     {
-        <SideMenu/>
-        <Header/>
         <PageView/>
     }
 </CascadingValue>
@@ -269,6 +272,8 @@
         Navigation.NavigateTo(pagePath.Length == 0 ? "/" : "/" + pagePath, replace: true);
     }
 
+    // Чистим содержимое предыдущей страницы, но список страниц сохраняем: меню на странице
+    // ошибки остаётся рабочим способом навигации на валидную.
     private void ResetModel()
     {
         _model.Page = new DashboardPage();
