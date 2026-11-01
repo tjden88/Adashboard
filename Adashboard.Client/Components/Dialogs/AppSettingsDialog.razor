@@ -1,7 +1,7 @@
 @inject AppStateService AppStateService
 
 @*
-    Диалог общих настроек dashboard: тема оформления, иконка страницы в шапке и интервал проверки
+    Диалог общих настроек приложения: тема оформления, иконка страницы в шапке и интервал проверки
     статуса карточек. Нулевой интервал отключает проверки статуса для всех карточек
     (правило — в HealthCheckRules).
 
@@ -27,9 +27,8 @@
     </div>
 
     <div class="settings-dialog__field">
-        <span class="settings-dialog__label">Меню страниц</span>
-        @* Value опций — имя enum, как его записывает InputSelect (Convert.ToString),
-           иначе выбранный вариант не отображается в списке. *@
+        <span class="settings-dialog__label">Отображение меню</span>
+
         <InputSelect id="settingsSideMenuMode" class="form-select" @bind-Value="_model.SideMenuMode">
             @foreach (var option in _SideMenuOptions)
             {
@@ -79,7 +78,7 @@
 @code {
     private static readonly (ThemeMode Mode, string Title)[] _ThemeOptions =
     [
-        (ThemeMode.Auto, "Автоматически"),
+        (ThemeMode.Auto, "Как в системе (авто)"),
         (ThemeMode.Dark, "Тёмная"),
         (ThemeMode.Light, "Светлая")
     ];
@@ -87,8 +86,8 @@
     // Порядок вариантов совпадает с числовыми значениями enum (Hidden = 0 … Collapsed = 3).
     private static readonly (SideMenuMode Mode, string Title, string Hint)[] _SideMenuOptions =
     [
-        (SideMenuMode.Hidden, "Скрыто", "Без меню на всех ширинах экрана."),
-        (SideMenuMode.Collapsed, "Свёрнуто", "Узкая полоса с иконками, которая никогда не раскрывается; название страницы видно во всплывающей подсказке."),
+        (SideMenuMode.Hidden, "Скрыто", "Боковое меню не отображается."),
+        (SideMenuMode.Collapsed, "Свёрнуто", "Узкая полоса с иконками, которая никогда не раскрывается"),
         (SideMenuMode.AutoCollapse, "Автосворачивание", "Узкая полоса с иконками, которая раскрывается по наведению курсора."),
         (SideMenuMode.Expanded, "Всегда развёрнуто", "Меню и названия страниц видны постоянно.")
     ];
