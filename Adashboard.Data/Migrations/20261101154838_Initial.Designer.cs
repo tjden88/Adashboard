@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Adashboard.Data.Migrations
 {
     [DbContext(typeof(DashboardDb))]
-    [Migration("20261015172107_Initial")]
+    [Migration("20261101154838_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -28,7 +28,10 @@ namespace Adashboard.Data.Migrations
                     b.Property<int>("HealthCheckIntervalSeconds")
                         .HasColumnType("INTEGER");
 
-                    b.Property<bool>("ShowLogo")
+                    b.Property<bool>("ShowPageIcon")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SideMenuMode")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("ThemeMode")
@@ -43,7 +46,8 @@ namespace Adashboard.Data.Migrations
                         {
                             Id = 1,
                             HealthCheckIntervalSeconds = 30,
-                            ShowLogo = true,
+                            ShowPageIcon = true,
+                            SideMenuMode = 1,
                             ThemeMode = 0
                         });
                 });
@@ -133,6 +137,11 @@ namespace Adashboard.Data.Migrations
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Icon")
+                        .IsRequired()
+                        .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Path")

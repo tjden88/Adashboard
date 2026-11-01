@@ -17,7 +17,8 @@ namespace Adashboard.Data.Migrations
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
                     ThemeMode = table.Column<int>(type: "INTEGER", nullable: false),
-                    ShowLogo = table.Column<bool>(type: "INTEGER", nullable: false),
+                    SideMenuMode = table.Column<int>(type: "INTEGER", nullable: false),
+                    ShowPageIcon = table.Column<bool>(type: "INTEGER", nullable: false),
                     HealthCheckIntervalSeconds = table.Column<int>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
@@ -33,7 +34,8 @@ namespace Adashboard.Data.Migrations
                         .Annotation("Sqlite:Autoincrement", true),
                     Title = table.Column<string>(type: "TEXT", maxLength: 120, nullable: false),
                     Description = table.Column<string>(type: "TEXT", maxLength: 300, nullable: false),
-                    Path = table.Column<string>(type: "TEXT", maxLength: 120, nullable: false)
+                    Path = table.Column<string>(type: "TEXT", maxLength: 120, nullable: false),
+                    Icon = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -92,8 +94,8 @@ namespace Adashboard.Data.Migrations
 
             migrationBuilder.InsertData(
                 table: "AppSettings",
-                columns: new[] { "Id", "HealthCheckIntervalSeconds", "ShowLogo", "ThemeMode" },
-                values: new object[] { 1, 30, true, 0 });
+                columns: new[] { "Id", "HealthCheckIntervalSeconds", "ShowPageIcon", "SideMenuMode", "ThemeMode" },
+                values: new object[] { 1, 30, true, 1, 0 });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Cards_DashboardCategoryId",
