@@ -42,6 +42,20 @@
   <ItemGroup Condition="'$(Configuration)' == 'Release'">
     <Content Update="wwwroot/lib/**/*.map" CopyToPublishDirectory="Never" />
     <Content Update="wwwroot/lib/fa/webfonts/*.ttf" CopyToPublishDirectory="Never" />
+
+    <!-- Стили FontAwesome Pro в проекте не используются: реестр FontAwesomeIcons содержит только
+         fas/far/fab, поэтому в публикацию попадают лишь нужные шрифты (solid, regular, brands,
+         v4compatibility). Остальные файлы только раздували офлайн-кэш service worker. -->
+    <Content Update="wwwroot/lib/fa/webfonts/fa-thin-*" CopyToPublishDirectory="Never" />
+    <Content Update="wwwroot/lib/fa/webfonts/fa-light-*" CopyToPublishDirectory="Never" />
+    <Content Update="wwwroot/lib/fa/webfonts/fa-duotone-*" CopyToPublishDirectory="Never" />
+    <Content Update="wwwroot/lib/fa/webfonts/fa-sharp-*" CopyToPublishDirectory="Never" />
+
+    <!-- JavaScript Bootstrap компонентами не используется (диалоги самодельные, data-bs-* нет);
+         из css публикуем только bootstrap.min.css, который подключён в index.html. -->
+    <Content Update="wwwroot/lib/bootstrap/dist/js/**" CopyToPublishDirectory="Never" />
+    <Content Update="wwwroot/lib/bootstrap/dist/css/**" CopyToPublishDirectory="Never" />
+    <Content Update="wwwroot/lib/bootstrap/dist/css/bootstrap.min.css" CopyToPublishDirectory="Always" />
   </ItemGroup>
 
 </Project>
