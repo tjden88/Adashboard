@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Adashboard.Data.Migrations
 {
     [DbContext(typeof(DashboardDb))]
-    [Migration("20261101154838_Initial")]
+    [Migration("20261101174632_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -73,6 +73,9 @@ namespace Adashboard.Data.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<bool>("IsWide")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("LinkTarget")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("Position")
@@ -142,6 +145,11 @@ namespace Adashboard.Data.Migrations
                     b.Property<string>("Icon")
                         .IsRequired()
                         .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("IconColor")
+                        .IsRequired()
+                        .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Path")

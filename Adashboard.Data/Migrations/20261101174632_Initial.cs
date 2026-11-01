@@ -35,7 +35,8 @@ namespace Adashboard.Data.Migrations
                     Title = table.Column<string>(type: "TEXT", maxLength: 120, nullable: false),
                     Description = table.Column<string>(type: "TEXT", maxLength: 300, nullable: false),
                     Path = table.Column<string>(type: "TEXT", maxLength: 120, nullable: false),
-                    Icon = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false)
+                    Icon = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
+                    IconColor = table.Column<string>(type: "TEXT", maxLength: 20, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -74,6 +75,7 @@ namespace Adashboard.Data.Migrations
                     Title = table.Column<string>(type: "TEXT", maxLength: 120, nullable: false),
                     Url = table.Column<string>(type: "TEXT", maxLength: 500, nullable: false),
                     UrlScheme = table.Column<int>(type: "INTEGER", nullable: false),
+                    LinkTarget = table.Column<int>(type: "INTEGER", nullable: false),
                     IsCustomIcon = table.Column<bool>(type: "INTEGER", nullable: false),
                     IconSource = table.Column<string>(type: "TEXT", nullable: false),
                     BackgroundColor = table.Column<string>(type: "TEXT", nullable: false),
