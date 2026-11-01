@@ -121,3 +121,20 @@ html[data-theme="light"] .dashboard-page-icon {
         display: none;
     }
 }
+
+/* Кнопка редактирования в шапке видна, пока боковое меню не занимает экран.
+   На десктопе меню всегда видно (развёрнутое или узкая полоса), на мобильных —
+   это drawer, поэтому кнопка прячется, пока drawer открыт. Переключить режим в
+   обоих случаях можно дубликатом в самом меню (см. SideMenu). */
+@media (min-width: 901px) {
+    .main-shell.shell--menu-expanded .header-edit-toggle,
+    .main-shell.shell--menu-auto .header-edit-toggle {
+        display: none;
+    }
+}
+
+@media (max-width: 900px) {
+    body:has(.side-menu--open) .header-edit-toggle {
+        display: none;
+    }
+}

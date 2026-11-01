@@ -41,6 +41,20 @@
                 </li>
             }
         </ul>
+
+        <footer class="side-menu-footer">
+            @* Дубликат кнопки редактирования из шапки: при видимом меню шапка его прячет
+               (см. Header), поэтому переключить режим можно прямо здесь. *@
+            <button type="button"
+                    class="side-menu-edit-btn @(AppStateService.IsEditMode ? "side-menu-edit-btn--on" : null)"
+                    @onclick="ToggleEditMode"
+                    aria-pressed="@AppStateService.IsEditMode"
+                    aria-label="Переключить режим редактирования"
+                    title="@(AppStateService.IsEditMode ? "Завершить редактирование" : "Редактировать")">
+                <i class="fa-solid @(AppStateService.IsEditMode ? "fa-check" : "fa-pen-nib")" aria-hidden="true"></i>
+                <span class="side-menu-label">@(AppStateService.IsEditMode ? "Завершить" : "Редактировать")</span>
+            </button>
+        </footer>
     </nav>
 }
 
@@ -119,6 +133,9 @@
             Logger.LogDebug(ex, "Не удалось вернуть фокус к кнопке мобильного меню.");
         }
     }
+
+    /// <summary>Переключает режим редактирования (дубликат кнопки из шапки).</summary>
+    private void ToggleEditMode() => AppStateService.ToggleEditMode();
 
     /// <summary>Клик по затемнённому фону закрывает мобильное меню.</summary>
     private void OnBackdropClick() => AppStateService.CloseMobileMenu();

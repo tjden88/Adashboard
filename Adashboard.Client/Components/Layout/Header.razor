@@ -75,8 +75,10 @@
 
         }
 
+        @* Кнопка видна, пока боковое меню не занимает экран: при видимом меню
+           переключить режим можно дубликатом в самом меню (см. SideMenu). *@
         <button type="button"
-                class="px-4 btn btn-icon btn-sm @(isEditMode ? "btn-primary" : "btn-outline-secondary")"
+                class="px-4 btn btn-icon btn-sm header-edit-toggle @(isEditMode ? "btn-primary" : "btn-outline-secondary")"
                 @onclick="ToggleEditMode"
                 aria-pressed="@(isEditMode ? "true" : "false")"
                 aria-label="Переключить режим редактирования"

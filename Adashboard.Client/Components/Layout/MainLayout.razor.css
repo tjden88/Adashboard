@@ -6,23 +6,20 @@
     padding: 1.2rem;
     /* На широких экранах рабочая область не растягивается на всю ширину: ограничиваем
        её и центрируем. На узких экранах лимит не срабатывает — влезает меньше. */
-    max-width: 1800px;
+    max-width: var(--content-max-width, 1800px);
     margin-inline: auto;
 }
 
-/* На десктопе контент сдвигается вправо на ширину бокового меню.
-   Автосворачивание — только на ширину узкой полосы. */
+/* На десктопе контент сдвигается вправо на ширину меню и центрируется в оставшейся
+   части экрана (лимит ширины при этом остаётся: рабочая область не растягивается).
+   Автосворачивание — смещение только на ширину узкой полосы. */
 @media (min-width: 901px) {
     .shell--menu-expanded .content {
-        margin-left: var(--side-menu-width, 240px);
-        max-width: none;
-        margin-right: auto;
+        margin-left: calc(var(--side-menu-width, 240px) + max(0px, (100% - var(--side-menu-width, 240px) - var(--content-max-width, 1800px)) / 2));
     }
 
     .shell--menu-auto .content {
-        margin-left: var(--side-menu-collapsed-width, 64px);
-        max-width: none;
-        margin-right: auto;
+        margin-left: calc(var(--side-menu-collapsed-width, 64px) + max(0px, (100% - var(--side-menu-collapsed-width, 64px) - var(--content-max-width, 1800px)) / 2));
     }
 }
 
