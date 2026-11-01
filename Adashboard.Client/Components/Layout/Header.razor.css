@@ -142,12 +142,17 @@ html[data-theme="light"] .dashboard-page-icon {
     color: var(--text-main);
 }
 
-/* Кнопка редактирования в шапке видна только при скрытом боковом меню: как только
-   меню включено (на десктопе — развёрнутое, свёрнутое или автосворачиваемое, на
-   мобильных — drawer), режим переключает дубликат в самом меню (см. SideMenu).
-   Класс режима MainLayout ставит на оболочку независимо от ширины экрана. */
+/* Кнопки редактирования и настроек в шапке видны только при скрытом боковом меню:
+   как только меню включено (на десктопе — развёрнутое, свёрнутое или
+   автосворачиваемое, на мобильных — drawer), режим и настройки открывает
+   дубликат в самом меню (см. SideMenu). Класс режима MainLayout ставит на
+   оболочку независимо от ширины экрана. Видимость настроек дополнительно
+   зависит от режима редактирования — это Razor-условие в Header.razor. */
 .main-shell.shell--menu-expanded .header-edit-toggle,
 .main-shell.shell--menu-auto .header-edit-toggle,
-.main-shell.shell--menu-collapsed .header-edit-toggle {
+.main-shell.shell--menu-collapsed .header-edit-toggle,
+.main-shell.shell--menu-expanded .header-settings,
+.main-shell.shell--menu-auto .header-settings,
+.main-shell.shell--menu-collapsed .header-settings {
     display: none;
 }

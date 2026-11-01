@@ -60,11 +60,29 @@
                 <i class="fa-solid @(AppStateService.IsEditMode ? "fa-check" : "fa-pen-nib")" aria-hidden="true"></i>
                 <span class="side-menu-label">@(AppStateService.IsEditMode ? "Завершить" : "Редактировать")</span>
             </button>
+
+            @* Дубликат кнопки настроек из шапки: при видимом меню шапка её прячет
+               (см. Header и Header.razor.css), поэтому открыть окно можно прямо здесь.
+               Окно живёт в меню, а не в шапке: шапка отвечает за режим, где меню скрыто. *@
+            <button type="button"
+                    class="side-menu-settings-btn"
+                    @onclick="OpenSettings"
+                    aria-label="Настройки приложения"
+                    title="Настройки приложения">
+                <i class="fa-solid fa-sliders" aria-hidden="true"></i>
+                <span class="side-menu-label">Настройки</span>
+            </button>
         </footer>
     </nav>
+
+    <DialogContainer @bind-Open="_isSettingsOpen" Title="Настройки приложения">
+        <AppSettingsDialog />
+    </DialogContainer>
 }
 
 @code {
+    private bool _isSettingsOpen;
+
     [CascadingParameter]
     private DashboardPageModel Model { get; set; } = null!;
 
@@ -145,6 +163,13 @@
 
     /// <summary>Переключает режим редактирования (дубликат кнопки из шапки).</summary>
     private void ToggleEditMode() => AppStateService.ToggleEditMode();
+
+    /// <summary>Открывает окно настроек приложения; на мобильных drawer закрывает, как и клик по ссылке страницы.</summary>
+    private void OpenSettings()
+    {
+        AppStateService.CloseMobileMenu();
+        _isSettingsOpen = true;
+    }
 
     /// <summary>Клик по затемнённому фону закрывает мобильное меню.</summary>
     private void OnBackdropClick() => AppStateService.CloseMobileMenu();

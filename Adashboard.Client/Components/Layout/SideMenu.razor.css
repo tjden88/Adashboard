@@ -30,18 +30,21 @@
 }
 
 .side-menu-link:hover,
-.side-menu-edit-btn:hover {
+.side-menu-edit-btn:hover,
+.side-menu-settings-btn:hover {
     background: color-mix(in srgb, var(--text-main) 8%, transparent);
 }
 
 .side-menu-link:focus-visible,
-.side-menu-edit-btn:focus-visible {
+.side-menu-edit-btn:focus-visible,
+.side-menu-settings-btn:focus-visible {
     outline: none;
     box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--text-main) 70%, transparent);
 }
 
 .side-menu-link i,
-.side-menu-edit-btn i {
+.side-menu-edit-btn i,
+.side-menu-settings-btn i {
     flex-shrink: 0;
     width: 1.25rem;
     text-align: center;
@@ -60,14 +63,15 @@
     font-weight: 500;
 }
 
-/* Кнопка редактирования внизу меню: дублирует кнопку шапки, пока меню видно.
+/* Кнопки редактирования и настроек внизу меню: дублируют кнопки шапки, пока меню видно.
    Список страниц выше растёт (flex: 1), поэтому подвал прижат к низу меню. */
 .side-menu-footer {
     padding: 0.35rem 0.4rem 0.5rem;
     border-top: 1px solid var(--surface-border);
 }
 
-.side-menu-edit-btn {
+.side-menu-edit-btn,
+.side-menu-settings-btn {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -172,12 +176,14 @@
     }
 
     .side-menu--auto .side-menu-link,
-    .side-menu--auto .side-menu-edit-btn {
+    .side-menu--auto .side-menu-edit-btn,
+    .side-menu--auto .side-menu-settings-btn {
         gap: 0;
     }
 
     .side-menu--auto .side-menu-link i,
-    .side-menu--auto .side-menu-edit-btn i {
+    .side-menu--auto .side-menu-edit-btn i,
+    .side-menu--auto .side-menu-settings-btn i {
         margin-inline: auto;
     }
 
@@ -190,8 +196,10 @@
 
     .side-menu--auto:hover .side-menu-link,
     .side-menu--auto:hover .side-menu-edit-btn,
+    .side-menu--auto:hover .side-menu-settings-btn,
     .side-menu--auto:has(:focus-visible) .side-menu-link,
-    .side-menu--auto:has(:focus-visible) .side-menu-edit-btn {
+    .side-menu--auto:has(:focus-visible) .side-menu-edit-btn,
+    .side-menu--auto:has(:focus-visible) .side-menu-settings-btn {
         gap: 0.5rem;
     }
 }
@@ -220,12 +228,14 @@
     }
 
     .side-menu--collapsed .side-menu-link,
-    .side-menu--collapsed .side-menu-edit-btn {
+    .side-menu--collapsed .side-menu-edit-btn,
+    .side-menu--collapsed .side-menu-settings-btn {
         gap: 0;
     }
 
     .side-menu--collapsed .side-menu-link i,
-    .side-menu--collapsed .side-menu-edit-btn i {
+    .side-menu--collapsed .side-menu-edit-btn i,
+    .side-menu--collapsed .side-menu-settings-btn i {
         margin-inline: auto;
     }
 }

@@ -13,6 +13,9 @@
 
     Окна диалогов рисуются здесь же: состояние открытости ведёт шапка, содержимое передаётся
     контейнеру как RenderFragment, а закрывает окно сам диалог через каскадный контейнер.
+    Настройки приложения шапка показывает только в режиме редактирования и скрытом
+    боковом меню: при видимом меню тем же окном управляет дубликат кнопки в самом меню
+    (см. SideMenu) и в CSS (см. Header.razor.css).
 *@
 
 @{
@@ -72,7 +75,10 @@
                 <span class="header-button-label">Добавить страницу</span>
             </button>
 
-            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="OpenSiteSettings" aria-label="Настройки приложения" title="Настройки приложения">
+            @* Настройки — только в режиме редактирования: класс header-settings даёт
+               доп. видимость «меню скрыто» (CSS, см. Header.razor.css) — при видимом
+               меню тем же окном управляет дубликат в его подвале (см. SideMenu). *@
+            <button type="button" class="btn btn-sm btn-outline-secondary header-settings" @onclick="OpenSiteSettings" aria-label="Настройки приложения" title="Настройки приложения">
                 <i class="fa-solid fa-sliders" aria-hidden="true"></i>
                 <span class="header-button-label">Настройки</span>
             </button>
