@@ -49,8 +49,8 @@
         </ul>
 
         <footer class="side-menu-footer">
-            @* Дубликат кнопки редактирования из шапки: при видимом меню шапка его прячет
-               (см. Header), поэтому переключить режим можно прямо здесь. *@
+            @* Кнопка редактирования: дублирует кнопку шапки, которая видна всегда;
+               при видимом меню переключать режим удобнее отсюда. *@
             <button type="button"
                     class="side-menu-edit-btn @(AppStateService.IsEditMode ? "side-menu-edit-btn--on" : null)"
                     @onclick="ToggleEditMode"

@@ -15,7 +15,8 @@
     контейнеру как RenderFragment, а закрывает окно сам диалог через каскадный контейнер.
     Настройки приложения шапка показывает только в режиме редактирования и скрытом
     боковом меню: при видимом меню тем же окном управляет дубликат кнопки в самом меню
-    (см. SideMenu) и в CSS (см. Header.razor.css).
+    (см. SideMenu) и в CSS (см. Header.razor.css). Кнопка редактирования видна всегда,
+    даже при видимом меню: она дублирует кнопку бокового меню для удобства.
 *@
 
 @{
@@ -85,17 +86,21 @@
 
         }
 
-        @* Кнопка видна только при скрытом боковом меню: при включённом меню
-           переключить режим можно дубликатом в самом меню (см. SideMenu),
-           а видимость задаётся CSS (см. Header.razor.css). *@
-        <button type="button"
-                class="px-4 btn btn-icon btn-sm header-edit-toggle @(isEditMode ? "btn-primary" : "btn-outline-secondary")"
-                @onclick="ToggleEditMode"
-                aria-pressed="@(isEditMode ? "true" : "false")"
-                aria-label="Переключить режим редактирования"
-                title="@(isEditMode ? "Завершить редактирование" : "Редактировать")">
-            <i class="fa-solid @(isEditMode ? "fa-check" : "fa-pen-nib")" aria-hidden="true"></i>
-        </button>
+        @* В режиме редактирования кнопка («Завершить редактирование») видна всегда:
+           при видимом меню она дублирует кнопку бокового меню для удобства.
+           В нормальном режиме — только при скрытом меню, как и прежде: на мобильных
+           это CSS (см. Header.razor.css), на десктопе вход в режим — кнопкой в подвале меню. *@
+        @if (isEditMode || AppStateService.Settings.SideMenuMode is SideMenuMode.Hidden)
+        {
+            <button type="button"
+                    class="px-4 btn btn-icon btn-sm header-edit-toggle @(isEditMode ? "btn-primary" : "btn-outline-secondary")"
+                    @onclick="ToggleEditMode"
+                    aria-pressed="@(isEditMode ? "true" : "false")"
+                    aria-label="Переключить режим редактирования"
+                    title="@(isEditMode ? "Завершить редактирование" : "Редактировать")">
+                <i class="fa-solid @(isEditMode ? "fa-check" : "fa-pen-nib")" aria-hidden="true"></i>
+            </button>
+        }
     </div>
 </header>
 

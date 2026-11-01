@@ -14,6 +14,11 @@
     font-weight: 600;
 }
 
+/* Дополнительный отступ после блока темы, чтобы он визуально отделялся от «Меню страниц». */
+.settings-dialog__field--theme {
+    margin-bottom: 1.25rem;
+}
+
 /* Варианты темы идут списком: подпись и переключатель читаются как одна строка. */
 .settings-dialog__option,
 .settings-dialog__toggle {

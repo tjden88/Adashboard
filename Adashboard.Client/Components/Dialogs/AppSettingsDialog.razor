@@ -13,7 +13,7 @@
 <EditForm Model="_model" OnValidSubmit="SaveAsync" class="settings-dialog">
     <DataAnnotationsValidator />
 
-    <div class="settings-dialog__field">
+    <div class="settings-dialog__field settings-dialog__field--theme">
         <span class="settings-dialog__label">Тема оформления</span>
         <InputRadioGroup @bind-Value="_model.ThemeMode" Name="settingsThemeMode" aria-label="Тема оформления">
             @foreach (var option in _ThemeOptions)
@@ -36,12 +36,7 @@
                 <option value="@option.Mode">@option.Title</option>
             }
         </InputSelect>
-        <p class="settings-dialog__hint">
-            Скрыто — без меню на всех ширинах; Свёрнуто — узкая полоса с иконками, никогда не раскрывается,
-            название страницы видно во всплывающей подсказке; Автосворачивание — узкая полоса с иконками, раскрывается по наведению;
-            Всегда развёрнуто — меню и названия видны постоянно. На мобильных (до 900px) режим не действует:
-            меню работает как выдвижное, открывается кнопкой в шапке.
-        </p>
+        <p class="settings-dialog__hint">@SelectedSideMenuHint</p>
     </div>
 
     <div class="settings-dialog__field py-3">
@@ -90,13 +85,16 @@
     ];
 
     // Порядок вариантов совпадает с числовыми значениями enum (Hidden = 0 … Collapsed = 3).
-    private static readonly (SideMenuMode Mode, string Title)[] _SideMenuOptions =
+    private static readonly (SideMenuMode Mode, string Title, string Hint)[] _SideMenuOptions =
     [
-        (SideMenuMode.Hidden, "Скрыто"),
-        (SideMenuMode.Collapsed, "Свёрнуто"),
-        (SideMenuMode.AutoCollapse, "Автосворачивание"),
-        (SideMenuMode.Expanded, "Всегда развёрнуто")
+        (SideMenuMode.Hidden, "Скрыто", "Без меню на всех ширинах экрана."),
+        (SideMenuMode.Collapsed, "Свёрнуто", "Узкая полоса с иконками, которая никогда не раскрывается; название страницы видно во всплывающей подсказке."),
+        (SideMenuMode.AutoCollapse, "Автосворачивание", "Узкая полоса с иконками, которая раскрывается по наведению курсора."),
+        (SideMenuMode.Expanded, "Всегда развёрнуто", "Меню и названия страниц видны постоянно.")
     ];
+
+    // Подсказка показывает описание только выбранного режима, а не все режимы сразу.
+    private string SelectedSideMenuHint => _SideMenuOptions.First(option => option.Mode == _model.SideMenuMode).Hint;
 
     private EditModel _model = new();
     private string? _error;
