@@ -28,10 +28,12 @@
 
     <div class="settings-dialog__field">
         <span class="settings-dialog__label">Меню страниц</span>
+        @* Value опций — имя enum, как его записывает InputSelect (Convert.ToString),
+           иначе выбранный вариант не отображается в списке. *@
         <InputSelect id="settingsSideMenuMode" class="form-select" @bind-Value="_model.SideMenuMode">
             @foreach (var option in _SideMenuOptions)
             {
-                <option value="@((int)option.Mode)">@option.Title</option>
+                <option value="@option.Mode">@option.Title</option>
             }
         </InputSelect>
         <p class="settings-dialog__hint">
