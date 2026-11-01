@@ -1045,7 +1045,7 @@
           "sideMenuMode": {
             "$ref": "#/components/schemas/SideMenuMode"
           },
-          "showLogo": {
+          "showPageIcon": {
             "type": "boolean"
           },
           "healthCheckIntervalSeconds": {

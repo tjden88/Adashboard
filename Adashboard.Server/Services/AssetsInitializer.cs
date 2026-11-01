@@ -3,7 +3,7 @@ using Adashboard.Domain.Reference;
 namespace Adashboard.Server.Services;
 
 /// <summary>
-/// Наполняет каталог статики приложения стандартными файлами (фон, логотип и т.п.),
+/// Наполняет каталог статики приложения стандартными файлами (фон, иконку и т.п.),
 /// если их там ещё нет.
 /// </summary>
 internal sealed class AssetsInitializer(DashboardPaths paths, ILogger<AssetsInitializer> logger)

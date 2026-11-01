@@ -17,8 +17,8 @@ public sealed class AppSettings
     /// <summary>Режим бокового меню страниц: скрыто, автосворачивание или всегда развёрнуто.</summary>
     public SideMenuMode SideMenuMode { get; set; } = SideMenuMode.AutoCollapse;
 
-    /// <summary>Признак отображения логотипа в шапке приложения.</summary>
-    public bool ShowLogo { get; set; } = true;
+    /// <summary>Признак отображения иконки в шапке: иконка страницы или, если у страницы своей иконки нет, иконка приложения.</summary>
+    public bool ShowPageIcon { get; set; } = true;
 
     /// <summary>Интервал проверки статуса карточек в секундах: ноль отключает проверки.</summary>
     public int HealthCheckIntervalSeconds { get; set; } = DomainConstants.DefaultHealthCheckIntervalSeconds;

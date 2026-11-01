@@ -15,10 +15,18 @@
     gap: 0.9rem;
 }
 
-.dashboard-logo {
+/* Иконка текущей страницы перед заголовком: размер следует за шрифтом заголовка,
+   у страницы без своей иконки её заменяет иконка приложения того же размера. */
+.dashboard-page-icon {
     flex-shrink: 0;
-    width: 3rem;
-    height: 3rem;
+    font-size: clamp(1.55rem, 3.2vw, 2.3rem);
+    line-height: 1;
+    color: var(--text-muted);
+}
+
+.dashboard-page-icon--image {
+    width: clamp(1.55rem, 3.2vw, 2.3rem);
+    height: clamp(1.55rem, 3.2vw, 2.3rem);
     object-fit: contain;
 }
 
@@ -27,14 +35,6 @@
     font-family: var(--font-title);
     font-size: clamp(1.35rem, 2.8vw, 1.95rem);
     letter-spacing: 0.02em;
-}
-
-/* Иконка текущей страницы перед заголовком: размер следует за шрифтом заголовка. */
-.dashboard-page-icon {
-    flex-shrink: 0;
-    font-size: clamp(1.55rem, 3.2vw, 2.3rem);
-    line-height: 1;
-    color: var(--text-muted);
 }
 
 .dashboard-header p {
@@ -112,6 +112,11 @@ html[data-theme="light"] .dashboard-page-icon {
     /* Иконка страницы поменьше, чтобы не вытеснять заголовок. */
     .dashboard-page-icon {
         font-size: 1.4rem;
+    }
+
+    .dashboard-page-icon--image {
+        width: 1.4rem;
+        height: 1.4rem;
     }
 }
 

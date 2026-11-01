@@ -58,7 +58,7 @@ public sealed class DbInitializer(DashboardDb db, ILogger<DbInitializer> logger)
             {
                 Id = 1,
                 ThemeMode = ThemeMode.Auto,
-                ShowLogo = true,
+                ShowPageIcon = true,
                 HealthCheckIntervalSeconds = 30
             });
             await db.SaveChangesAsync(cancellationToken);

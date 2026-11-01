@@ -57,11 +57,11 @@ public static class DomainConstants
     /// <summary>Имя подкаталога статики приложения внутри каталога загрузок.</summary>
     public const string AssetsFolderName = "assets";
 
-    /// <summary>Относительный адрес каталога статики приложения: фон и логотип.</summary>
+    /// <summary>Относительный адрес каталога статики приложения: фон и иконка.</summary>
     public const string AssetsUrl = UploadsUrl + "/" + AssetsFolderName;
 
-    /// <summary>Относительный адрес логотипа приложения.</summary>
-    public const string LogoAsset = AssetsUrl + "/logo.png";
+    /// <summary>Относительный адрес иконки приложения.</summary>
+    public const string IconAsset = AssetsUrl + "/icon.png";
 
     /// <summary>Относительный адрес светлого фонового изображения.</summary>
     public const string LightBackgroundAsset = AssetsUrl + "/bg-light.jpg";

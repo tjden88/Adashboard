@@ -25,7 +25,7 @@ namespace Adashboard.Data.Migrations
                     b.Property<int>("HealthCheckIntervalSeconds")
                         .HasColumnType("INTEGER");
 
-                    b.Property<bool>("ShowLogo")
+                    b.Property<bool>("ShowPageIcon")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("SideMenuMode")
@@ -43,7 +43,7 @@ namespace Adashboard.Data.Migrations
                         {
                             Id = 1,
                             HealthCheckIntervalSeconds = 30,
-                            ShowLogo = true,
+                            ShowPageIcon = true,
                             SideMenuMode = 1,
                             ThemeMode = 0
                         });

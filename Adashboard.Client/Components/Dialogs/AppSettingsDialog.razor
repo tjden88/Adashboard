@@ -1,12 +1,12 @@
 @inject AppStateService AppStateService
 
 @*
-    Диалог общих настроек dashboard: тема оформления, показ логотипа и интервал проверки
+    Диалог общих настроек dashboard: тема оформления, иконка страницы в шапке и интервал проверки
     статуса карточек. Нулевой интервал отключает проверки статуса для всех карточек
     (правило — в HealthCheckRules).
 
     Настройки сохраняет сам диалог: их владелец — AppStateService, поэтому после успешного
-    сохранения тема и логотип применяются сразу, без перезагрузки страницы. При отказе
+    сохранения тема и иконка страницы применяются сразу, без перезагрузки страницы. При отказе
     сохранения окно остаётся открытым и показывает понятный текст ошибки.
 *@
 
@@ -44,9 +44,9 @@
     </div>
 
     <div class="settings-dialog__field py-3">
-        <label class="settings-dialog__toggle" for="settingsShowLogo">
-            <InputCheckbox id="settingsShowLogo" @bind-Value="_model.ShowLogo" />
-            <span>Показывать логотип в шапке</span>
+        <label class="settings-dialog__toggle" for="settingsShowPageIcon">
+            <InputCheckbox id="settingsShowPageIcon" @bind-Value="_model.ShowPageIcon" />
+            <span>Показывать иконку страницы в шапке</span>
         </label>
     </div>
 
@@ -139,7 +139,7 @@
 
         public SideMenuMode SideMenuMode { get; set; } = SideMenuMode.AutoCollapse;
 
-        public bool ShowLogo { get; set; } = true;
+        public bool ShowPageIcon { get; set; } = true;
 
         // Ноль отключает проверки статуса для всех карточек (см. HealthCheckRules).
         [Range(0, DomainConstants.HealthCheckIntervalMaxSeconds, ErrorMessage = "Допустимый интервал проверки: от 0 до 3600 секунд.")]
@@ -149,7 +149,7 @@
         {
             ThemeMode = settings.ThemeMode,
             SideMenuMode = settings.SideMenuMode,
-            ShowLogo = settings.ShowLogo,
+            ShowPageIcon = settings.ShowPageIcon,
             HealthCheckIntervalSeconds = settings.HealthCheckIntervalSeconds
         };
 
@@ -157,7 +157,7 @@
         {
             ThemeMode = ThemeMode,
             SideMenuMode = SideMenuMode,
-            ShowLogo = ShowLogo,
+            ShowPageIcon = ShowPageIcon,
             HealthCheckIntervalSeconds = HealthCheckIntervalSeconds
         };
     }

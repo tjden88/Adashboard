@@ -9,7 +9,7 @@
     Режим редактирования и настройки сайта приходят из AppState (каскадное значение), данные
     страницы — параметром Page от Home: заголовок и описание обновляются сразу после правки
     страницы в диалоге. Пока страница грузится, вместо текста рисуется скелет заголовка,
-    а кнопки и логотип остаются на месте.
+    а кнопки и иконка остаются на месте.
 
     Окна диалогов рисуются здесь же: состояние открытости ведёт шапка, содержимое передаётся
     контейнеру как RenderFragment, а закрывает окно сам диалог через каскадный контейнер.
@@ -21,14 +21,16 @@
 
 <header class="dashboard-header">
     <div class="dashboard-header-brand">
-        @if (AppStateService.Settings.ShowLogo)
+        @if (AppStateService.Settings.ShowPageIcon)
         {
-            <img class="dashboard-logo" src="@LogoSource" alt="" />
-        }
-
-        @if (!IsLoading && !string.IsNullOrWhiteSpace(Model.Page.Icon))
-        {
-            <i class="dashboard-page-icon @Model.Page.Icon" aria-hidden="true"></i>
+            @if (!string.IsNullOrWhiteSpace(Model.Page.Icon))
+            {
+                <i class="dashboard-page-icon @Model.Page.Icon" aria-hidden="true"></i>
+            }
+            else
+            {
+                <img class="dashboard-page-icon dashboard-page-icon--image" src="@IconSource" alt="" />
+            }
         }
 
         <div>
@@ -116,9 +118,9 @@
     [CascadingParameter]
     private AppStateService AppStateService { get; set; } = null!;
 
-    // Логотип лежит в загрузках API: путь строим абсолютным, иначе при раздельном запуске
-    // клиента и сервера изображение запрашивалось бы у клиента.
-    private string? LogoSource => ApiOptions.ResolveUploadPath(DomainConstants.LogoAsset);
+    /// <summary>Иконка приложения для страницы без своей иконки: абсолютный путь к статике API,
+    /// иначе при раздельном запуске клиента и сервера изображение запрашивалось бы у клиента.</summary>
+    private string? IconSource => ApiOptions.ResolveUploadPath(DomainConstants.IconAsset);
 
     // Созданную страницу открываем: Home загрузит её по новому адресу, а окно закроет сам диалог.
     private void OnPageCreated(DashboardPage page) => Navigation.NavigateTo("/" + page.Path);

@@ -11,7 +11,7 @@
   <ItemGroup>
     <Content Include="Assets\bg-dark.jpg" />
     <Content Include="Assets\bg-light.jpg" />
-    <Content Include="Assets\logo.png" />
+    <Content Include="Assets\icon.png" />
   </ItemGroup>
 
   <ItemGroup>
