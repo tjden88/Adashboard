@@ -62,6 +62,12 @@
     </div>
 
     <div class="page-dialog__field">
+        <span class="page-dialog__label">Цвет иконки</span>
+        <ColorPicker @bind-Value="_model.IconColor" AriaLabel="Цвет иконки страницы" />
+        <p class="page-dialog__hint">Оставьте пустым, чтобы цвет иконки определялся темой.</p>
+    </div>
+
+    <div class="page-dialog__field">
         <label for="pageDialogPath" class="page-dialog__label">Путь</label>
         @if (IsMainPage)
         {
@@ -138,7 +144,8 @@
                 Title = Page.Title,
                 Description = Page.Description,
                 Path = Page.Path,
-                Icon = Page.Icon
+                Icon = Page.Icon,
+                IconColor = Page.IconColor
             };
 
         // При изменении автогенерация пути выключена: он уже задан.
@@ -165,6 +172,25 @@
 
     // «Очистить» сбрасывает иконку в пустое значение: страница показывается без иконки.
     private void ClearIcon() => _model.Icon = string.Empty;
+
+    // Цвет иконки — строго hex вида #RRGGBB; пустое значение разрешено (цвет темы).
+    private static bool IsValidHexColor(string color)
+    {
+        if (color.Length != 7 || color[0] != '#')
+        {
+            return false;
+        }
+
+        for (var i = 1; i < color.Length; i++)
+        {
+            if (!Uri.IsHexDigit(color[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     private async Task SaveAsync()
     {
@@ -201,6 +227,14 @@
             return;
         }
 
+        // Пустой цвет разрешён: тогда иконка берёт системный цвет темы.
+        var iconColor = _model.IconColor.Trim();
+        if (iconColor.Length > 0 && !IsValidHexColor(iconColor))
+        {
+            _error = "Цвет иконки должен быть в формате #RRGGBB.";
+            return;
+        }
+
         _isSaving = true;
         Dialog.SetBusy(true);
 
@@ -212,7 +246,8 @@
                 Title = title,
                 Description = _model.Description.Trim(),
                 Path = path,
-                Icon = _model.Icon.Trim()
+                Icon = _model.Icon.Trim(),
+                IconColor = iconColor
             };
 
             if (IsCreate)
@@ -294,5 +329,7 @@
 
         [MaxLength(DomainConstants.PageIconClassMaxLength)]
         public string Icon { get; set; } = string.Empty;
+
+        public string IconColor { get; set; } = string.Empty;
     }
 }

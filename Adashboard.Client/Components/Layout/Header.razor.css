@@ -127,19 +127,26 @@ html[data-theme="light"] .dashboard-page-icon {
     }
 }
 
-/* Кнопка редактирования в шапке видна, пока боковое меню не занимает экран.
-   На десктопе меню всегда видно (развёрнутое или узкая полоса), на мобильных —
-   это drawer, поэтому кнопка прячется, пока drawer открыт. Переключить режим в
-   обоих случаях можно дубликатом в самом меню (см. SideMenu). */
-@media (min-width: 901px) {
-    .main-shell.shell--menu-expanded .header-edit-toggle,
-    .main-shell.shell--menu-auto .header-edit-toggle {
-        display: none;
-    }
+/* Лёгкий стиль кнопки меню: без рамки, «стеклянной» подложки и тени, по умолчанию
+   спокойный приглушённый цвет, а при наведении — только лёгкая подсветка.
+   Перекрывает базовые стили .btn из app.css (scoped-селектор сильнее). */
+.side-menu-toggle {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    color: var(--text-muted);
 }
 
-@media (max-width: 900px) {
-    body:has(.side-menu--open) .header-edit-toggle {
-        display: none;
-    }
+.side-menu-toggle:hover {
+    background: color-mix(in srgb, var(--text-main) 8%, transparent);
+    color: var(--text-main);
+}
+
+/* Кнопка редактирования в шапке видна только при скрытом боковом меню: как только
+   меню включено (на десктопе — развёрнутое или автосворачиваемое, на мобильных —
+   drawer), режим переключает дубликат в самом меню (см. SideMenu). Класс режима
+   MainLayout ставит на оболочку независимо от ширины экрана. */
+.main-shell.shell--menu-expanded .header-edit-toggle,
+.main-shell.shell--menu-auto .header-edit-toggle {
+    display: none;
 }

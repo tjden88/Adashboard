@@ -48,4 +48,11 @@ public sealed class DashboardPage
     /// </summary>
     [MaxLength(DomainConstants.PageIconClassMaxLength)]
     public string Icon { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Цвет иконки страницы в формате CSS (например, #ffffff).
+    /// Пустая строка — цвет, задаваемый темой.
+    /// </summary>
+    [MaxLength(DomainConstants.PageIconColorMaxLength)]
+    public string IconColor { get; set; } = string.Empty;
 }

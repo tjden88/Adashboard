@@ -77,6 +77,8 @@ public sealed class DbInitializer(DashboardDb db, ILogger<DbInitializer> logger)
         Id = 1,
         // У основной страницы пустой путь: она открывается по корневому адресу.
         Path = string.Empty,
+        // Стартовая иконка основной страницы: отображается в шапке перед заголовком.
+        Icon = "fas fa-house",
         Categories = CreateDefaultCategories(),
         Title = "Adashboard",
         Description = "Персональный дашборд для быстрого доступа к сервисам"
