@@ -121,12 +121,13 @@ public sealed class AuthStateService : IDisposable
     /// </summary>
     public void Dispose() => _store.Unauthorized -= OnUnauthorizedAsync;
 
-    // Проверяет доступ, запрашивая служебный эндпоинт API.
+    // Проверяет доступ, запрашивая защищённый служебный эндпоинт API: анонимный health
+    // отвечает всегда и не может подтвердить ключ.
     private async Task<ApiAccess> ProbeAsync(CancellationToken cancellationToken)
     {
         try
         {
-            var response = await _dashboardApi.GetHealthAsync(cancellationToken);
+            var response = await _dashboardApi.CheckAccessAsync(cancellationToken);
             if (response.IsSuccessStatusCode)
             {
                 return ApiAccess.Granted;

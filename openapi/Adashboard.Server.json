@@ -447,6 +447,19 @@
         }
       }
     },
+    "/api/health/access": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "operationId": "CheckAccess",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/pages": {
       "get": {
         "tags": [
