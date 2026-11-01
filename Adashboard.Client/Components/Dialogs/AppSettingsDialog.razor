@@ -26,6 +26,23 @@
         </InputRadioGroup>
     </div>
 
+    <div class="settings-dialog__field">
+        <span class="settings-dialog__label">Меню страниц</span>
+        <InputRadioGroup @bind-Value="_model.SideMenuMode" Name="settingsSideMenuMode" aria-label="Меню страниц">
+            @foreach (var option in _SideMenuOptions)
+            {
+                <label class="settings-dialog__option">
+                    <InputRadio Value="option.Mode" />
+                    <span>@option.Title</span>
+                </label>
+            }
+        </InputRadioGroup>
+        <p class="settings-dialog__hint">
+            Скрыто — без меню на всех ширинах; Автосворачивание — узкая полоса с иконками, раскрывается по наведению;
+            Всегда развёрнуто — меню и названия видны постоянно.
+        </p>
+    </div>
+
     <div class="settings-dialog__field py-3">
         <label class="settings-dialog__toggle" for="settingsShowLogo">
             <InputCheckbox id="settingsShowLogo" @bind-Value="_model.ShowLogo" />
@@ -71,6 +88,13 @@
         (ThemeMode.Light, "Светлая")
     ];
 
+    private static readonly (SideMenuMode Mode, string Title)[] _SideMenuOptions =
+    [
+        (SideMenuMode.Hidden, "Скрыто"),
+        (SideMenuMode.AutoCollapse, "Автосворачивание"),
+        (SideMenuMode.Expanded, "Всегда развёрнуто")
+    ];
+
     private EditModel _model = new();
     private string? _error;
     private bool _isSaving;
@@ -113,6 +137,8 @@
     {
         public ThemeMode ThemeMode { get; set; } = ThemeMode.Auto;
 
+        public SideMenuMode SideMenuMode { get; set; } = SideMenuMode.AutoCollapse;
+
         public bool ShowLogo { get; set; } = true;
 
         // Ноль отключает проверки статуса для всех карточек (см. HealthCheckRules).
@@ -122,6 +148,7 @@
         public static EditModel FromSettings(AppSettings settings) => new()
         {
             ThemeMode = settings.ThemeMode,
+            SideMenuMode = settings.SideMenuMode,
             ShowLogo = settings.ShowLogo,
             HealthCheckIntervalSeconds = settings.HealthCheckIntervalSeconds
         };
@@ -129,6 +156,7 @@
         public AppSettings ToSettings() => new()
         {
             ThemeMode = ThemeMode,
+            SideMenuMode = SideMenuMode,
             ShowLogo = ShowLogo,
             HealthCheckIntervalSeconds = HealthCheckIntervalSeconds
         };

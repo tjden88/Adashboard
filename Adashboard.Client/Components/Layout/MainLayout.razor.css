@@ -10,6 +10,22 @@
     margin-inline: auto;
 }
 
+/* На десктопе контент сдвигается вправо на ширину бокового меню.
+   Автосворачивание — только на ширину узкой полосы. */
+@media (min-width: 901px) {
+    .shell--menu-expanded .content {
+        margin-left: var(--side-menu-width, 240px);
+        max-width: none;
+        margin-right: auto;
+    }
+
+    .shell--menu-auto .content {
+        margin-left: var(--side-menu-collapsed-width, 64px);
+        max-width: none;
+        margin-right: auto;
+    }
+}
+
 @media (min-width: 900px) {
     .content {
         padding: 1.8rem;

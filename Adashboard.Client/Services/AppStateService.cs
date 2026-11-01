@@ -34,6 +34,11 @@ public sealed class AppStateService
     public bool IsEditMode { get; private set; }
 
     /// <summary>
+    /// Открыто ли мобильное боковое меню (drawer).
+    /// </summary>
+    public bool IsMobileMenuOpen { get; private set; }
+
+    /// <summary>
     /// Настройки приложения, полученные с сервера. До загрузки отдаются значения по умолчанию.
     /// </summary>
     public AppSettings Settings { get; private set; } = new();
@@ -110,6 +115,39 @@ public sealed class AppStateService
         _logger.LogInformation("Режим редактирования {State}", IsEditMode ? "включён" : "выключен");
 
         NotifyChanged();
+    }
+
+    /// <summary>
+    /// Открывает мобильное боковое меню.
+    /// </summary>
+    public void OpenMobileMenu()
+    {
+        if (IsMobileMenuOpen) return;
+        IsMobileMenuOpen = true;
+        _logger.LogInformation("Мобильное меню открыто.");
+        NotifyChanged();
+    }
+
+    /// <summary>
+    /// Закрывает мобильное боковое меню.
+    /// </summary>
+    public void CloseMobileMenu()
+    {
+        if (!IsMobileMenuOpen) return;
+        IsMobileMenuOpen = false;
+        _logger.LogInformation("Мобильное меню закрыто.");
+        NotifyChanged();
+    }
+
+    /// <summary>
+    /// Переключает состояние мобильного бокового меню.
+    /// </summary>
+    public void ToggleMobileMenu()
+    {
+        if (IsMobileMenuOpen)
+            CloseMobileMenu();
+        else
+            OpenMobileMenu();
     }
 
     /// <summary>

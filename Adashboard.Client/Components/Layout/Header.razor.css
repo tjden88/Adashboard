@@ -114,3 +114,10 @@ html[data-theme="light"] .dashboard-page-icon {
         font-size: 1.4rem;
     }
 }
+
+/* Кнопка открытия меню нужна только на мобильной ширине: на десктопе её скрываем. */
+@media (min-width: 901px) {
+    .side-menu-toggle {
+        display: none;
+    }
+}

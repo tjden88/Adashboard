@@ -14,6 +14,9 @@ public sealed class AppSettings
     /// <summary>Режим темы: auto, dark или light.</summary>
     public ThemeMode ThemeMode { get; set; }
 
+    /// <summary>Режим бокового меню страниц: скрыто, автосворачивание или всегда развёрнуто.</summary>
+    public SideMenuMode SideMenuMode { get; set; } = SideMenuMode.AutoCollapse;
+
     /// <summary>Признак отображения логотипа в шапке приложения.</summary>
     public bool ShowLogo { get; set; } = true;
 

@@ -1293,3 +1293,7 @@ export function disposeDragAndDrop() {
     syncInProgress = false;
     editModeEnabled = false;
 }
+
+export function focusElementById(id) {
+    document.getElementById(id)?.focus();
+}

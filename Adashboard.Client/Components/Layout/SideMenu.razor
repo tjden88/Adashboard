@@ -1,0 +1,141 @@
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject ILogger<SideMenu> Logger
+@implements IDisposable
+
+@*
+    Левое боковое меню страниц dashboard.
+
+    Режим задаётся в настройках приложения и определяет видимость на десктопе:
+    Hidden — не рисуется, AutoCollapse — узкая полоса, расширяется по наведению,
+    Expanded — всегда развёрнуто. На мобильных (до 900px) меню работает как
+    выдвижной drawer: открывается кнопкой в шапке, закрывается кликом по подложке
+    или клавишей Esc; фокус возвращается к кнопке открытия.
+*@
+
+@if (AppStateService.Settings.SideMenuMode is not SideMenuMode.Hidden)
+{
+    @if (AppStateService.IsMobileMenuOpen)
+    {
+        <div class="side-menu-backdrop" aria-hidden="true" @onclick="OnBackdropClick"></div>
+    }
+
+    <nav class="@NavClass" aria-label="Страницы dashboard" @onkeydown="OnNavKeyDown">
+        <ul class="side-menu-list">
+            @foreach (var page in Model.Pages)
+            {
+                var isMain = string.IsNullOrEmpty(page.Path);
+                var isActive = IsPageActive(page.Path);
+                var label = string.IsNullOrWhiteSpace(page.Title) ? DomainConstants.AppTitle : page.Title;
+                var iconClass = string.IsNullOrWhiteSpace(page.Icon) ? "fa-solid fa-file" : page.Icon;
+
+                <li class="@GetItemClass(isMain, isActive)">
+                    <a href="@(isMain ? "/" : "/" + page.Path)"
+                       class="side-menu-link"
+                       title="@label"
+                       aria-current="@((isActive ? "page" : null))"
+                       @onclick="OnPageLinkClick">
+                        <i class="@iconClass" aria-hidden="true"></i>
+                        <span class="side-menu-label">@label</span>
+                    </a>
+                </li>
+            }
+        </ul>
+    </nav>
+}
+
+@code {
+    [CascadingParameter]
+    private DashboardPageModel Model { get; set; } = null!;
+
+    [CascadingParameter]
+    private AppStateService AppStateService { get; set; } = null!;
+
+    /// <summary>Класс корневой ветки меню: режим (скрывать/автосворачивание/развёрнуто) + признак открытого мобильного drawer.</summary>
+    private string NavClass
+    {
+        get
+        {
+            var cls = "side-menu";
+            switch (AppStateService.Settings.SideMenuMode)
+            {
+                case SideMenuMode.Expanded:
+                    cls += " side-menu--expanded";
+                    break;
+                case SideMenuMode.AutoCollapse:
+                    cls += " side-menu--auto";
+                    break;
+            }
+            if (AppStateService.IsMobileMenuOpen)
+            {
+                cls += " side-menu--open";
+            }
+            return cls;
+        }
+    }
+
+    /// <summary>Класс пункта меню: признак главной страницы (пустой путь) и активной текущей страницы.</summary>
+    private static string GetItemClass(bool isMain, bool isActive)
+    {
+        var cls = "side-menu-item";
+        if (isMain) cls += " side-menu-item--main";
+        if (isActive) cls += " side-menu-item--active";
+        return cls;
+    }
+
+    /// <summary>Совпадает ли путь страницы с текущим адресом (без учёта регистра).</summary>
+    private bool IsPageActive(string? pagePath)
+    {
+        var current = GetCurrentPath();
+        if (string.IsNullOrEmpty(pagePath))
+            return current.Length == 0;
+        return string.Equals(current, pagePath.ToLowerInvariant(), StringComparison.Ordinal);
+    }
+
+    /// <summary>Текучий путь без строки запроса и хэша, в нижнем регистре, без крайних слэшей.</summary>
+    private string GetCurrentPath()
+    {
+        var path = Navigation.ToBaseRelativePath(Navigation.Uri);
+        var cut = path.IndexOfAny(['?', '#']);
+        if (cut >= 0) path = path[..cut];
+        return path.Trim('/').ToLowerInvariant();
+    }
+
+    /// <summary>Esc закрывает мобильное меню и возвращает фокус к кнопке открытия.</summary>
+    private async Task OnNavKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key != "Escape" || !AppStateService.IsMobileMenuOpen) return;
+
+        AppStateService.CloseMobileMenu();
+
+        try
+        {
+            // Модуль кэшируется браузером: повторный import не создаёт нового экземпляра.
+            var module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/dashboard.js");
+            await module.InvokeVoidAsync("focusElementById", "side-menu-toggle");
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Logger.LogDebug(ex, "Не удалось вернуть фокус к кнопке мобильного меню.");
+        }
+    }
+
+    /// <summary>Клик по затемнённому фону закрывает мобильное меню.</summary>
+    private void OnBackdropClick() => AppStateService.CloseMobileMenu();
+
+    /// <summary>Клик по пункту меню закрывает мобильный drawer (навигация продолжает работу).</summary>
+    private void OnPageLinkClick() => AppStateService.CloseMobileMenu();
+
+    /// <summary>Перерисовка при изменении списка страниц (создание, удаление, смена текущей).</summary>
+    private void OnPageInfoChanged() => StateHasChanged();
+
+    protected override void OnInitialized()
+    {
+        Model.PageInfoChanged += OnPageInfoChanged;
+    }
+
+    public void Dispose()
+    {
+        Model.PageInfoChanged -= OnPageInfoChanged;
+    }
+}

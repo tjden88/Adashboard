@@ -13,7 +13,7 @@
     монтирования, а не после ответа API.
 *@
 
-<main class="main-shell @(AppStateService.IsEditMode ? "dashboard-edit-mode" : null)">
+<main class="main-shell @(AppStateService.IsEditMode ? "dashboard-edit-mode" : null) @ShellMenuClass">
     <article class="content">
         @Body
     </article>
@@ -31,6 +31,14 @@
 
     [CascadingParameter]
     private AppStateService AppStateService { get; set; } = null!;
+
+    /// <summary>Класс оболочки: определяет, какой режим бокового меню активен (для отступа контента на десктопе).</summary>
+    private string ShellMenuClass => AppStateService.Settings.SideMenuMode switch
+    {
+        SideMenuMode.Expanded => "shell--menu-expanded",
+        SideMenuMode.AutoCollapse => "shell--menu-auto",
+        _ => string.Empty
+    };
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

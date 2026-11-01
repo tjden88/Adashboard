@@ -1042,6 +1042,9 @@
           "themeMode": {
             "$ref": "#/components/schemas/ThemeMode"
           },
+          "sideMenuMode": {
+            "$ref": "#/components/schemas/SideMenuMode"
+          },
           "showLogo": {
             "type": "boolean"
           },
@@ -1276,6 +1279,9 @@
             "format": "byte"
           }
         }
+      },
+      "SideMenuMode": {
+        "type": "integer"
       },
       "ThemeMode": {
         "type": "integer"

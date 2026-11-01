@@ -48,6 +48,19 @@
         </div>
     </div>
     <div class="dashboard-header-actions">
+        @if (AppStateService.Settings.SideMenuMode is not SideMenuMode.Hidden)
+        {
+            <button type="button"
+                    id="side-menu-toggle"
+                    class="btn btn-icon btn-sm btn-outline-secondary side-menu-toggle"
+                    @onclick="ToggleMobileMenu"
+                    aria-expanded="@(AppStateService.IsMobileMenuOpen ? "true" : "false")"
+                    aria-label="Меню страниц"
+                    title="Меню страниц">
+                <i class="fa-solid fa-bars" aria-hidden="true"></i>
+            </button>
+        }
+
         @if (isEditMode)
         {
             <button type="button" class="btn btn-sm btn-success" @onclick="() => _isAddPageOpen = true" aria-label="Добавить страницу" title="Добавить страницу">
@@ -113,6 +126,9 @@
     private void OpenSiteSettings() => _isSettingsOpen = true;
 
     private void ToggleEditMode() => AppStateService.ToggleEditMode();
+
+    /// <summary>Переключает открытость мобильного бокового меню.</summary>
+    private void ToggleMobileMenu() => AppStateService.ToggleMobileMenu();
 
     protected override void OnInitialized()
     {
