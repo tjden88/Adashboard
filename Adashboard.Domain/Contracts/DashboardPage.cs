@@ -41,4 +41,11 @@ public sealed class DashboardPage
     /// </summary>
     [MaxLength(DomainConstants.PagePathMaxLength)]
     public string Path { get; set; } = string.Empty;
+
+    /// <summary>
+    /// CSS-класс иконки Font Awesome, отображаемой в шапке перед заголовком.
+    /// Пустая строка означает отсутствие иконки.
+    /// </summary>
+    [MaxLength(DomainConstants.PageIconClassMaxLength)]
+    public string Icon { get; set; } = string.Empty;
 }

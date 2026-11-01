@@ -37,6 +37,12 @@ public sealed class DashboardPageEntity
     public string Path { get; set; } = string.Empty;
 
     /// <summary>
+    /// CSS-класс иконки Font Awesome страницы. Пустая строка — без иконки.
+    /// </summary>
+    [MaxLength(DomainConstants.PageIconClassMaxLength)]
+    public string Icon { get; set; } = string.Empty;
+
+    /// <summary>
     /// Категории, входящие в страницу.
     /// </summary>
     /// <remarks>

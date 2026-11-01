@@ -26,6 +26,11 @@
             <img class="dashboard-logo" src="@LogoSource" alt="" />
         }
 
+        @if (!IsLoading && !string.IsNullOrWhiteSpace(Model.Page.Icon))
+        {
+            <i class="dashboard-page-icon @Model.Page.Icon" aria-hidden="true"></i>
+        }
+
         <div>
             @if (IsLoading)
             {

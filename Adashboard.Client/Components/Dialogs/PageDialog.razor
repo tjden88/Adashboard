@@ -41,6 +41,27 @@
     </div>
 
     <div class="page-dialog__field">
+        <span class="page-dialog__label">Иконка</span>
+        <div class="page-dialog__icon-row">
+            <div class="page-dialog__icon-control">
+                <IconPicker @bind-Value="_model.Icon" AriaLabel="Поиск иконки страницы" />
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(_model.Icon))
+            {
+                <button type="button"
+                        class="btn btn-outline-secondary"
+                        @onclick="ClearIcon"
+                        title="Убрать иконку со страницы"
+                        aria-label="Убрать иконку со страницы">
+                    <i class="fa-solid fa-eraser" aria-hidden="true"></i>Очистить
+                </button>
+            }
+        </div>
+        <p class="page-dialog__hint">Иконка показывается перед заголовком. Оставьте пустым, если иконка не нужна.</p>
+    </div>
+
+    <div class="page-dialog__field">
         <label for="pageDialogPath" class="page-dialog__label">Путь</label>
         @if (IsMainPage)
         {
@@ -116,7 +137,8 @@
             {
                 Title = Page.Title,
                 Description = Page.Description,
-                Path = Page.Path
+                Path = Page.Path,
+                Icon = Page.Icon
             };
 
         // При изменении автогенерация пути выключена: он уже задан.
@@ -140,6 +162,9 @@
         _pathTouched = true;
         _model.Path = (args.Value?.ToString() ?? string.Empty).Trim().ToLowerInvariant();
     }
+
+    // «Очистить» сбрасывает иконку в пустое значение: страница показывается без иконки.
+    private void ClearIcon() => _model.Icon = string.Empty;
 
     private async Task SaveAsync()
     {
@@ -186,7 +211,8 @@
                 Id = Page?.Id ?? 0,
                 Title = title,
                 Description = _model.Description.Trim(),
-                Path = path
+                Path = path,
+                Icon = _model.Icon.Trim()
             };
 
             if (IsCreate)
@@ -265,5 +291,8 @@
         public string Description { get; set; } = string.Empty;
 
         public string Path { get; set; } = string.Empty;
+
+        [MaxLength(DomainConstants.PageIconClassMaxLength)]
+        public string Icon { get; set; } = string.Empty;
     }
 }

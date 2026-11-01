@@ -29,6 +29,14 @@
     letter-spacing: 0.02em;
 }
 
+/* Иконка текущей страницы перед заголовком: размер следует за шрифтом заголовка. */
+.dashboard-page-icon {
+    flex-shrink: 0;
+    font-size: clamp(1.55rem, 3.2vw, 2.3rem);
+    line-height: 1;
+    color: var(--text-muted);
+}
+
 .dashboard-header p {
     margin: 0.3rem 0 0;
     color: var(--text-muted);
@@ -75,6 +83,11 @@ html[data-theme="light"] .dashboard-header p {
     color: #3c3d55;
 }
 
+/* В светлой теме иконка страницы — того же тёмного оттенка, что и подзаголовок. */
+html[data-theme="light"] .dashboard-page-icon {
+    color: #3c3d55;
+}
+
 .dashboard-header-actions {
     display: flex;
     flex-wrap: wrap;
@@ -94,5 +107,10 @@ html[data-theme="light"] .dashboard-header p {
 @media (max-width: 640px) {
     .dashboard-header-actions .header-button-label {
         display: none;
+    }
+
+    /* Иконка страницы поменьше, чтобы не вытеснять заголовок. */
+    .dashboard-page-icon {
+        font-size: 1.4rem;
     }
 }

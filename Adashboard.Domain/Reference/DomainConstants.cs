@@ -24,6 +24,9 @@ public static class DomainConstants
     /// <summary>Максимальная длина пути страницы.</summary>
     public const int PagePathMaxLength = 120;
 
+    /// <summary>Максимальная длина CSS-класса иконки страницы (Font Awesome).</summary>
+    public const int PageIconClassMaxLength = 100;
+
     /// <summary>Максимальный размер принимаемого изображения-иконки в мегабайтах.</summary>
     public const int MaxImageMegabytes = 2;
 
