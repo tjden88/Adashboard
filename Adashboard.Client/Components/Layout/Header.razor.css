@@ -142,15 +142,29 @@ html[data-theme="light"] .dashboard-page-icon {
     color: var(--text-main);
 }
 
-/* Кнопка редактирования в шапке видна всегда: при видимом меню она дублирует
-   кнопку бокового меню для удобства. Настройки в шапке видны только при скрытом
-   боковом меню: как только меню включено (на десктопе — развёрнутое, свёрнутое или
-   автосворачиваемое, на мобильных — drawer), окно открывает дубликат в самом меню
-   (см. SideMenu). Класс режима MainLayout ставит на оболочку независимо от ширины
-   экрана. Видимость настроек дополнительно зависит от режима редактирования —
-   это Razor-условие в Header.razor. */
+/* Кнопки редактирования и настроек в шапке видны только при скрытом боковом меню:
+   как только меню включено (на десктопе — развёрнутое, свёрнутое или
+   автосворачиваемое, на мобильных — drawer), режим и настройки открывает
+   дубликат в самом меню (см. SideMenu). Класс режима MainLayout ставит на
+   оболочку независимо от ширины экрана. Видимость настроек дополнительно
+   зависит от режима редактирования — это Razor-условие в Header.razor. */
+.main-shell.shell--menu-expanded .header-edit-toggle,
+.main-shell.shell--menu-auto .header-edit-toggle,
+.main-shell.shell--menu-collapsed .header-edit-toggle,
 .main-shell.shell--menu-expanded .header-settings,
 .main-shell.shell--menu-auto .header-settings,
 .main-shell.shell--menu-collapsed .header-settings {
     display: none;
+}
+
+/* Исключение для кнопки редактирования: в активном режиме на десктопе кнопка
+   («Завершить редактирование») видна всегда, дублируя кнопку бокового меню для
+   удобства. На мобильных (до 900px) остаётся прежнее правило — только при скрытом
+   меню, потому что там дубликат живёт в выдвижном drawer. */
+@media (min-width: 901px) {
+    .main-shell.dashboard-edit-mode.shell--menu-expanded .header-edit-toggle,
+    .main-shell.dashboard-edit-mode.shell--menu-auto .header-edit-toggle,
+    .main-shell.dashboard-edit-mode.shell--menu-collapsed .header-edit-toggle {
+        display: inline-flex;
+    }
 }

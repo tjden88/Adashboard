@@ -49,8 +49,9 @@
         </ul>
 
         <footer class="side-menu-footer">
-            @* Кнопка редактирования: дублирует кнопку шапки, которая видна всегда;
-               при видимом меню переключать режим удобнее отсюда. *@
+            @* Кнопка редактирования: в нормальном режиме шапка прячет свою кнопку при
+               видимом меню (см. Header и Header.razor.css), поэтому вход в режим — здесь.
+               В активном режиме на десктопе в шапке видна дублирующая «Завершить». *@
             <button type="button"
                     class="side-menu-edit-btn @(AppStateService.IsEditMode ? "side-menu-edit-btn--on" : null)"
                     @onclick="ToggleEditMode"
