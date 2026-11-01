@@ -1,0 +1,19 @@
+services:
+  adashboard:
+    build: .
+    image: adashboard:latest
+    container_name: adashboard
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # Пустое значение отключает защиту API: весь API доступен без ключа.
+      # Чтобы включить защиту, задайте свой ключ — не храните секрет в репозитории.
+      ApiKey: ""
+      Logging__LogLevel__Default: Information
+    volumes:
+      # Каталог данных: data.db и uploads. Данные переживают пересоздание контейнера.
+      - adashboard-data:/app/appdata
+
+volumes:
+  adashboard-data:

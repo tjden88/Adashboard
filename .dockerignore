@@ -1,0 +1,23 @@
+# Артефакты сборки и пользовательские данные не попадают в контекст Docker-сборки.
+.git
+.vs
+.idea
+**/bin
+**/obj
+
+# Генерируемые данные приложения: в контейнере каталог данных — volume.
+Adashboard.Server/appdata
+
+# Клиентский интерфейс генерирует Refitter на сборке из openapi/Adashboard.Server.json.
+Adashboard.Client/Generated
+
+# Служебные папки репозитория и тестовые базы данных.
+tasks
+_reference
+*.db
+*.db-shm
+*.db-wal
+*.user
+
+# Не исключаем: openapi/, Adashboard.Client/dashboard-api.refitter, Adashboard.Server/Assets
+# нужны для сборки клиента и наполнения статики стандартными файлами.
