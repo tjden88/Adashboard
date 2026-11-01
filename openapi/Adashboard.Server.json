@@ -1058,6 +1058,9 @@
           }
         }
       },
+      "CardLinkTarget": {
+        "type": "integer"
+      },
       "CardStatusMode": {
         "type": "integer"
       },
@@ -1090,6 +1093,9 @@
           },
           "urlScheme": {
             "$ref": "#/components/schemas/UrlScheme"
+          },
+          "linkTarget": {
+            "$ref": "#/components/schemas/CardLinkTarget"
           },
           "isCustomIcon": {
             "type": "boolean"

@@ -23,7 +23,7 @@
 <a class="dashboard-card"
    data-card-id="@Model.Id"
    href="@Href"
-   target="_blank"
+   target="@Target"
    rel="noopener noreferrer"
    style="--card-bg:@Model.BackgroundColor; --card-icon-color:@Model.GetIconColor(); --card-text-color:@Model.GetTextColor(); --card-span-desktop:@CardSpanDesktop; --card-span-medium:@CardSpanMedium; --card-span-mobile:@CardSpanMobile;"
    aria-label="@AccessibleLabel"
@@ -124,6 +124,9 @@
 
     // Куда ведёт карточка: схема из модели прибавляется к адресу.
     private string Href => Model.UrlScheme.ToSchemeText() + Model.Url;
+
+    // В какой вкладке открывается ссылка: режим задаётся в данных карточки.
+    private string Target => Model.LinkTarget == CardLinkTarget.SameTab ? "_self" : "_blank";
 
     private bool HasCustomImage => Model.IsCustomIcon && !string.IsNullOrWhiteSpace(Model.IconSource);
 

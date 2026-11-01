@@ -72,6 +72,9 @@ namespace Adashboard.Data.Migrations
                     b.Property<bool>("IsWide")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("LinkTarget")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("Position")
                         .HasColumnType("INTEGER");
 

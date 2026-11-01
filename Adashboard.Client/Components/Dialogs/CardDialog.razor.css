@@ -75,8 +75,27 @@
     background: var(--surface-strong);
 }
 
-.card-dialog__url-input {
+/* Способ открытия ссылки — часть поля адреса: кнопка стыкуется справа так же, как схема слева. */
+.card-dialog__target {
+    flex-shrink: 0;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--surface-border);
+    border-left: none;
     border-radius: 0 12px 12px 0;
+    background: var(--surface);
+    color: var(--accent);
+    font-size: 0.9rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.18s ease;
+}
+
+.card-dialog__target:hover {
+    background: var(--surface-strong);
+}
+
+.card-dialog__url-input {
+    border-radius: 0;
 }
 
 .card-dialog__icon-modes {

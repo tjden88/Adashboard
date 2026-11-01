@@ -42,6 +42,11 @@ public sealed class DashboardCard
     public UrlScheme UrlScheme { get; set; } = UrlScheme.Http;
 
     /// <summary>
+    /// Способ открытия ссылки: в новой вкладке (по умолчанию) или в текущей.
+    /// </summary>
+    public CardLinkTarget LinkTarget { get; set; } = CardLinkTarget.NewTab;
+
+    /// <summary>
     /// Признак того, что изображение-иконка загружено пользователем и хранится в uploads.
     /// Иначе является стандартной иконкой Font Awesome.
     /// </summary>

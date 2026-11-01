@@ -36,6 +36,13 @@
                        autocomplete="off"
                        placeholder="example.com"
                        @bind-Value="_model.Url" />
+            <button type="button"
+                    class="card-dialog__target"
+                    @onclick="ToggleLinkTarget"
+                    title="@LinkTargetLabel"
+                    aria-label="@LinkTargetLabel">
+                <i class="fa-solid @LinkTargetIcon" aria-hidden="true"></i>
+            </button>
         </div>
         <ValidationMessage For="() => _model.Url" />
     </div>
@@ -304,6 +311,25 @@
             _module = null;
         }
     }
+
+    // Подсказка и иконка показывают текущий способ открытия ссылки.
+    private string LinkTargetLabel => _model.LinkTarget switch
+    {
+        CardLinkTarget.SameTab => "Текущая вкладка",
+        _ => "Новая вкладка"
+    };
+
+    private string LinkTargetIcon => _model.LinkTarget switch
+    {
+        CardLinkTarget.SameTab => "fa-window-restore",
+        _ => "fa-arrow-up-right-from-square"
+    };
+
+    // Переключатель способа открытия: кликом режим меняется циклично.
+    private void ToggleLinkTarget() =>
+        _model.LinkTarget = _model.LinkTarget == CardLinkTarget.NewTab
+            ? CardLinkTarget.SameTab
+            : CardLinkTarget.NewTab;
 
     private void CycleScheme()
     {
@@ -610,6 +636,7 @@
             card.Title = _model.Title.Trim();
             card.Url = url;
             card.UrlScheme = scheme;
+            card.LinkTarget = _model.LinkTarget;
             card.BackgroundColor = color;
             card.StatusMode = _model.StatusMode;
             card.IsWide = _model.IsWide;
@@ -778,6 +805,8 @@
 
         public UrlScheme Scheme { get; set; } = UrlScheme.Https;
 
+        public CardLinkTarget LinkTarget { get; set; } = CardLinkTarget.NewTab;
+
         public string Color { get; set; } = DefaultColor;
 
         public string Icon { get; set; } = DefaultIcon;
@@ -802,6 +831,7 @@
                 Title = card.Title,
                 Url = url,
                 Scheme = embeddedScheme != UrlScheme.None ? embeddedScheme : card.UrlScheme,
+                LinkTarget = card.LinkTarget,
                 Color = string.IsNullOrWhiteSpace(card.BackgroundColor) ? DefaultColor : card.BackgroundColor,
                 StatusMode = card.StatusMode,
                 IsWide = card.IsWide,
