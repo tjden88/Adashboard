@@ -1,0 +1,14 @@
+name: Сборка dev-образа
+
+on:
+  push:
+    branches:
+      - '**'
+
+jobs:
+  build:
+    uses: ./.gitea/workflows/docker-build.yml
+    with:
+      image_tag: dev
+      push_latest: false
+    secrets: inherit

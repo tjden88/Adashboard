@@ -1,0 +1,14 @@
+name: Сборка релиза
+
+on:
+  push:
+    tags:
+      - '**'
+
+jobs:
+  build:
+    uses: ./.gitea/workflows/docker-build.yml
+    with:
+      image_tag: ${{ gitea.ref_name }}
+      push_latest: true
+    secrets: inherit
