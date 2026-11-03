@@ -11,9 +11,10 @@
 
     Карточки приходят параметром: read-модель API отдаёт их плоским списком, а не внутри категории.
 
-    Запросы к API выполняют диалоги (создание, изменение карточки и категории) и само удаление;
-    об изменениях категория сообщает родителю событиями Saved/Deleted/CardSaved/CardDeleted:
-    списки категорий и карточек ведёт модель страницы, поэтому обновляет их родитель.
+    Запросы к API выполняют диалоги (создание, изменение карточки и категории), дублирование
+    карточки и само удаление; об изменениях категория сообщает родителю событиями
+    Saved/Deleted/CardSaved/CardDeleted/CardDuplicated: списки категорий и карточек ведёт модель
+    страницы, поэтому обновляет их родитель.
 
     Перетаскивание за маркер и изменение ширины берёт на себя модуль js/dashboard.js;
     сами ручки и кнопки действий видны только в режиме редактирования.
@@ -69,7 +70,8 @@
                       DesktopColumns="DesktopWidth"
                       MediumColumns="MediumWidth"
                       MobileColumns="MobileWidth"
-                      EditRequested="OpenCardDialog" />
+                      EditRequested="OpenCardDialog"
+                      DuplicateRequested="DuplicateCardAsync" />
             }
         </div>
     </div>
@@ -159,6 +161,12 @@
     [Parameter, EditorRequired]
     public EventCallback<DashboardCard> CardDeleted { get; set; }
 
+    /// <summary>
+    /// Уведомление о продублированной карточке: копию создаёт категория, порядок списка обновляет родитель.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback<DashboardCard> CardDuplicated { get; set; }
+
     // В режиме редактирования переход по ссылке отключается: карточка не должна уводить
     // со страницы, пока с ней работают.
     private bool IsEditMode => AppStateService.IsEditMode;
@@ -188,9 +196,9 @@
     private int NextCardPosition => Cards.Count > 0 ? Cards.Max(x => x.Position) + 1 : 0;
 
     // ---------------------------------------------------------------
-    // Карточки: открытие диалога и удаление.
+    // Карточки: открытие диалога, дублирование и удаление.
     // Создание и изменение выполняет сам диалог карточки, здесь мы только открываем его
-    // и сообщаем родителю результат.
+    // и сообщаем родителю результат; дублирование и удаление делает категория.
     // ---------------------------------------------------------------
 
     private void OpenAddCardDialog()
@@ -207,6 +215,31 @@
 
     // Карточка сохранена диалогом: передаём её родителю, а окно закрывает сам диалог.
     private Task OnCardSavedAsync(DashboardCard card) => CardSaved.InvokeAsync(card);
+
+    // Копию создаёт сама категория одним быстрым действием: здесь нет окна подтверждения,
+    // поэтому сразу сообщаем родителю результат — положение карточек пересчитывает его список.
+    private async Task DuplicateCardAsync(DashboardCard card)
+    {
+        Logger.LogDebug("Дублирование карточки dashboard {CardId}.", card.Id);
+
+        try
+        {
+            var response = await DashboardApi.DuplicateCardAsync(card.Id);
+            if (!response.IsSuccessStatusCode || response.Content is null)
+            {
+                Logger.LogWarning("Дублирование карточки {CardId} завершилось ошибкой API. Код: {StatusCode}.", card.Id, (int?)response.StatusCode);
+                return;
+            }
+
+            Logger.LogInformation("Карточка dashboard продублирована. Идентификатор копии: {CopyCardId}.", response.Content.Id);
+
+            await CardDuplicated.InvokeAsync(response.Content);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Не удалось продублировать карточку dashboard {CardId}.", card.Id);
+        }
+    }
 
     // Из диалога карточки запрошено удаление: закрываем его и спрашиваем подтверждение.
     private void RequestCardDelete(DashboardCard card)

@@ -18,42 +18,64 @@
     В режиме редактирования переход по ссылке отключён, а клик по карточке открывает её диалог:
     об этом карточка сообщает родителю событием EditRequested. Оверлей с карандашом присутствует
     всегда, а видимостью управляет CSS (только режим редактирования и только наведение или фокус).
+    Кнопка дублирования добавляет копию карточки в ту же категорию одним действием: карточка
+    сообщает об этом родителю событием DuplicateRequested, запрос к API выполняет тот.
+    Кнопку рисуем только в режиме редактирования — вне его она не должна попадать в порядок
+    табуляции.
 
     data-card-title держит заголовок целиком для CSS-подсказки над карточкой: сам заголовок
     в .card-title обрезается, поэтому длинное имя без подсказки не прочитать. Подсказка — только
     CSS (см. Card.razor.css), JavaScript и перерисовка не нужны.
+
+    Карточка — контейнер, а не ссылка: настоящую кнопку нельзя поставить внутри ссылки, поэтому
+    ссылка занимает всю область карточки, а кнопка дублирования лежит поверх неё (см. Card.razor.css).
+    Модуль раскладки и перетаскивания читает data-card-id и span-переменные с корня карточки,
+    поэтому они остаются на контейнере.
 *@
 
-<a class="dashboard-card"
-   data-card-id="@Model.Id"
-   data-card-title="@Model.Title"
-   href="@Href"
-   target="@Target"
-   rel="noopener noreferrer"
-   style="--card-bg:@Model.BackgroundColor; --card-icon-color:@Model.GetIconColor(); --card-text-color:@Model.GetTextColor(); --card-span-desktop:@CardSpanDesktop; --card-span-medium:@CardSpanMedium; --card-span-mobile:@CardSpanMobile;"
-   aria-label="@AccessibleLabel"
-   @onclick="OnClickAsync"
-   @onclick:preventDefault="@IsEditMode">
-    <span class="card-title">@Model.Title</span>
-    <span class="card-icon" aria-hidden="true">
-        @if (HasCustomImage && !_imageFailed)
+<div class="dashboard-card"
+     data-card-id="@Model.Id"
+     data-card-title="@Model.Title"
+     style="--card-bg:@Model.BackgroundColor; --card-icon-color:@Model.GetIconColor(); --card-text-color:@Model.GetTextColor(); --card-span-desktop:@CardSpanDesktop; --card-span-medium:@CardSpanMedium; --card-span-mobile:@CardSpanMobile;">
+    <a class="dashboard-card__link"
+       href="@Href"
+       target="@Target"
+       rel="noopener noreferrer"
+       aria-label="@AccessibleLabel"
+       @onclick="OnClickAsync"
+       @onclick:preventDefault="@IsEditMode">
+        <span class="card-title">@Model.Title</span>
+        <span class="card-icon" aria-hidden="true">
+            @if (HasCustomImage && !_imageFailed)
+            {
+                @* Изображение не загрузилось — показываем встроенную иконку (см. OnImageError). *@
+                <img class="card-icon__image" src="@ImageSource" alt="" loading="lazy" @onerror="OnImageError" />
+            }
+            else
+            {
+                <i class="@IconClass"></i>
+            }
+        </span>
+        @if (IsStatusIndicatorVisible)
         {
-            @* Изображение не загрузилось — показываем встроенную иконку (см. OnImageError). *@
-            <img class="card-icon__image" src="@ImageSource" alt="" loading="lazy" @onerror="OnImageError" />
+            <span class="status-dot @StatusClass" role="img" aria-label="@StatusLabel" title="@StatusTitle"></span>
         }
-        else
-        {
-            <i class="@IconClass"></i>
-        }
-    </span>
-    @if (IsStatusIndicatorVisible)
+        <span class="card-edit-overlay" aria-hidden="true">
+            <i class="fa-solid fa-pen-nib"></i>
+        </span>
+    </a>
+
+    @if (IsEditMode)
     {
-        <span class="status-dot @StatusClass" role="img" aria-label="@StatusLabel" title="@StatusTitle"></span>
+        <button type="button"
+                class="card-duplicate"
+                @onclick="OnDuplicateClickAsync"
+                aria-label="Дублировать карточку"
+                title="Дублировать">
+            <i class="fa-solid fa-clone" aria-hidden="true"></i>
+        </button>
     }
-    <span class="card-edit-overlay" aria-hidden="true">
-        <i class="fa-solid fa-pen-nib"></i>
-    </span>
-</a>
+</div>
 
 @code {
     // Разводим карточки по времени: без задержки все проверки стартуют одним залпом после загрузки.
@@ -115,6 +137,12 @@
     [Parameter, EditorRequired]
     public EventCallback<DashboardCard> EditRequested { get; set; }
 
+    /// <summary>
+    /// Запрос на дублирование карточки: запрос к API и обновление списка выполняет родитель.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback<DashboardCard> DuplicateRequested { get; set; }
+
     // В режиме редактирования переход по ссылке отключается: карточка не должна уводить
     // со страницы, пока с ней работают.
     private bool IsEditMode => AppStateService.IsEditMode;
@@ -172,6 +200,10 @@
 
     // Клик вне режима редактирования оставляем браузеру: он откроет ссылку в новой вкладке.
     private Task OnClickAsync() => IsEditMode ? EditRequested.InvokeAsync(Model) : Task.CompletedTask;
+
+    // Кнопка дублирования лежит поверх ссылки, а не внутри неё, поэтому клик по ней не открывает
+    // диалог карточки: запрос к API выполняет родитель.
+    private Task OnDuplicateClickAsync() => DuplicateRequested.InvokeAsync(Model);
 
     // Изображение-иконка не открылась: переходим на запасную встроенную иконку.
     private void OnImageError() => _imageFailed = true;

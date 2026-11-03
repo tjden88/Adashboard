@@ -81,7 +81,8 @@
                       Saved="OnCategorySavedAsync"
                       Deleted="OnCategoryDeletedAsync"
                       CardSaved="OnCardSavedAsync"
-                      CardDeleted="OnCardDeletedAsync" />
+                      CardDeleted="OnCardDeletedAsync"
+                      CardDuplicated="OnCardDuplicatedAsync" />
         }
     </div>
 </section>
@@ -179,9 +180,9 @@
 
     // ---------------------------------------------------------------
     // Уведомления от категорий.
-    // Изменение и удаление категории, а также сохранение и удаление карточек выполняют сами
-    // категории со своими диалогами: здесь мы лишь поддерживаем общие списки в актуальном
-    // состоянии — их владелец модель страницы.
+    // Изменение и удаление категории, создание, сохранение, дублирование и удаление карточек
+    // выполняют сами категории со своими диалогами: здесь мы лишь поддерживаем общие списки
+    // в актуальном состоянии — их владелец модель страницы.
     // ---------------------------------------------------------------
 
     // Категория изменена в своём компоненте: заменяем её в списке. Категорию могли перенести
@@ -228,6 +229,21 @@
         {
             Model.Cards.Add(card);
         }
+
+        return InvokeAsync(StateHasChanged);
+    }
+
+    // Карточка продублирована: копия встаёт сразу после исходной, поэтому положение
+    // последующих карточек той же категории сдвигается на одну — без этого список разошёлся бы
+    // с порядком, который применил сервер, и копия показалась бы в конце категории.
+    private Task OnCardDuplicatedAsync(DashboardCard copy)
+    {
+        foreach (var card in Model.Cards.Where(x => x.DashboardCategoryId == copy.DashboardCategoryId && x.Id != copy.Id && x.Position >= copy.Position))
+        {
+            card.Position++;
+        }
+
+        Model.Cards.Add(copy);
 
         return InvokeAsync(StateHasChanged);
     }

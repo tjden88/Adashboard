@@ -65,6 +65,25 @@ public class CardsController(PageService pageService, ILogger<CardsController> l
     }
 
     /// <summary>
+    /// Создаёт копию карточки в той же категории сразу после исходной.
+    /// </summary>
+    [HttpPost("{id:int}/duplicate", Name = "DuplicateCard")]
+    [ProducesResponseType<DashboardCard>(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<DashboardCard>> Duplicate(int id, CancellationToken cancellationToken)
+    {
+        var result = await pageService.DuplicateCardAsync(id, cancellationToken);
+        if (!result.IsSuccess)
+        {
+            // Отказ здесь только один: карточки нет.
+            return NotFound(result.Error);
+        }
+
+        var created = result.Value;
+        return Created($"/api/cards/{created.Id}", created);
+    }
+
+    /// <summary>
     /// Удаляет карточку.
     /// </summary>
     [HttpDelete("{id:int}", Name = "DeleteCard")]

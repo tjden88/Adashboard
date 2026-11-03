@@ -748,6 +748,13 @@ function onPointerDown(event) {
         }
     }
 
+    // Кнопку дублирования не тянем: нажатие на неё — одиночное действие, а не начало переноса
+    // карточки. Иначе долгое нажатие пальцем по кнопке запустило бы перетаскивание уже удалённой
+    // карточки.
+    if (event.target.closest(".card-duplicate")) {
+        return;
+    }
+
     const card = event.target.closest(".dashboard-card");
     if (card) {
         const container = card.closest(".category-cards");

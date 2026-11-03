@@ -1,14 +1,14 @@
 /* Карточка-ссылка. Живёт в сетке карточек категории, поэтому её ширина задана span-переменной,
-   а высота одинакова во всех категориях (эталонный квадрат, см. Category.razor.css). */
+   а высота одинакова во всех категориях (эталонный квадрат, см. Category.razor.css).
+
+   Карточка — контейнер, а не ссылка: настоящую кнопку нельзя поставить внутри ссылки, поэтому
+   ссылкой является вся область карточки (.dashboard-card__link), а кнопка дублирования лежит
+   поверх неё. data-card-id, data-card-title и span-переменные остаются на контейнере: их читают
+   модуль js/dashboard.js и подсказка заголовка. */
 
 .dashboard-card {
     --card-span-current: var(--card-span-desktop, 1);
     grid-column: span var(--card-span-current);
-    display: grid;
-    grid-template-rows: min-content 1fr;
-    align-items: center;
-    justify-items: center;
-    gap: 0.2rem;
     width: 100%;
     /* Высота карточки — эталонный квадрат категории ширины 2, поэтому она одинакова во всех
        категориях. Ширина же заполняет категорию и меняется вместе с её шириной. В панели
@@ -25,7 +25,6 @@
     container-type: inline-size;
     border-radius: 14px;
     padding: 0.35rem 0.4rem;
-    text-decoration: none;
     background-color: var(--card-bg, #1e40af);
     color: var(--card-text-color, #ffffff);
     position: relative;
@@ -36,10 +35,37 @@
     transition: box-shadow 0.18s ease;
 }
 
+/* Ссылка занимает всю область карточки: переход работает по всей её площади, и раскладка
+   содержания (заголовок, иконка, индикатор) перешла на ссылку с карточки. Отступы наследует
+   от карточки, поэтому адаптивные paddings остаются на ней. */
+.dashboard-card__link {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-rows: min-content 1fr;
+    align-items: center;
+    justify-items: center;
+    gap: 0.2rem;
+    padding: inherit;
+    border-radius: inherit;
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+/* В режиме редактирования переносится вся карточка, а ссылка — это её область: «захват»
+   и подавление системного меню по долгому нажатию наследует от карточки (см. app.css). */
+.main-shell.dashboard-edit-mode .dashboard-card__link {
+    cursor: inherit;
+    -webkit-touch-callout: inherit;
+}
+
 .dashboard-card:hover,
-.dashboard-card:focus-visible {
+.dashboard-card:has(:focus-visible) {
     /* Подсказка показывается тем же признаком, что и подсветка карточки: наведение и
-       клавиатурный фокус. Переменную читают псевдоэлементы подсказки. */
+       клавиатурный фокус. Переменную читают псевдоэлементы подсказки. Карточка сама фокус
+       не принимает — фокус у ссылки или кнопки внутри неё, поэтому проверяем
+       :focus-visible внутри контейнера. */
     --tip-show: 1;
     box-shadow:
         inset 0 0 0 2px color-mix(in srgb, var(--text-main) 75%, transparent),
@@ -215,14 +241,14 @@
    там при наведении показывается оверлей правки. */
 .main-shell:not(.dashboard-edit-mode) .dashboard-card:hover .card-icon i,
 .main-shell:not(.dashboard-edit-mode) .dashboard-card:hover .card-icon__image,
-.main-shell:not(.dashboard-edit-mode) .dashboard-card:focus-visible .card-icon i,
-.main-shell:not(.dashboard-edit-mode) .dashboard-card:focus-visible .card-icon__image {
+.main-shell:not(.dashboard-edit-mode) .dashboard-card:has(:focus-visible) .card-icon i,
+.main-shell:not(.dashboard-edit-mode) .dashboard-card:has(:focus-visible) .card-icon__image {
     transform: scale(1.12);
 }
 
 /* Полупрозрачный оверлей редактирования: затемнение карточки и иконка карандаша.
    По умолчанию скрыт; показывается только в режиме редактирования при наведении или фокусе.
-   pointer-events: none, чтобы клик по-прежнему доходил до самой карточки. */
+   pointer-events: none, чтобы клик по-прежнему доходил до ссылки, которой является карточка. */
 .card-edit-overlay {
     position: absolute;
     inset: 0;
@@ -236,7 +262,7 @@
 }
 
 .main-shell.dashboard-edit-mode .dashboard-card:hover .card-edit-overlay,
-.main-shell.dashboard-edit-mode .dashboard-card:focus-visible .card-edit-overlay {
+.main-shell.dashboard-edit-mode .dashboard-card:has(:focus-visible) .card-edit-overlay {
     opacity: 1;
 }
 
@@ -246,6 +272,54 @@
     font-size: calc((100cqw - (var(--card-span-current) - 1) * var(--cards-gap, 0.8rem)) / var(--card-span-current) * 0.42);
     line-height: 1;
     color: #ffffff;
+}
+
+/* Кнопка дублирования: настоящую кнопку нельзя поставить внутрь ссылки, поэтому она лежит поверх
+   неё в углу карточки. z-index 3 — выше оверлея (1) и ссылки, но ниже подсказки заголовка (10)
+   по порядку слоёв проекта: так клик по кнопке не открывает диалог карточки.
+   Как и оверлей карандаша, видна только в режиме редактирования при наведении или фокусе. */
+.card-duplicate {
+    position: absolute;
+    top: 0.3rem;
+    right: 0.3rem;
+    z-index: 3;
+    display: grid;
+    place-items: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 10px;
+    background: rgba(15, 15, 25, 0.45);
+    color: #ffffff;
+    font-size: 0.78rem;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.18s ease, background-color 0.18s ease;
+}
+
+.card-duplicate:hover {
+    background: rgba(15, 15, 25, 0.68);
+}
+
+.main-shell.dashboard-edit-mode .dashboard-card:hover .card-duplicate,
+.main-shell.dashboard-edit-mode .card-duplicate:focus-visible {
+    opacity: 1;
+}
+
+/* Заметный фокус на тёмной кнопке: белое кольцо по той же логике, что и подсветка карточки. */
+.card-duplicate:focus-visible {
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.8);
+    outline: none;
+}
+
+/* На тач-устройстве наведения нет, поэтому в режиме редактирования кнопка показана постоянно:
+   иначе её нельзя было бы нажать. */
+@media (pointer: coarse) {
+    .main-shell.dashboard-edit-mode .card-duplicate {
+        opacity: 1;
+    }
 }
 
 @media (max-width: 1200px) and (min-width: 901px) {

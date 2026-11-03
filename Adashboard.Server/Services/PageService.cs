@@ -474,6 +474,40 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
     }
 
     /// <summary>
+    /// Создаёт копию карточки в той же категории: копия встаёт сразу после исходной,
+    /// поэтому положение последующих карточек категории сдвигается на одну.
+    /// </summary>
+    public async Task<OperationResult<DashboardCard>> DuplicateCardAsync(int id, CancellationToken cancellationToken = default)
+    {
+        logger.LogDebug("Начато дублирование карточки {CardId}.", id);
+
+        var source = await db.Cards.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (source is null)
+        {
+            logger.LogWarning("Дублирование карточки {CardId} отклонено: карточка не найдена.", id);
+            return Result.Failure("Карточка не найдена.").As<DashboardCard>();
+        }
+
+        // Сдвиг делаем до добавления копии: иначе обновление затронуло бы и её саму
+        // (копия получает положение сразу после исходной).
+        await db.Cards
+            .Where(x => x.DashboardCategoryId == source.DashboardCategoryId && x.Position > source.Position)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Position, p => p.Position + 1), cancellationToken);
+
+        var copy = source.Adapt<DashboardCardEntity>();
+        copy.Id = 0; // Идентификатор назначает EF Core
+        copy.Position = source.Position + 1;
+
+        // Файл изображения-иконки назван по идентификатору карточки, поэтому копия ссылается на
+        // файл исходной: новый файл не создаём.
+        db.Cards.Add(copy);
+        await db.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Карточка {CardId} продублирована. Идентификатор копии: {CopyCardId}.", id, copy.Id);
+        return copy.Adapt<DashboardCard>();
+    }
+
+    /// <summary>
     /// Удаляет карточку.
     /// </summary>
     public async Task<OperationResult> DeleteCardAsync(int id, CancellationToken cancellationToken = default)
