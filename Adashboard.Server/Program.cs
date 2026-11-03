@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using Adashboard.Data;
 using Adashboard.Domain.Reference;
 using Adashboard.Server.Auth;
@@ -122,55 +121,6 @@ if (app.Environment.IsDevelopment())
     // и описания API, построенная на сгенерированном OpenAPI-документе.
     app.MapScalarApiReference();
 }
-
-
-// Кэширование статики клиента. У файлов Blazor в имени есть хеш сборки (10 символов
-// латиницы и цифр), поэтому их содержимое уже никогда не меняется: такие файлы можно
-// кэшировать навсегда, и повторные открытия приложения не будут скачивать сборки заново.
-// Оболочку же (index.html, service worker) кэшировать нельзя — после обновления браузер
-// должен получить новую версию. Работает при любом адресе и протоколе: в отличие от
-// service worker, обычному HTTP-кэшу не нужен защищённый контекст.
-var fingerprintedAssetPattern = new Regex(@"\.[a-z0-9]{10}\.(?:wasm|js)$", RegexOptions.CultureInvariant | RegexOptions.Compiled);
-
-app.Use((context, next) =>
-{
-    if (!HttpMethods.IsGet(context.Request.Method) && !HttpMethods.IsHead(context.Request.Method))
-    {
-        return next(context);
-    }
-
-    // Путь запоминаем до следующего слоя: для файлов _framework он подменяется
-    // на .br/.gz, а решение о кэшировании принимается по исходному имени.
-    var requestPath = context.Request.Path;
-
-    // Заголовки ставим в OnStarting: UseBlazorFrameworkFiles выставляет свой no-cache
-    // позже, и перекрыть его можно только на старте ответа.
-    context.Response.OnStarting(() =>
-    {
-        var headers = context.Response.Headers;
-
-        if (requestPath.StartsWithSegments("/_framework"))
-        {
-            headers.CacheControl = fingerprintedAssetPattern.IsMatch(requestPath.Value ?? string.Empty)
-                ? "public, max-age=31536000, immutable"
-                : "no-cache";
-        }
-        else if (requestPath.StartsWithSegments(DomainConstants.UploadsUrl + "/card-icons"))
-        {
-            // Имя файла содержит хеш содержимого (см. ImageIconService).
-            headers.CacheControl = "public, max-age=31536000, immutable";
-        }
-        else if (requestPath.Value?.Contains("service-worker", StringComparison.OrdinalIgnoreCase) == true
-            || (context.Response.ContentType?.StartsWith("text/html", StringComparison.OrdinalIgnoreCase) ?? false))
-        {
-            headers.CacheControl = "no-cache";
-        }
-
-        return Task.CompletedTask;
-    });
-
-    return next(context);
-});
 
 
 // Отдаём WASM-клиент: UseBlazorFrameworkFiles обслуживает _framework (blazor.webassembly.js,
