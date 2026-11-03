@@ -15,6 +15,17 @@ public class CategoriesController(
     ILogger<CategoriesController> logger) : ControllerBase
 {
     /// <summary>
+    /// Возвращает все категории dashboard: клиент показывает их с группировкой по страницам.
+    /// </summary>
+    [HttpGet(Name = "GetCategories")]
+    [ProducesResponseType<IReadOnlyList<DashboardCategory>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<DashboardCategory>>> GetCategories(CancellationToken cancellationToken)
+    {
+        var categories = await pageService.GetCategoriesAsync(cancellationToken);
+        return Ok(categories);
+    }
+
+    /// <summary>
     /// Создаёт новую категорию на указанной странице.
     /// </summary>
     [HttpPost(Name = "CreateCategory")]

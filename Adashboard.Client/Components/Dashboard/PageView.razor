@@ -238,8 +238,18 @@
     }
 
     // Карточка создана или изменена: заменяем её по идентификатору, новую добавляем в конец списка.
+    // Карточку могли перенести в категорию другой страницы — тогда она перестаёт относиться
+    // к текущей, поэтому убираем её из модели: её покажет та страница.
+    // Положение перенесённой карточки в конце категории считает сервер, поэтому оно приходит
+    // в ответе API и не требует пересчёта здесь.
     private Task OnCardSavedAsync(DashboardCard card)
     {
+        if (!Model.Categories.Any(x => x.Id == card.DashboardCategoryId))
+        {
+            Model.Cards.RemoveAll(x => x.Id == card.Id);
+            return InvokeAsync(StateHasChanged);
+        }
+
         var index = Model.Cards.FindIndex(x => x.Id == card.Id);
         if (index >= 0)
         {

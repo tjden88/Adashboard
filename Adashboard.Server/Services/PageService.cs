@@ -263,6 +263,25 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
     }
 
     /// <summary>
+    /// Возвращает все категории dashboard плоским списком с идентификатором страницы: клиент сам
+    /// группирует их по страницам, поэтому порядок задаёт страница и порядок категории внутри неё.
+    /// </summary>
+    public async Task<List<DashboardCategory>> GetCategoriesAsync(CancellationToken cancellationToken = default)
+    {
+        logger.LogDebug("Начата загрузка списка категорий dashboard.");
+
+        var categories = await db.Categories
+            .AsNoTracking()
+            .OrderBy(x => x.DashboardPageId)
+            .ThenBy(x => x.Order)
+            .ProjectToType<DashboardCategory>()
+            .ToListAsync(cancellationToken);
+
+        logger.LogDebug("Загружено категорий dashboard: {Count}.", categories.Count);
+        return categories;
+    }
+
+    /// <summary>
     /// Создаёт новую категорию на указанной странице.
     /// </summary>
     public async Task<OperationResult<DashboardCategory>> CreateCategoryAsync(DashboardCategory category, CancellationToken cancellationToken = default)
@@ -483,7 +502,8 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
     }
 
     /// <summary>
-    /// Изменяет существующую карточку, при необходимости заменяя или удаляя изображение-иконку.
+    /// Изменяет существующую карточку, в том числе переносит её в другую категорию, при
+    /// необходимости заменяя или удаляя изображение-иконку.
     /// </summary>
     public async Task<OperationResult<DashboardCard>> UpdateCardAsync(
         DashboardCard card,
@@ -499,6 +519,11 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
             return Result.Failure("Карточка не найдена.").As<DashboardCard>();
         }
 
+        // Категория до изменения нужна, чтобы отличить перенос карточки в другую категорию
+        // от обычного сохранения: положение задаёт целевая категория, а прежние координаты
+        // в старой категории теряют смысл.
+        var previousCategoryId = entity.DashboardCategoryId;
+
         card.Adapt(entity);
 
         // Проверим существование категории.
@@ -508,6 +533,19 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
         {
             logger.LogWarning("Изменение карточки {CardId} отклонено: категория {CategoryId} не найдена.", card.Id, entity.DashboardCategoryId);
             return Result.Failure("Категория не найдена.").As<DashboardCard>();
+        }
+
+        if (entity.DashboardCategoryId != previousCategoryId)
+        {
+            // Перенесённая карточка встаёт в конец целевой категории — так же, как новая.
+            // Карточка в запросе ещё относится к старой категории, поэтому максимум считаем
+            // только по карточкам целевой.
+            var lastPosition = await db.Cards
+                .Where(x => x.DashboardCategoryId == entity.DashboardCategoryId)
+                .MaxAsync(x => (int?)x.Position, cancellationToken);
+
+            entity.Position = (lastPosition ?? -1) + 1;
+            logger.LogInformation("Карточка {CardId} перенесена в категорию {CategoryId}. Положение: {Position}.", card.Id, entity.DashboardCategoryId, entity.Position);
         }
 
         // Новое изображение заменяет прежний файл иконки, отказ от пользовательской иконки — удаляет его.

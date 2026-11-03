@@ -15,6 +15,12 @@
     При отказе окно остаётся открытым с понятным текстом ошибки.
 
     Удаление выполняет Category: диалог только сообщает о запросе, а подтверждение спрашивает родитель.
+
+    Селектор категории активен только при изменении: новую карточку перенести нельзя, она
+    добавляется в категорию, из которой открыт диалог. Список категорий диалог берёт с сервера,
+    потому что клиент знает категории только текущей страницы, а перенос возможен в категорию
+    другой страницы. Положение после переноса считает сервер — карточка встаёт в конец
+    целевой категории, и итоговое значение приходит в ответе API.
 *@
 
 <EditForm Model="_model" OnValidSubmit="SaveAsync" class="card-dialog">
@@ -188,6 +194,45 @@
         </div>
     </div>
 
+    <div class="card-dialog__field">
+        <label for="cardDialogCategory" class="card-dialog__label">Категория</label>
+        <InputSelect id="cardDialogCategory" class="form-select" disabled="@(Card is null)" @bind-Value="_model.CategoryId">
+            @if (CategoryGroups.Count == 0)
+            {
+                @* Список категорий не загружен: перенос недоступен, остаётся текущая категория. *@
+                <option value="@_model.CategoryId">@CurrentCategoryLabel</option>
+            }
+            else
+            {
+                @foreach (var group in CategoryGroups)
+                {
+                    <optgroup label="@group.Page.DisplayLabel()">
+                        @foreach (var category in group.Categories)
+                        {
+                            <option value="@category.Id">@category.Title</option>
+                        }
+                    </optgroup>
+                }
+            }
+        </InputSelect>
+
+        <p class="card-dialog__hint">
+            @if (Card is null)
+            {
+                <text>Новую карточку перенести нельзя: она добавляется в категорию, из которой открыт диалог. Перенос появится после сохранения.</text>
+            }
+            else
+            {
+                <text>Можно перенести карточку в любую категорию, в том числе на другой странице. Перенесённая карточка встаёт в конец категории.</text>
+            }
+        </p>
+
+        @if (_categoriesError is not null)
+        {
+            <p class="card-dialog__error" role="alert">@_categoriesError</p>
+        }
+    </div>
+
     @if (_error is not null)
     {
         <p class="card-dialog__error" role="alert">@_error</p>
@@ -223,6 +268,7 @@
     private CardEditModel _model = new();
     private string? _error;
     private string? _imageError;
+    private string? _categoriesError;
     private bool _isSaving;
     private bool _isFetchingTitle;
     private string? _titleError;
@@ -232,8 +278,13 @@
     private byte[]? _uploadedBytes;
     private string? _uploadedPreview;
 
+    // Категории всех страниц для селектора: модель страницы содержит только категории текущей
+    // страницы, поэтому список берём с сервера — он нужен только при изменении карточки.
+    private List<DashboardCategory> _categories = [];
+
     private readonly CancellationTokenSource _titleLookupCts = new();
     private readonly CancellationTokenSource _iconLookupCts = new();
+    private readonly CancellationTokenSource _categoriesCts = new();
 
     private IJSObjectReference? _module;
     private DotNetObjectReference<CardDialog>? _selfRef;
@@ -249,10 +300,17 @@
     public DashboardCard? Card { get; set; }
 
     /// <summary>
-    /// Идентификатор категории, в которую добавляется новая карточка.
+    /// Категория, из которой открыт диалог: новая карточка добавляется в неё, при изменении —
+    /// это текущая категория карточки (она же остаётся, если список категорий не загружен).
     /// </summary>
     [Parameter]
-    public int CategoryId { get; set; }
+    public DashboardCategory? Category { get; set; }
+
+    /// <summary>
+    /// Список всех страниц: нужен селектору категории, сгруппированному по страницам.
+    /// </summary>
+    [Parameter]
+    public IReadOnlyList<DashboardPage> Pages { get; set; } = [];
 
     /// <summary>
     /// Порядковый номер новой карточки в категории.
@@ -284,11 +342,68 @@
     private string? PreviewSource => _uploadedPreview
         ?? (string.IsNullOrWhiteSpace(_model.ExistingImagePath) ? null : ApiOptions.ResolveUploadPath(_model.ExistingImagePath));
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         _model = Card is null
-            ? new CardEditModel { CategoryId = CategoryId, Position = Position }
+            ? new CardEditModel { CategoryId = Category?.Id ?? 0, Position = Position }
             : CardEditModel.FromCard(Card);
+
+        // Новую карточку перенести нельзя: она добавляется в категорию, из которой открыт диалог,
+        // поэтому полный список категорий нужен только при изменении.
+        if (Card is not null)
+        {
+            await LoadCategoriesAsync();
+        }
+    }
+
+    // Опции селектора категории: при создании — только категория, из которой открыт диалог,
+    // при изменении — категории всех страниц, полученные с сервера.
+    private List<DashboardCategory> CategoryOptions => Card is not null
+        ? _categories
+        : Category is null ? [] : [Category];
+
+    // Группы селектора: категории постраницно, порядок страниц — как в меню,
+    // внутри страницы — порядок самой категории.
+    private List<CategoryGroup> CategoryGroups => Pages
+        .Select(page => new CategoryGroup(page, CategoryOptions.Where(x => x.DashboardPageId == page.Id).OrderBy(x => x.Order).ToList()))
+        .Where(x => x.Categories.Count > 0)
+        .ToList();
+
+    // Подпись текущей категории, когда список не загружен: перенос недоступен, но карточку
+    // всё равно можно сохранить в прежней категории.
+    private string CurrentCategoryLabel => Category?.Title ?? "Текущая категория";
+
+    // Группа селектора: страница и её категории.
+    private sealed record CategoryGroup(DashboardPage Page, IReadOnlyList<DashboardCategory> Categories);
+
+    // Категории всех страниц: модель страницы знает только категории текущей, а перенос возможен
+    // в категорию другой страницы, поэтому список приходит из API при открытии диалога изменения.
+    private async Task LoadCategoriesAsync()
+    {
+        Logger.LogDebug("Начата загрузка списка категорий для диалога карточки.");
+
+        try
+        {
+            var response = await DashboardApi.GetCategoriesAsync(_categoriesCts.Token);
+            if (!response.IsSuccessStatusCode || response.Content is null)
+            {
+                Logger.LogWarning("Список категорий для диалога карточки не загружен. Код: {StatusCode}.", (int?)response.StatusCode);
+                _categoriesError = response.ErrorText();
+                return;
+            }
+
+            _categories = response.Content.ToList();
+            Logger.LogDebug("Список категорий для диалога карточки загружен. Категорий: {Count}.", _categories.Count);
+        }
+        catch (OperationCanceledException) when (_categoriesCts.IsCancellationRequested)
+        {
+            // Диалог закрыли: список уже не нужен.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Не удалось загрузить список категорий для диалога карточки.");
+            _categoriesError = "Не удалось получить список категорий: перенос недоступен.";
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -628,11 +743,10 @@
 
         try
         {
-            var card = Card ?? new DashboardCard
-            {
-                DashboardCategoryId = CategoryId,
-                Position = Position
-            };
+            // Категорию берём из селектора: при изменении карточки она могла измениться.
+            // Положение для новой карточки задаёт вызывающий, а перенесённую считает сервер.
+            var card = Card ?? new DashboardCard { Position = Position };
+            card.DashboardCategoryId = _model.CategoryId;
 
             card.Title = _model.Title.Trim();
             card.Url = url;
@@ -769,6 +883,7 @@
     {
         await _titleLookupCts.CancelAsync();
         await _iconLookupCts.CancelAsync();
+        await _categoriesCts.CancelAsync();
 
         if (_module is not null)
         {
@@ -785,6 +900,7 @@
 
         _titleLookupCts.Dispose();
         _iconLookupCts.Dispose();
+        _categoriesCts.Dispose();
         _selfRef?.Dispose();
     }
 

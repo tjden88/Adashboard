@@ -34,7 +34,7 @@
             <InputSelect id="categoryDialogPage" class="form-select" @bind-Value="_model.PageId">
                 @foreach (var item in Pages)
                 {
-                    <option value="@item.Id">@PageLabel(item)</option>
+                    <option value="@item.Id">@item.DisplayLabel()</option>
                 }
             </InputSelect>
             <p class="category-dialog__hint">Категорию можно оставить на текущей странице или перенести на другую.</p>
@@ -146,9 +146,6 @@
         // Пустая мобильная ширина означает «авто»: слайдер скрыт до явного выбора пользователем.
         _mobileAuto = _model.MobileWidth is null;
     }
-
-    // Подпись страницы в селекторе: путь показываем, чтобы различать страницы с похожими названиями.
-    private static string PageLabel(DashboardPage page) => page.Id == 1 ? $"{page.Title} (основная)" : $"{page.Title} — /{page.Path}";
 
     private void OnWidthInput(ChangeEventArgs args)
     {

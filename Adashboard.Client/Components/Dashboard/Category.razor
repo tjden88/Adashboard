@@ -92,7 +92,8 @@
 
 <DialogContainer @bind-Open="_isCardFormOpen" Title="@CardFormTitle" Size="DialogContainer.DialogSize.Large">
     <CardDialog Card="_editingCard"
-                CategoryId="Model.Id"
+                Category="Model"
+                Pages="Pages"
                 Position="@NextCardPosition"
                 Saved="OnCardSavedAsync"
                 DeleteRequested="RequestCardDelete" />
