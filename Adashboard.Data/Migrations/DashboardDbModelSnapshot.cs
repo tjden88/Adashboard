@@ -110,6 +110,9 @@ namespace Adashboard.Data.Migrations
                     b.Property<int>("DashboardPageId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("MobileWidth")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("Order")
                         .HasColumnType("INTEGER");
 
@@ -148,6 +151,9 @@ namespace Adashboard.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Path")
                         .IsRequired()
