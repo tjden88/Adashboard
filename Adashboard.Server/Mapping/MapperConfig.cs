@@ -1,3 +1,4 @@
+using Adashboard.Data.Entities;
 using Mapster;
 
 namespace Adashboard.Server.Mapping;
@@ -28,5 +29,13 @@ public static class MapperConfig
     {
         var config = TypeAdapterConfig.GlobalSettings;
 
+        // Копирование сущностей при дублировании: навигации исключаем, иначе Mapster рекурсивно
+        // повторяет двусторонние связи (категория → карточки → категория) и переполняет стек.
+        config.NewConfig<DashboardCategoryEntity, DashboardCategoryEntity>()
+            .Ignore(dest => dest.Page)
+            .Ignore(dest => dest.Cards);
+
+        config.NewConfig<DashboardCardEntity, DashboardCardEntity>()
+            .Ignore(dest => dest.Category);
     }
 }

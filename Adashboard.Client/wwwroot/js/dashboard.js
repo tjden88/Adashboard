@@ -178,7 +178,8 @@ function collectCategoryIds() {
 }
 
 // Приводит порядок укладки в соответствие с набором категорий: исчезнувшие убирает,
-// новые (только что добавленные) дописывает в конец — они и в модели идут последними.
+// новые ставит на их место в DOM. Копия категории должна встать сразу после исходной,
+// а не в конце страницы: порядок категорий Blazor уже отрисовал в модели.
 function reconcileOrder() {
     const ids = collectCategoryIds();
     const existing = new Set(ids);
@@ -186,12 +187,24 @@ function reconcileOrder() {
     orderIds = orderIds.filter((id) => existing.has(id));
 
     const known = new Set(orderIds);
-    for (const id of ids) {
-        if (!known.has(id)) {
-            known.add(id);
-            orderIds.push(id);
+    ids.forEach((id, index) => {
+        if (known.has(id)) {
+            return;
         }
-    }
+
+        // Новую категорию вставляем после ближайшей предыдущей, которая уже есть в порядке.
+        let insertAt = 0;
+        for (let previous = index - 1; previous >= 0; previous--) {
+            const position = orderIds.indexOf(ids[previous]);
+            if (position >= 0) {
+                insertAt = position + 1;
+                break;
+            }
+        }
+
+        orderIds.splice(insertAt, 0, id);
+        known.add(id);
+    });
 }
 
 // Категории в порядке укладки: известные — по порядку модуля, остальные — в конце.
