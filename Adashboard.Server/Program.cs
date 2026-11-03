@@ -47,8 +47,10 @@ services.AddSingleton(paths);
 
 // Защита API ключом доступа. Ключ задаётся в конфигурации (ApiKey); пустое значение
 // отключает защиту — так локальная разработка и генерация OpenAPI-документа не требуют ключа.
-// Секрет держим вне репозитория: в переменной окружения ApiKey или в пользовательских секретах.
-var apiKeySettings = new ApiKeySettings(builder.Configuration["ApiKey"]);
+// Второй ключ (ExtensionApiKey) — для расширения браузера: он даёт такой же доступ, но сам
+// по себе защиту не включает, потому что без основного ключа защита остаётся выключенной.
+// Секреты держим вне репозитория: в переменных окружения ApiKey и ExtensionApiKey или в пользовательских секретах.
+var apiKeySettings = new ApiKeySettings(builder.Configuration["ApiKey"], builder.Configuration["ExtensionApiKey"]);
 services.AddSingleton(apiKeySettings);
 services.AddAuthentication(ApiKeyAuthenticationHandler.SchemeName)
     .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthenticationHandler.SchemeName, null);
@@ -164,6 +166,11 @@ if (apiKeySettings.IsEnabled)
 {
     controllers.RequireAuthorization();
     app.Logger.LogInformation("Защита API ключом доступа включена.");
+
+    if (apiKeySettings.ExtensionKey.Length > 0)
+    {
+        app.Logger.LogInformation("Задан ключ расширения (ExtensionApiKey): он даёт такой же доступ к API, как основной ключ.");
+    }
 }
 else
 {

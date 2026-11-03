@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Настройки расширения Adashboard</title>
+</head>
+
+<body class="options">
+    <main>
+        <h1>Настройки расширения</h1>
+
+        <p id="status" class="status" role="status">Загрузка настроек…</p>
+
+        <p id="error" class="error" role="alert" hidden></p>
+
+        <form id="settings-form">
+            <div class="field">
+                <label for="server-url-input">Адрес сервера</label>
+                <input id="server-url-input" type="text" inputmode="url" autocomplete="off" spellcheck="false"
+                    aria-describedby="server-url-hint" />
+                <p id="server-url-hint" class="hint">Например <code>http://localhost:8080</code>: только http или https,
+                    без завершающего «/».</p>
+            </div>
+
+            <div class="field">
+                <label for="api-key-input">Ключ доступа</label>
+                <input id="api-key-input" type="password" autocomplete="off" aria-describedby="api-key-hint" />
+                <p id="api-key-hint" class="hint">Значение <code>ExtensionApiKey</code>. Хранится только в этом браузере.</p>
+            </div>
+
+            <div class="actions">
+                <button id="save-button" type="submit" class="button primary">Сохранить</button>
+                <button id="check-button" type="button" class="button">Проверить подключение</button>
+            </div>
+        </form>
+    </main>
+
+    <script type="module" src="./src/options.ts"></script>
+</body>
+
+</html>

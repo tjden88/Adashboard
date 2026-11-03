@@ -8,6 +8,7 @@ namespace Adashboard.Server.Auth;
 
 /// <summary>
 /// Аутентификация по ключу доступа: ключ приходит в заголовке X-Api-Key.
+/// Подходит основной ключ или ключ расширения браузера — доступ по ним одинаковый.
 /// </summary>
 public sealed class ApiKeyAuthenticationHandler(
     IOptionsMonitor<AuthenticationSchemeOptions> options,
@@ -28,10 +29,11 @@ public sealed class ApiKeyAuthenticationHandler(
             return Task.FromResult(AuthenticateResult.NoResult());
         }
 
+        Logger.LogDebug("Проверяю ключ доступа к API. Путь: {Path}.", Request.Path);
         var provided = Request.Headers[DomainConstants.ApiKeyHeaderName].ToString();
         if (!apiKeySettings.Matches(provided))
         {
-            return Task.FromResult(AuthenticateResult.Fail("Ключ доступа не указан или неверен."));
+            return Task.FromResult(AuthenticateResult.Fail("Ключ доступа не указан или не совпадает с основным ключом или ключом расширения."));
         }
 
         var identity = new ClaimsIdentity([new Claim(ClaimTypes.Name, SchemeName)], SchemeName);
@@ -41,8 +43,8 @@ public sealed class ApiKeyAuthenticationHandler(
 
     protected override async Task HandleChallengeAsync(AuthenticationProperties properties)
     {
-        // Отказ фиксируем в логе, но сам ключ не пишем.
-        Logger.LogWarning("Запрос к API отклонён: ключ доступа отсутствует или неверен. Путь: {Path}.", Request.Path);
+        // Отказ фиксируем в логе, но сами ключи не пишем.
+        Logger.LogWarning("Запрос к API отклонён: ключ доступа отсутствует или не совпадает с основным ключом или ключом расширения. Путь: {Path}.", Request.Path);
 
         // Отказ отдаём телом-текстом, как и остальные ответы API.
         Response.StatusCode = StatusCodes.Status401Unauthorized;
