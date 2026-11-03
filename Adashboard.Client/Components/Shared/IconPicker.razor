@@ -119,7 +119,8 @@
             ? []
             : FontAwesomeIcons.Icons
                 .Where(x => x.Contains(search, StringComparison.OrdinalIgnoreCase))
-                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                // справочник сгруппирован по стилю, поэтому варианты одной иконки сортируются по имени
+                .OrderBy(x => x.Substring(x.IndexOf(' ') + 1), StringComparer.OrdinalIgnoreCase)
                 .Take(MaxResults)
                 .ToList();
 
