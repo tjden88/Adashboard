@@ -35,5 +35,7 @@ COPY Adashboard.Server/Assets ./assets
 
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080
+# Уровень логирования по умолчанию: переменную LogLevel можно переопределить при запуске контейнера.
+ENV LogLevel=Information
 
 ENTRYPOINT ["dotnet", "Adashboard.Server.dll"]

@@ -21,6 +21,25 @@ builder.Logging.AddSimpleConsole(options =>
     options.SingleLine = true;
 });
 
+// Короткая переменная окружения LogLevel (удобна в Docker) задаёт уровень логирования
+// по умолчанию без вложенного ключа Logging__LogLevel__Default. Явные уровни отдельных
+// категорий из appsettings.json при этом сохраняются.
+var logLevelValue = builder.Configuration["LogLevel"];
+if (!string.IsNullOrWhiteSpace(logLevelValue))
+{
+    if (Enum.TryParse<LogLevel>(logLevelValue, ignoreCase: true, out var logLevel) && Enum.IsDefined(logLevel))
+    {
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Logging:LogLevel:Default"] = logLevel.ToString()
+        });
+    }
+    else
+    {
+        Console.Error.WriteLine($"Недопустимое значение переменной окружения LogLevel: {logLevelValue}. Используется уровень из конфигурации.");
+    }
+}
+
 var services = builder.Services;
 
 

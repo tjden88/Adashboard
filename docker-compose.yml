@@ -10,7 +10,7 @@ services:
       # Пустое значение отключает защиту API: весь API доступен без ключа.
       # Чтобы включить защиту, задайте свой ключ — не храните секрет в репозитории.
       ApiKey: ""
-      Logging__LogLevel__Default: Information
+      LogLevel: Information
     volumes:
       # Каталог данных: data.db и uploads. Данные переживают пересоздание контейнера.
       - adashboard-data:/app/appdata

@@ -68,6 +68,9 @@
     private IReadOnlyList<string> _matches = [];
     private int _activeIndex = -1;
 
+    // Значение Value на прошлой отрисовке: по нему отличаем внешнее изменение иконки от ввода в поле.
+    private string _appliedValue = string.Empty;
+
     /// <summary>
     /// Текущий CSS-класс выбранной иконки.
     /// </summary>
@@ -90,6 +93,22 @@
     private string? ActiveOptionId => _activeIndex >= 0 && _activeIndex < _matches.Count ? OptionId(_activeIndex) : null;
 
     private string OptionId(int index) => $"{_listId}-{index}";
+
+    // Поле ввода показывает текущее значение иконки: при открытии диалога в нём уже стоит
+    // класс, а внешняя очистка значения очищает и поле. Пользовательский ввод не сбрасываем —
+    // Value меняется только при выборе иконки или очистке снаружи.
+    protected override void OnParametersSet()
+    {
+        if (string.Equals(_appliedValue, Value, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _appliedValue = Value;
+        _searchText = Value;
+        _matches = [];
+        _activeIndex = -1;
+    }
 
     private void OnSearchInput(ChangeEventArgs args)
     {
