@@ -451,6 +451,68 @@
         }
       }
     },
+    "/api/categories/{id}/duplicate": {
+      "post": {
+        "tags": [
+          "Categories"
+        ],
+        "operationId": "DuplicateCategory",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardCategoryReadModel"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardCategoryReadModel"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardCategoryReadModel"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/categories/{id}": {
       "delete": {
         "tags": [
@@ -1341,6 +1403,20 @@
               "string"
             ],
             "format": "int32"
+          }
+        }
+      },
+      "DashboardCategoryReadModel": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/DashboardCategory"
+          },
+          "cards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardCard"
+            }
           }
         }
       },

@@ -362,6 +362,67 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
     }
 
     /// <summary>
+    /// Создаёт копию категории со всеми карточками в той же странице: копия встаёт сразу после
+    /// исходной, поэтому порядок последующих категорий страницы сдвигается на одну.
+    /// </summary>
+    public async Task<OperationResult<DashboardCategoryReadModel>> DuplicateCategoryAsync(int id, CancellationToken cancellationToken = default)
+    {
+        logger.LogDebug("Начато дублирование категории {CategoryId}.", id);
+
+        var source = await db.Categories.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (source is null)
+        {
+            logger.LogWarning("Дублирование категории {CategoryId} отклонено: категория не найдена.", id);
+            return Result.Failure("Категория не найдена.").As<DashboardCategoryReadModel>();
+        }
+
+        // Карточки читаем отдельным запросом: навигацию EF здесь не подгружаем, а положение
+        // копии сохраняют такое же, как у исходных.
+        var sourceCards = await db.Cards
+            .Where(x => x.DashboardCategoryId == id)
+            .OrderBy(x => x.Position)
+            .ToListAsync(cancellationToken);
+
+        // Сдвиг делаем до добавления копии: иначе обновление затронуло бы и её саму
+        // (копия получает порядок сразу после исходной).
+        await db.Categories
+            .Where(x => x.DashboardPageId == source.DashboardPageId && x.Order > source.Order)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Order, p => p.Order + 1), cancellationToken);
+
+        var copy = source.Adapt<DashboardCategoryEntity>();
+        copy.Id = 0; // Идентификатор назначает EF Core
+        copy.Order = source.Order + 1;
+
+        // Копию сохраняем отдельно: идентификатор категории назначает EF Core, и только после
+        // этого карточки можно привязать к новой категории.
+        db.Categories.Add(copy);
+        await db.SaveChangesAsync(cancellationToken);
+
+        // Файл изображения-иконки назван по идентификатору карточки, поэтому копия ссылается на
+        // файл исходной: новый файл не создаём. Положение внутри категории копия сохраняет.
+        var copyCards = new List<DashboardCardEntity>(sourceCards.Count);
+        foreach (var card in sourceCards)
+        {
+            var copyCard = card.Adapt<DashboardCardEntity>();
+            copyCard.Id = 0; // Идентификатор назначает EF Core
+            copyCard.DashboardCategoryId = copy.Id;
+
+            db.Cards.Add(copyCard);
+            copyCards.Add(copyCard);
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Категория {CategoryId} продублирована. Идентификатор копии: {CopyCategoryId}. Карточек: {CardCount}.", id, copy.Id, copyCards.Count);
+
+        return new DashboardCategoryReadModel
+        {
+            Category = copy.Adapt<DashboardCategory>(),
+            Cards = copyCards.Adapt<List<DashboardCard>>()
+        };
+    }
+
+    /// <summary>
     /// Создаёт новую карточку в указанной категории, при необходимости с изображением-иконкой.
     /// </summary>
     public async Task<OperationResult<DashboardCard>> CreateCardAsync(

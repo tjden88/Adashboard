@@ -12,9 +12,9 @@
     Карточки приходят параметром: read-модель API отдаёт их плоским списком, а не внутри категории.
 
     Запросы к API выполняют диалоги (создание, изменение карточки и категории), дублирование
-    карточки и само удаление; об изменениях категория сообщает родителю событиями
-    Saved/Deleted/CardSaved/CardDeleted/CardDuplicated: списки категорий и карточек ведёт модель
-    страницы, поэтому обновляет их родитель.
+    карточки и категории и само удаление; об изменениях категория сообщает родителю событиями
+    Saved/Deleted/CardSaved/CardDeleted/CardDuplicated/CategoryDuplicated: списки категорий и
+    карточек ведёт модель страницы, поэтому обновляет их родитель.
 
     Перетаскивание за маркер и изменение ширины берёт на себя модуль js/dashboard.js;
     сами ручки и кнопки действий видны только в режиме редактирования.
@@ -46,6 +46,13 @@
                         aria-label="Изменить категорию @Model.Title"
                         title="Изменить категорию">
                     <i class="fa-solid fa-pen-nib" aria-hidden="true"></i>
+                </button>
+                <button type="button"
+                        class="btn btn-icon btn-sm btn-outline-secondary"
+                        @onclick="DuplicateCategoryAsync"
+                        aria-label="Дублировать категорию @Model.Title"
+                        title="Дублировать">
+                    <i class="fa-solid fa-clone" aria-hidden="true"></i>
                 </button>
                 <button type="button"
                         class="btn btn-icon btn-sm btn-danger"
@@ -167,6 +174,13 @@
     [Parameter, EditorRequired]
     public EventCallback<DashboardCard> CardDuplicated { get; set; }
 
+    /// <summary>
+    /// Уведомление о продублированной категории: вместе с копией категории родителю передаём её
+    /// карточки, потому что списки модели страницы ведает родитель.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback<DashboardCategoryReadModel> CategoryDuplicated { get; set; }
+
     // В режиме редактирования переход по ссылке отключается: карточка не должна уводить
     // со страницы, пока с ней работают.
     private bool IsEditMode => AppStateService.IsEditMode;
@@ -285,12 +299,38 @@
     }
 
     // ---------------------------------------------------------------
-    // Категория: изменение и удаление.
+    // Категория: изменение, дублирование и удаление.
     // Изменение выполняет сам диалог категории, здесь мы открываем его и сообщаем родителю
-    // результат; удаление делает категория.
+    // результат; дублирование и удаление делает категория.
     // ---------------------------------------------------------------
 
     private Task OnCategorySavedAsync(DashboardCategory category) => Saved.InvokeAsync(category);
+
+    // Копию создаёт сама категория одним быстрым действием: окна подтверждения нет, поэтому
+    // сразу сообщаем родителю результат — списки модели страницы обновляет он, и только он
+    // знает, где в списке лежит исходная категория.
+    private async Task DuplicateCategoryAsync()
+    {
+        Logger.LogDebug("Дублирование категории dashboard {CategoryId}.", Model.Id);
+
+        try
+        {
+            var response = await DashboardApi.DuplicateCategoryAsync(Model.Id);
+            if (!response.IsSuccessStatusCode || response.Content is null)
+            {
+                Logger.LogWarning("Дублирование категории {CategoryId} завершилось ошибкой API. Код: {StatusCode}.", Model.Id, (int?)response.StatusCode);
+                return;
+            }
+
+            Logger.LogInformation("Категория dashboard продублирована. Идентификатор копии: {CopyCategoryId}.", response.Content.Category.Id);
+
+            await CategoryDuplicated.InvokeAsync(response.Content);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Не удалось продублировать категорию dashboard {CategoryId}.", Model.Id);
+        }
+    }
 
     private async Task RequestDeleteCategory()
     {

@@ -82,7 +82,8 @@
                       Deleted="OnCategoryDeletedAsync"
                       CardSaved="OnCardSavedAsync"
                       CardDeleted="OnCardDeletedAsync"
-                      CardDuplicated="OnCardDuplicatedAsync" />
+                      CardDuplicated="OnCardDuplicatedAsync"
+                      CategoryDuplicated="@(copy => OnCategoryDuplicatedAsync(category, copy))" />
         }
     </div>
 </section>
@@ -180,9 +181,9 @@
 
     // ---------------------------------------------------------------
     // Уведомления от категорий.
-    // Изменение и удаление категории, создание, сохранение, дублирование и удаление карточек
-    // выполняют сами категории со своими диалогами: здесь мы лишь поддерживаем общие списки
-    // в актуальном состоянии — их владелец модель страницы.
+    // Изменение, дублирование и удаление категории, создание, сохранение, дублирование и удаление
+    // карточек выполняют сами категории со своими диалогами: здесь мы лишь поддерживаем общие
+    // списки в актуальном состоянии — их владелец модель страницы.
     // ---------------------------------------------------------------
 
     // Категория изменена в своём компоненте: заменяем её в списке. Категорию могли перенести
@@ -213,6 +214,25 @@
     {
         Model.Cards.RemoveAll(x => x.DashboardCategoryId == category.Id);
         Model.Categories.RemoveAll(x => x.Id == category.Id);
+
+        return InvokeAsync(StateHasChanged);
+    }
+
+    // Категория продублирована: копия встаёт сразу после исходной, поэтому порядок последующих
+    // категорий страницы сдвигается на одну — без этого список разошёлся бы с порядком, который
+    // применил сервер. Карточки копии приходят вместе с категорией: сервер сохраняет их положение,
+    // поэтому их достаточно добавить в общий список.
+    private Task OnCategoryDuplicatedAsync(DashboardCategory source, DashboardCategoryReadModel copy)
+    {
+        foreach (var category in Model.Categories.Where(x => x.Id != copy.Category.Id && x.Order >= copy.Category.Order))
+        {
+            category.Order++;
+        }
+
+        var sourceIndex = Model.Categories.FindIndex(x => x.Id == source.Id);
+        Model.Categories.Insert(sourceIndex >= 0 ? sourceIndex + 1 : Model.Categories.Count, copy.Category);
+
+        Model.Cards.AddRange(copy.Cards);
 
         return InvokeAsync(StateHasChanged);
     }

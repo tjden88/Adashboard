@@ -1,4 +1,5 @@
 using Adashboard.Domain.Contracts;
+using Adashboard.Domain.ReadModels;
 using Adashboard.Server.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -53,6 +54,25 @@ public class CategoriesController(
 
         var result = await pageService.UpdateCategoryAsync(category, cancellationToken);
         return result.IsSuccess ? NoContent() : BadRequest(result.Error);
+    }
+
+    /// <summary>
+    /// Создаёт копию категории со всеми карточками сразу после исходной.
+    /// </summary>
+    [HttpPost("{id:int}/duplicate", Name = "DuplicateCategory")]
+    [ProducesResponseType<DashboardCategoryReadModel>(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<DashboardCategoryReadModel>> Duplicate(int id, CancellationToken cancellationToken)
+    {
+        var result = await pageService.DuplicateCategoryAsync(id, cancellationToken);
+        if (!result.IsSuccess)
+        {
+            // Отказ здесь только один: категории нет.
+            return NotFound(result.Error);
+        }
+
+        var created = result.Value;
+        return Created($"/api/categories/{created.Category.Id}", created);
     }
 
     /// <summary>
