@@ -55,4 +55,10 @@ public sealed class DashboardPage
     /// </summary>
     [MaxLength(DomainConstants.PageIconColorMaxLength)]
     public string IconColor { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Порядок страницы в боковом меню. У основной страницы всегда 0: она идёт первой
+    /// и не участвует в перестановке, остальные страницы занимают позиции от 1.
+    /// </summary>
+    public int Order { get; set; }
 }

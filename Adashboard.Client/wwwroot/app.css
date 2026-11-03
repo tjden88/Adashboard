@@ -387,6 +387,11 @@ html[data-theme="dark"] .validation-message {
     border-radius: 18px;
 }
 
+/* Placeholder пункта меню: скругление как у ссылки страницы, чтобы slot совпадал с пунктом. */
+.dnd-placeholder.side-menu-placeholder {
+    border-radius: 10px;
+}
+
 /* Placeholder карточки: стоит в сетке карточек категории и занимает столько же колонок,
    сколько сама карточка (span-переменные переносит из неё скрипт). */
 .dnd-placeholder-card {

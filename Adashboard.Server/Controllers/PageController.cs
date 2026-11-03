@@ -98,6 +98,24 @@ public class PageController(
     }
 
     /// <summary>
+    /// Применяет новый порядок страниц в боковом меню.
+    /// </summary>
+    [HttpPut("reorder", Name = "ReorderPages")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Reorder([FromBody] IReadOnlyList<int>? pageIds, CancellationToken cancellationToken)
+    {
+        if (pageIds is null || pageIds.Count == 0)
+        {
+            logger.LogWarning("Перестановка страниц отклонена: пустой список страниц в теле запроса.");
+            return BadRequest("Укажите порядок страниц.");
+        }
+
+        var result = await pageService.ReorderPagesAsync(pageIds, cancellationToken);
+        return result.IsSuccess ? NoContent() : BadRequest(result.Error);
+    }
+
+    /// <summary>
     /// Удаляет страницу dashboard вместе с её категориями и карточками.
     /// Основную страницу удалить нельзя.
     /// </summary>

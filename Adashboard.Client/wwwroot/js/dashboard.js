@@ -1307,6 +1307,348 @@ export function disposeDragAndDrop() {
     editModeEnabled = false;
 }
 
+// ---------------------------------------------------------------------------
+// Перетаскивание страниц в боковом меню.
+// Отдельная сессия и отдельный ref: меню живёт в Home дольше, чем открытая страница,
+// поэтому перетаскивание страниц не связано с перетаскиванием категорий и карточек
+// (у них свой dotNetRef и свои обработчики).
+// ---------------------------------------------------------------------------
+
+const MENU_ITEM_SELECTOR = "li[data-page-id]";
+
+let menuDotNetRef = null;
+let menuDragState = null;
+
+// Свой очередь синхронизации: общий syncQueue освобождается при disposeDragAndDrop,
+// а меню переживает смену страницы.
+let menuSyncQueue = [];
+let menuSyncInProgress = false;
+
+export function disposePageMenuDrag() {
+    document.removeEventListener("pointerdown", onMenuPointerDown, true);
+    document.removeEventListener("keydown", onMenuKeyDown, true);
+    document.removeEventListener("touchmove", onMenuTouchMove, { capture: true });
+    document.removeEventListener("contextmenu", onMenuContextMenu, true);
+
+    cancelMenuDrag();
+    menuDotNetRef = null;
+    menuSyncQueue = [];
+    menuSyncInProgress = false;
+}
+
+export function initializePageMenuDrag(ref) {
+    disposePageMenuDrag();
+
+    menuDotNetRef = ref;
+
+    document.addEventListener("pointerdown", onMenuPointerDown, true);
+    document.addEventListener("keydown", onMenuKeyDown, true);
+    document.addEventListener("touchmove", onMenuTouchMove, { capture: true, passive: false });
+    document.addEventListener("contextmenu", onMenuContextMenu, true);
+}
+
+// Хваталка есть только у переставляемых страниц, но проверка нужна и на случай перерисовки Blazor:
+// указатель мог попасть на уже удалённый элемент.
+function onMenuPointerDown(event) {
+    if (event.button !== 0 || menuDragState || !(event.target instanceof Element)) {
+        return;
+    }
+
+    const grip = event.target.closest(".side-menu-drag");
+    if (!grip) {
+        return;
+    }
+
+    const item = grip.closest(MENU_ITEM_SELECTOR);
+    if (!item) {
+        return;
+    }
+
+    const container = item.parentElement;
+    if (!container) {
+        return;
+    }
+
+    event.preventDefault();
+
+    menuDragState = {
+        item: item,
+        container: container,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        startIndex: Array.prototype.indexOf.call(container.children, item),
+        // Сосед справа по исходной раскладке: по нему отмена возвращает пункт на прежнее место.
+        nextItem: item.nextElementSibling,
+        rect: item.getBoundingClientRect(),
+        active: false,
+        placeholder: null,
+        clone: null,
+    };
+
+    document.addEventListener("pointermove", onMenuPointerMove, true);
+    document.addEventListener("pointerup", onMenuPointerUp, true);
+    document.addEventListener("pointercancel", onMenuCancel, true);
+}
+
+function startMenuDrag() {
+    const state = menuDragState;
+
+    state.active = true;
+    state.grabOffsetY = state.rect.height / 2;
+    state.placeholder = document.createElement("li");
+    state.placeholder.className = "dnd-placeholder side-menu-placeholder";
+    state.placeholder.setAttribute("aria-hidden", "true");
+    state.placeholder.style.height = `${state.rect.height}px`;
+
+    state.clone = state.item.cloneNode(true);
+    state.clone.classList.add("dnd-clone");
+    state.clone.removeAttribute("data-page-id");
+    state.clone.style.width = `${state.rect.width}px`;
+    state.clone.style.height = `${state.rect.height}px`;
+
+    document.body.appendChild(state.clone);
+    document.body.classList.add("dnd-active");
+
+    state.item.style.display = "none";
+    updateMenuDrag(state.startX, state.startY);
+}
+
+function updateMenuDrag(x, y) {
+    const state = menuDragState;
+
+    state.clone.style.transform = `translate(${state.rect.left}px, ${y - state.grabOffsetY}px)`;
+
+    const target = findMenuDropTarget(x, y);
+
+    // Указатель в зазоре между пунктами или ином пустом месте списка: цель не меняется,
+    // превью оставляем на месте — иначе placeholder мигал бы на каждом зазоре.
+    if (target?.keep) {
+        return;
+    }
+
+    // Указатель вне списка страниц: применить drop негде, превью убираем.
+    if (!target) {
+        if (state.placeholder.parentElement) {
+            state.placeholder.remove();
+        }
+
+        return;
+    }
+
+    // Верхняя половина цели — вставка перед ней, нижняя — после неё (перед её соседом).
+    let before = target.afterItem;
+
+    // Основная страница всегда первая: drop «перед ней» превращаем в drop «после неё».
+    if (before && before.classList.contains("side-menu-item--main")) {
+        before = before.nextElementSibling;
+    }
+
+    // Вставка на то же место, где пункт стоит сейчас, ничего не меняет: placeholder
+    // тогда не участвует в раскладке.
+    if (before === state.item.nextElementSibling || (!before && !state.item.nextElementSibling)) {
+        if (state.placeholder.parentElement) {
+            state.placeholder.remove();
+        }
+
+        return;
+    }
+
+    movePlaceholder(state.container, state.placeholder, before);
+}
+
+// Пункт, над которым сейчас указатель. Подложка placeholder не участвует в поиске
+// (pointer-events: none), а хваталка и тексты внутри пункта принадлежат самому пункту.
+function findMenuDropTarget(x, y) {
+    let element = document.elementFromPoint(x, y);
+
+    while (element && element !== menuDragState.container) {
+        const item = element.closest ? element.closest(MENU_ITEM_SELECTOR) : null;
+        if (item) {
+            // Переносимый пункт под указателем: drop «самим в себя» положения не меняет.
+            if (item === menuDragState.item) {
+                return { keep: true };
+            }
+
+            const rect = item.getBoundingClientRect();
+            return { item: item, afterItem: y > rect.top + rect.height / 2 ? item.nextElementSibling : item };
+        }
+
+        element = element.parentElement;
+    }
+
+    // Остановились на самом списке — указатель внутри меню, но не над пунктом.
+    return element === menuDragState.container ? { keep: true } : null;
+}
+
+function onMenuPointerMove(event) {
+    const state = menuDragState;
+    if (!state || event.pointerId !== state.pointerId) {
+        return;
+    }
+
+    if (!state.active) {
+        if (Math.abs(event.clientX - state.startX) < DRAG_THRESHOLD_PX && Math.abs(event.clientY - state.startY) < DRAG_THRESHOLD_PX) {
+            return;
+        }
+
+        startMenuDrag();
+    }
+
+    event.preventDefault();
+    updateMenuDrag(event.clientX, event.clientY);
+}
+
+function finishMenuDrag() {
+    const state = menuDragState;
+
+    if (!state.active || !state.placeholder.parentElement) {
+        cancelMenuDrag();
+        return;
+    }
+
+    const startIndex = state.startIndex;
+
+    // Пункт встаёт на место placeholder'а: DOM сразу отражает новый порядок, и перерисовка
+    // Blazor (@key по идентификатору страницы) эти узлы уже не переставляет.
+    state.container.insertBefore(state.item, state.placeholder);
+
+    // Новый порядок читаем из DOM уже после вставки: до неё пункт стоял на прежнем месте.
+    const orderedIds = [];
+
+    for (const child of state.container.children) {
+        if (child === state.placeholder) {
+            continue;
+        }
+
+        const id = parseId(child.dataset.pageId);
+        if (id !== null) {
+            orderedIds.push(id);
+        }
+    }
+
+    const endIndex = orderedIds.indexOf(parseId(state.item.dataset.pageId));
+
+    cleanupMenuDrag();
+
+    // Drop на прежнее место — это не изменение: запрос не отправляем.
+    if (orderedIds.length === 0 || startIndex === endIndex) {
+        return;
+    }
+
+    if (menuDotNetRef) {
+        enqueueMenuSync(() => menuDotNetRef.invokeMethodAsync("OnPagesReordered", orderedIds));
+    }
+}
+
+function cleanupMenuDrag() {
+    const state = menuDragState;
+    if (!state) {
+        return;
+    }
+
+    if (state.placeholder && state.placeholder.parentElement) {
+        state.placeholder.remove();
+    }
+
+    if (state.clone && state.clone.parentElement) {
+        state.clone.remove();
+    }
+
+    if (state.item) {
+        state.item.style.display = "";
+    }
+
+    document.body.classList.remove("dnd-active");
+    menuDragState = null;
+
+    document.removeEventListener("pointermove", onMenuPointerMove, true);
+    document.removeEventListener("pointerup", onMenuPointerUp, true);
+    document.removeEventListener("pointercancel", onMenuCancel, true);
+}
+
+// Отмена возвращает пункт на исходное место: порядок в DOM и в модели не меняется.
+function cancelMenuDrag() {
+    const state = menuDragState;
+    if (!state) {
+        return;
+    }
+
+    if (state.nextItem && state.nextItem.parentElement === state.container) {
+        state.container.insertBefore(state.item, state.nextItem);
+    } else if (state.item.parentElement !== state.container) {
+        state.container.appendChild(state.item);
+    }
+
+    cleanupMenuDrag();
+}
+
+function onMenuPointerUp(event) {
+    const state = menuDragState;
+    if (!state || event.pointerId !== state.pointerId) {
+        return;
+    }
+
+    finishMenuDrag();
+}
+
+function onMenuCancel() {
+    cleanupMenuDrag();
+}
+
+function onMenuKeyDown(event) {
+    if (event.key !== "Escape" || !menuDragState) {
+        return;
+    }
+
+    cancelMenuDrag();
+}
+
+// На touch-устройствах перетаскивание конкурирует с прокруткой меню: во время сессии
+// прокрутку подавляем, иначе палец сдвигал список вместо переноса пункта.
+function onMenuTouchMove(event) {
+    if (menuDragState) {
+        event.preventDefault();
+    }
+}
+
+// Долгое нажатие на хваталку не должно открывать системное меню ссылки.
+function onMenuContextMenu(event) {
+    if (event.target instanceof Element && event.target.closest(".side-menu-drag")) {
+        event.preventDefault();
+    }
+}
+
+function enqueueMenuSync(task) {
+    menuSyncQueue.push(task);
+
+    if (!menuSyncInProgress) {
+        void processMenuSyncQueue();
+    }
+}
+
+// Изменения порядка страниц уходят в Blazor по одному: одновременно больше одной записи не бывает.
+async function processMenuSyncQueue() {
+    menuSyncInProgress = true;
+
+    try {
+        while (menuSyncQueue.length > 0) {
+            const task = menuSyncQueue.shift();
+            if (task) {
+                await task();
+            }
+        }
+    } catch (error) {
+        console.error("Ошибка синхронизации порядка страниц dashboard", error);
+    } finally {
+        menuSyncInProgress = false;
+
+        if (menuSyncQueue.length > 0) {
+            void processMenuSyncQueue();
+        }
+    }
+}
+
 export function focusElementById(id) {
     document.getElementById(id)?.focus();
 }

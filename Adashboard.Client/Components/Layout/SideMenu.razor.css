@@ -22,6 +22,8 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    flex: 1;
+    min-width: 0;
     padding: 0.52rem 0.5rem;
     border-radius: 10px;
     color: var(--text-main);
@@ -94,6 +96,51 @@
 
 .side-menu-edit-btn--on i {
     color: var(--accent);
+}
+
+/* Пункт меню: хваталка перестановки слева, далее ссылка на страницу. */
+.side-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+}
+
+/* Хваталка перестановки страницы: рисуется только в режиме редактирования (SideMenu.razor).
+   Жесты указателя обрабатывает модуль dashboard.js, а не браузер. */
+.side-menu-drag {
+    flex-shrink: 0;
+    width: 1.35rem;
+    height: 2.1rem;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 8px;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.side-menu-drag:hover {
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+
+body.dnd-active .side-menu-drag {
+    cursor: grabbing;
+}
+
+/* В фантоме перетаскивания хваталка не нужна (как у категорий). */
+.dnd-clone .side-menu-drag {
+    display: none;
+}
+
+/* Фантом пункта меню: плотная подложка, чтобы читался переносимый пункт. */
+.side-menu-item.dnd-clone {
+    background: var(--surface);
+    border-radius: 10px;
 }
 
 /* Главная страница отделена от остальных строчным разделителем. */
@@ -181,6 +228,16 @@
         gap: 0;
     }
 
+    /* В свёрнутой полосе хваталки нет: перестановка — только в раскрытом состоянии. */
+    .side-menu--auto .side-menu-drag {
+        display: none;
+    }
+
+    .side-menu--auto:hover .side-menu-drag,
+    .side-menu--auto:has(:focus-visible) .side-menu-drag {
+        display: inline-grid;
+    }
+
     .side-menu--auto .side-menu-link i,
     .side-menu--auto .side-menu-edit-btn i,
     .side-menu--auto .side-menu-settings-btn i {
@@ -231,6 +288,11 @@
     .side-menu--collapsed .side-menu-edit-btn,
     .side-menu--collapsed .side-menu-settings-btn {
         gap: 0;
+    }
+
+    /* Постоянно свёрнутое меню хваталок не показывает вовсе. */
+    .side-menu--collapsed .side-menu-drag {
+        display: none;
     }
 
     .side-menu--collapsed .side-menu-link i,

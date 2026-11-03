@@ -19,14 +19,16 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
     /// <summary>
     /// Возвращает список всех страниц dashboard.
     /// </summary>
-    /// <param name="cancellationToken">Токен отмены операции.</param>
     public async Task<List<DashboardPage>> GetPagesAsync(CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Начата загрузка списка страниц dashboard.");
 
+        // Порядок в меню задаёт Order; Id в качестве второго ключа держит страницы с одинаковым
+        // порядком (например, в базе до появления порядка у всех 0) в предсказуемом виде.
         var pages = await db.Pages
             .AsNoTracking()
-            .OrderBy(x => x.Id)
+            .OrderBy(x => x.Order)
+            .ThenBy(x => x.Id)
             .ProjectToType<DashboardPage>()
             .ToListAsync(cancellationToken);
 
@@ -88,6 +90,9 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
         var entity = page.Adapt<DashboardPageEntity>();
         entity.Id = 0; // Идентификатор назначает EF Core
         entity.Path = path;
+        // Новая страница всегда встаёт в конец меню: порядок существующих страниц при этом не меняется.
+        entity.Order = await db.Pages.MaxAsync(x => (int?)x.Order, cancellationToken) ?? 0;
+        entity.Order++;
 
         db.Pages.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
@@ -128,11 +133,89 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
             }
         }
 
+        // Порядок в меню принадлежит операции перестановки: диалог настроек страницы его не меняет,
+        // поэтому сохраняем значение из базы.
+        var currentOrder = entity.Order;
+
         page.Adapt(entity);
         entity.Path = path;
+        entity.Order = currentOrder;
         await db.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Информационная часть страницы dashboard {PageId} обновлена.", page.Id);
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// Применяет новый порядок страниц в боковом меню.
+    /// </summary>
+    public async Task<OperationResult> ReorderPagesAsync(IReadOnlyList<int> orderedPageIds, CancellationToken cancellationToken = default)
+    {
+        logger.LogDebug("Начата перестановка страниц dashboard: {Count}.", orderedPageIds.Count);
+
+        if (orderedPageIds.Count == 0)
+        {
+            logger.LogDebug("Список страниц для перестановки пуст: перестановка не требуется.");
+            return Result.Success();
+        }
+
+        var entities = await db.Pages.ToListAsync(cancellationToken);
+        if (entities.Count == 0)
+        {
+            logger.LogWarning("Перестановка страниц отклонена: страниц dashboard в базе нет.");
+            return Result.Failure("Страницы не найдены.");
+        }
+
+        var lookup = entities.ToDictionary(x => x.Id);
+        var appliedIds = new HashSet<int>();
+
+        // Основная страница (пустой путь) всегда остаётся первой и всегда имеет порядок 0:
+        // переставить её нельзя, поэтому ей не выделяется позиция в присланном списке.
+        var mainPage = entities.FirstOrDefault(x => x.Path.Length == 0);
+        var movableOrder = 1;
+
+        foreach (var id in orderedPageIds)
+        {
+            if (!lookup.TryGetValue(id, out var entity))
+            {
+                logger.LogWarning("Перестановка страниц отклонена: идентификатор {PageId} не относится к страницам dashboard.", id);
+                return Result.Failure("Не все страницы найдены.");
+            }
+
+            // Повторный идентификатор означал бы потерю другой страницы из меню.
+            if (!appliedIds.Add(id))
+            {
+                logger.LogWarning("Перестановка страниц отклонена: идентификатор {PageId} встречается в списке дважды.", id);
+                return Result.Failure("В списке перестановки есть повторяющиеся страницы.");
+            }
+
+            if (entity.Path.Length == 0)
+                continue;
+
+            entity.Order = movableOrder;
+            movableOrder++;
+        }
+
+        if (mainPage is not null)
+            mainPage.Order = 0;
+
+        // Страницы, которых нет в присланном списке, остаются на прежних местах, но получают
+        // свободные позиции в конце: порядок в меню не должен содержать пропусков и дублей.
+        foreach (var entity in entities.OrderBy(x => x.Order).ThenBy(x => x.Id))
+        {
+            if (entity.Path.Length == 0)
+                continue;
+
+            if (orderedPageIds.Contains(entity.Id))
+                continue;
+
+            entity.Order = movableOrder;
+            movableOrder++;
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Новый порядок страниц dashboard применён. Переставлено страниц: {Count}.", orderedPageIds.Count);
         return Result.Success();
     }
 

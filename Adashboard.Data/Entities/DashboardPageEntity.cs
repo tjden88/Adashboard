@@ -49,6 +49,11 @@ public sealed class DashboardPageEntity
     public string IconColor { get; set; } = string.Empty;
 
     /// <summary>
+    /// Порядок страницы в боковом меню: у основной страницы всегда 0, у остальных — от 1.
+    /// </summary>
+    public int Order { get; set; }
+
+    /// <summary>
     /// Категории, входящие в страницу.
     /// </summary>
     /// <remarks>
