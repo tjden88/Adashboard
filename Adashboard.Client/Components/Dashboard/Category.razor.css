@@ -29,7 +29,9 @@
     background: color-mix(in srgb, var(--surface) 40%, transparent);
     backdrop-filter: blur(3px);
     box-shadow: var(--shadow-soft);
-    overflow: hidden;
+    /* Обрезки нет: подсказка с заголовком карточки верхнего ряда выходит за панель, и здесь бы
+       она обрезалась (см. Card.razor.css). Внутри панели ничего не выходит за скругление:
+       заголовки категорий и карточек обрезает каждый свой элемент. */
 }
 
 .category-header {

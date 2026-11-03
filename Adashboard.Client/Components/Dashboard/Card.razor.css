@@ -29,16 +29,73 @@
     background-color: var(--card-bg, #1e40af);
     color: var(--card-text-color, #ffffff);
     position: relative;
-    overflow: hidden;
+    /* Обрезку содержания убрали: подсказка с заголовком рисуется над карточкой и не должна
+       обрезаться ею. Содержимое при этом за скругление не выходит — заголовок обрезает себя
+       сам (ellipsis у .card-title), а увеличенная иконка занимает не больше 90% своей области. */
+    --tip-show: 0;
     transition: box-shadow 0.18s ease;
 }
 
 .dashboard-card:hover,
 .dashboard-card:focus-visible {
+    /* Подсказка показывается тем же признаком, что и подсветка карточки: наведение и
+       клавиатурный фокус. Переменную читают псевдоэлементы подсказки. */
+    --tip-show: 1;
     box-shadow:
         inset 0 0 0 2px color-mix(in srgb, var(--text-main) 75%, transparent),
         0 8px 22px rgba(0, 0, 0, 0.28);
     outline: none;
+}
+
+/* Подсказка над карточкой: пузырёк с полным заголовком и стрелка вниз к нему. Текст берётся
+   из data-card-title через content: attr(...), видимость — из --tip-show, которую ставит сама
+   карточка при наведении или клавиатурном фокусе, поэтому JavaScript не нужен.
+
+   Пустой заголовок показывать нечего: подсказка получает только карточки с текстом. Псевдоэлементы
+   декоративные (имя ссылки скринридер читает из aria-label) и не принимают указатель, чтобы не
+   мешать наведению, клику и перетаскиванию карточки.
+
+   z-index 10 по порядку слоёв проекта: выше карточек (1–3), но ниже прилипшей шапки (40), drawer
+   меню (1300), диалогов (1500) и палитры Coloris (2000). Карточка слой не создаёт, поэтому
+   подсказка участвует в общем порядке слоёв и не перекрывается соседними карточками.
+   Подсказке нужна и рамка категории без обрезки — см. Category.razor.css. */
+.dashboard-card[data-card-title]:not([data-card-title=""])::before {
+    content: attr(data-card-title);
+    position: absolute;
+    bottom: calc(100% + 15px);
+    left: 50%;
+    z-index: 10;
+    max-width: 320px;
+    padding: 0.3rem 0.55rem;
+    border: 1px solid var(--surface-border);
+    border-radius: 10px;
+    background-color: var(--surface-strong);
+    box-shadow: 0 10px 24px rgba(46, 30, 64, 0.18);
+    color: var(--text-main);
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1.35;
+    text-align: center;
+    overflow-wrap: break-word;
+    opacity: var(--tip-show);
+    pointer-events: none;
+    transition: opacity 0.18s ease;
+    transform: translateX(-50%);
+}
+
+/* Стрелка: основание совпадает с нижним краем пузырька, кончик смотрит на карточку. */
+.dashboard-card[data-card-title]:not([data-card-title=""])::after {
+    content: "";
+    position: absolute;
+    bottom: calc(100% + 3px);
+    left: 50%;
+    z-index: 10;
+    border: 6px solid transparent;
+    border-top-color: var(--surface-strong);
+    opacity: var(--tip-show);
+    pointer-events: none;
+    transition: opacity 0.18s ease;
+    transform: translateX(-50%);
 }
 
 .card-title {
