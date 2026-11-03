@@ -40,6 +40,12 @@ public sealed class DashboardCategoryEntity
     public int Width { get; set; } = 6;
 
     /// <summary>
+    /// Ширина категории в колонках мобильной сетки (1–4).
+    /// Когда пусто — мобильная ширина берётся из <see cref="Width"/>, но не больше 4 колонок.
+    /// </summary>
+    public int? MobileWidth { get; set; }
+
+    /// <summary>
     /// Родительская страница (навигация).
     /// </summary>
     [ForeignKey(nameof(DashboardPageId))]

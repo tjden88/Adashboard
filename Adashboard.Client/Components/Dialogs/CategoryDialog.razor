@@ -44,17 +44,40 @@
     <div class="category-dialog__field">
         <div class="category-dialog__slider-head">
             <label for="categoryDialogWidth" class="category-dialog__label">Ширина</label>
-            <span class="category-dialog__width" aria-hidden="true">@_model.Width из 12</span>
+            <span class="category-dialog__width" aria-hidden="true">@_model.Width из @DomainConstants.CategoryWidthMax</span>
         </div>
         <input id="categoryDialogWidth"
                type="range"
-               min="1"
-               max="12"
+               min="@DomainConstants.CategoryWidthMin"
+               max="@DomainConstants.CategoryWidthMax"
                step="1"
                value="@_model.Width"
                @oninput="OnWidthInput"
-               aria-valuetext="@_model.Width из 12 колонок" />
+               aria-valuetext="@_model.Width из @DomainConstants.CategoryWidthMax колонок" />
         <p class="category-dialog__hint">Сколько колонок сетки занимает категория.</p>
+    </div>
+
+    <div class="category-dialog__field">
+        <div class="category-dialog__slider-head">
+            <label for="categoryDialogMobileWidth" class="category-dialog__label">Мобильная ширина</label>
+            <span class="category-dialog__width" aria-hidden="true">@MobileWidthText</span>
+        </div>
+        <input id="categoryDialogMobileWidth"
+               type="range"
+               min="@DomainConstants.CategoryWidthMin"
+               max="@DomainConstants.CategoryMobileWidthMax"
+               step="1"
+               value="@MobileSliderValue"
+               disabled="@_mobileAuto"
+               @oninput="OnMobileWidthInput"
+               aria-valuetext="@MobileWidthText колонок" />
+        <label class="category-dialog__auto">
+            <input type="checkbox"
+                   checked="@_mobileAuto"
+                   @onchange="OnMobileAutoChanged" />
+            Авто — ширина следует общей сетке
+        </label>
+        <p class="category-dialog__hint">Отдельная ширина категории на узком экране: 1 — четверть ширины, 4 — вся ширина.</p>
     </div>
 
     @if (_error is not null)
@@ -73,6 +96,7 @@
     private EditModel _model = new();
     private string? _error;
     private bool _isSaving;
+    private bool _mobileAuto = true;
 
     [CascadingParameter]
     private DialogContainer Dialog { get; set; } = null!;
@@ -115,8 +139,12 @@
             {
                 PageId = Category.DashboardPageId,
                 Title = Category.Title,
-                Width = Math.Clamp(Category.Width, 1, 12)
+                Width = Math.Clamp(Category.Width, DomainConstants.CategoryWidthMin, DomainConstants.CategoryWidthMax),
+                MobileWidth = Category.MobileWidth
             };
+
+        // Пустая мобильная ширина означает «авто»: слайдер скрыт до явного выбора пользователем.
+        _mobileAuto = _model.MobileWidth is null;
     }
 
     // Подпись страницы в селекторе: путь показываем, чтобы различать страницы с похожими названиями.
@@ -126,8 +154,32 @@
     {
         if (int.TryParse(args.Value?.ToString(), out var width))
         {
-            _model.Width = Math.Clamp(width, 1, 12);
+            _model.Width = Math.Clamp(width, DomainConstants.CategoryWidthMin, DomainConstants.CategoryWidthMax);
         }
+    }
+
+    // Мобильная ширина по умолчанию — производная от десктопной, как вёрстка без явной настройки.
+    private int DefaultMobileWidth => Math.Min(Math.Clamp(_model.Width, DomainConstants.CategoryWidthMin, DomainConstants.CategoryWidthMax), DomainConstants.CategoryMobileWidthMax);
+
+    private int MobileSliderValue => _model.MobileWidth ?? DefaultMobileWidth;
+
+    private string MobileWidthText => _mobileAuto
+        ? $"Авто — {DefaultMobileWidth} из {DomainConstants.CategoryMobileWidthMax}"
+        : $"{MobileSliderValue} из {DomainConstants.CategoryMobileWidthMax}";
+
+    private void OnMobileWidthInput(ChangeEventArgs args)
+    {
+        if (int.TryParse(args.Value?.ToString(), out var width))
+        {
+            _model.MobileWidth = Math.Clamp(width, DomainConstants.CategoryWidthMin, DomainConstants.CategoryMobileWidthMax);
+        }
+    }
+
+    // Снятие «авто» фиксирует текущую производную ширину как явную, возврат к «авто» — обнуляет настройку.
+    private void OnMobileAutoChanged(ChangeEventArgs args)
+    {
+        _mobileAuto = args.Value is true;
+        _model.MobileWidth = _mobileAuto ? null : DefaultMobileWidth;
     }
 
     private async Task SaveAsync()
@@ -148,7 +200,8 @@
                 DashboardPageId = Pages.Count > 0 ? _model.PageId : DashboardPageId,
                 Order = Category?.Order ?? Order,
                 Title = _model.Title.Trim(),
-                Width = _model.Width
+                Width = _model.Width,
+                MobileWidth = _mobileAuto ? null : _model.MobileWidth ?? DefaultMobileWidth
             };
 
             if (isNew)
@@ -207,5 +260,7 @@
         public string Title { get; set; } = string.Empty;
 
         public int Width { get; set; } = 6;
+
+        public int? MobileWidth { get; set; }
     }
 }

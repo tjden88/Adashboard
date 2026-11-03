@@ -84,6 +84,11 @@ export function setBackgroundImages(lightUrl, darkUrl) {
 
 const GRID_ELEMENT_ID = "dashboard-grid";
 
+// Число колонок сетки категорий на брейкпоинтах: desktop / medium / mobile.
+const DESKTOP_COLUMNS = 12;
+const MEDIUM_COLUMNS = 6;
+const MOBILE_COLUMNS = 4;
+
 // Перетаскивание начинается после заметного смещения указателя, а на тач-устройстве — ещё
 // и после длительного нажатия: иначе обычный жест остался бы обычной прокруткой страницы.
 const DRAG_THRESHOLD_PX = 6;
@@ -122,14 +127,14 @@ function getColumnCount() {
     const width = window.innerWidth;
 
     if (width <= 900) {
-        return 4;
+        return MOBILE_COLUMNS;
     }
 
     if (width <= 1200) {
-        return 6;
+        return MEDIUM_COLUMNS;
     }
 
-    return 12;
+    return DESKTOP_COLUMNS;
 }
 
 function getSpanVariable() {
@@ -602,7 +607,8 @@ function endSession() {
 }
 
 // Ширину категории тянем маркером у правого края: она задаётся в колонках сетки
-// и округляется до целого числа колонок текущего брейкпоинта.
+// и округляется до целого числа колонок текущего брейкпоинта. Число колонок запоминаем:
+// от него зависит, что именно сохраняем — мобильную или обычную ширину категории.
 function startResizeSession(category, event) {
     dragState = {
         kind: "resize",
@@ -613,7 +619,8 @@ function startResizeSession(category, event) {
         active: false,
         categoryId: parseId(category.dataset.categoryId),
         startSpan: readSpan(category),
-        currentSpan: null
+        currentSpan: null,
+        columns: getColumnCount()
     };
 
     document.addEventListener("pointermove", onPointerMove, true);
@@ -666,11 +673,16 @@ function setCategorySpan(element, span) {
     element.style.setProperty(spanVariable.replace("--span-", "--cards-"), span);
 }
 
-// Обратное преобразование количества колонок текущего брейкпоинта в сохраняемую ширину
-// категории (она задаётся в колонках desktop-сетки из 12 колонок).
-function categorySpanToWidth(span) {
-    const width = getColumnCount() === 6 ? span * 2 : span;
-    return Math.min(Math.max(width, 1), 12);
+// Обратное преобразование количества колонок текущего брейкпоинта в сохраняемую ширину.
+// На мобильном брейкпоинте это отдельная мобильная ширина категории: она живёт в сетке
+// из четырёх колонок. На остальных — обычная ширина, задаваемая в колонках desktop-сетки.
+function spanToSavedWidth(span, columns) {
+    if (columns === MOBILE_COLUMNS) {
+        return Math.min(Math.max(span, 1), MOBILE_COLUMNS);
+    }
+
+    const width = columns === MEDIUM_COLUMNS ? span * 2 : span;
+    return Math.min(Math.max(width, 1), DESKTOP_COLUMNS);
 }
 
 function finishResize() {
@@ -682,7 +694,8 @@ function finishResize() {
     }
 
     const span = state.currentSpan ?? state.startSpan;
-    const width = categorySpanToWidth(span);
+    const isMobile = state.columns === MOBILE_COLUMNS;
+    const width = spanToSavedWidth(span, state.columns);
     const changed = span !== state.startSpan && state.categoryId !== null;
 
     document.body.classList.remove("category-resizing");
@@ -690,7 +703,7 @@ function finishResize() {
     scheduleLayout();
 
     if (changed && dotNetRef) {
-        enqueueSync(() => dotNetRef.invokeMethodAsync("OnCategoryResized", state.categoryId, width));
+        enqueueSync(() => dotNetRef.invokeMethodAsync("OnCategoryResized", state.categoryId, width, isMobile));
     }
 }
 

@@ -15,6 +15,18 @@ public static class DomainConstants
     /// <summary>Максимальная длина названия категории.</summary>
     public const int CategoryTitleMaxLength = 120;
 
+    /// <summary>Минимальная ширина категории в колонках сетки.</summary>
+    public const int CategoryWidthMin = 1;
+
+    /// <summary>Максимальная ширина категории в колонках десктопной сетки.</summary>
+    public const int CategoryWidthMax = 12;
+
+    /// <summary>Максимальная ширина категории на среднем брейкпоинте, где сетка состоит из 6 колонок.</summary>
+    public const int CategoryMediumWidthMax = 6;
+
+    /// <summary>Максимальная ширина категории на мобильном брейкпоинте, где сетка состоит из 4 колонок.</summary>
+    public const int CategoryMobileWidthMax = 4;
+
     /// <summary>Максимальная длина названия страницы.</summary>
     public const int PageTitleMaxLength = 120;
 

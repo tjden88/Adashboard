@@ -2,6 +2,7 @@ using Adashboard.Data;
 using Adashboard.Data.Entities;
 using Adashboard.Domain.Contracts;
 using Adashboard.Domain.ReadModels;
+using Adashboard.Domain.Reference;
 using Mapster;
 using Microsoft.EntityFrameworkCore;
 using WPR.Operations;
@@ -193,6 +194,8 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
             return Result.Failure("Страница не найдена.").As<DashboardCategory>();
         }
 
+        category.MobileWidth = NormalizeMobileWidth(category.MobileWidth);
+
         var entity = category.Adapt<DashboardCategoryEntity>();
         // Идентификатор назначает EF Core
         entity.Id = 0;
@@ -218,6 +221,7 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
             return Result.Failure("Категория не найдена.");
         }
 
+        category.MobileWidth = NormalizeMobileWidth(category.MobileWidth);
         category.Adapt(entity);
 
         // Проверим существование страницы, на которую переносится категория.
@@ -408,5 +412,15 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
 
         logger.LogInformation("Карточка {CardId} удалена.", id);
         return Result.Success();
+    }
+
+    /// <summary>
+    /// Приводит мобильную ширину категории к допустимому диапазону: пустое значение остаётся пустым
+    /// (мобильная ширина тогда производная от десктопной), число ограничивается колонками мобильной сетки.
+    /// </summary>
+    private static int? NormalizeMobileWidth(int? mobileWidth)
+    {
+        if (mobileWidth is null) return null;
+        return Math.Clamp(mobileWidth.Value, DomainConstants.CategoryWidthMin, DomainConstants.CategoryMobileWidthMax);
     }
 }

@@ -163,14 +163,18 @@
     // со страницы, пока с ней работают.
     private bool IsEditMode => AppStateService.IsEditMode;
 
-    // Ширину категории ограничиваем допустимым диапазоном сетки (1..12), даже если в данных
+    // Ширину категории ограничиваем допустимым диапазоном сетки, даже если в данных
     // оказалось некорректное значение: иначе получилась бы нулевая ширина.
-    private int DesktopWidth => Math.Clamp(Model.Width, 1, 12);
+    private int DesktopWidth => Math.Clamp(Model.Width, DomainConstants.CategoryWidthMin, DomainConstants.CategoryWidthMax);
 
-    // Ширина для остальных брейкпоинтов повторяет пропорции сетки: 6 и 4 колонки.
-    private int MediumWidth => Math.Clamp((int)Math.Round(DesktopWidth / 2d, MidpointRounding.AwayFromZero), 1, 6);
+    // Ширина среднего брейкпоинта повторяет пропорции сетки: 6 колонок вместо 12.
+    private int MediumWidth => Math.Clamp((int)Math.Round(DesktopWidth / 2d, MidpointRounding.AwayFromZero), DomainConstants.CategoryWidthMin, DomainConstants.CategoryMediumWidthMax);
 
-    private int MobileWidth => Math.Min(DesktopWidth, 4);
+    // Мобильная ширина — отдельная настройка категории. Когда она не задана, мобильная сетка
+    // повторяет десктопную ширину, но не больше четырёх колонок мобильной сетки.
+    private int MobileWidth => Model.MobileWidth is null
+        ? Math.Min(DesktopWidth, DomainConstants.CategoryMobileWidthMax)
+        : Math.Clamp(Model.MobileWidth.Value, DomainConstants.CategoryWidthMin, DomainConstants.CategoryMobileWidthMax);
 
     private string CardFormTitle => _editingCard is null
         ? "Добавить ссылку"

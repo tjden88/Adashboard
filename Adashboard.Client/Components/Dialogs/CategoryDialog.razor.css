@@ -53,3 +53,24 @@
     width: 100%;
     accent-color: var(--accent);
 }
+
+/* Отключённый слайдер мобильной ширины в режиме «авто» остаётся виден, но неактивен. */
+.category-dialog input[type="range"]:disabled {
+    opacity: 0.45;
+}
+
+.category-dialog__auto {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.category-dialog__auto input {
+    width: 1.05rem;
+    height: 1.05rem;
+    margin: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+}

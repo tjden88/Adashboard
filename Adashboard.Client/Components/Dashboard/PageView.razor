@@ -367,10 +367,12 @@
     }
 
     /// <summary>
-    /// Применяет новую ширину категории, полученную от маркера изменения ширины.
+    /// Применяет новую ширину категории, полученную от маркера изменения ширины:
+    /// на мобильном брейкпоинте сохраняется отдельная мобильная ширина категории,
+    /// на остальных — обычная ширина сетки.
     /// </summary>
     [JSInvokable]
-    public async Task OnCategoryResized(int categoryId, int width)
+    public async Task OnCategoryResized(int categoryId, int width, bool isMobile)
     {
         var category = Model.Categories.FirstOrDefault(x => x.Id == categoryId);
         if (category is null)
@@ -378,7 +380,34 @@
             return;
         }
 
-        var clampedWidth = Math.Clamp(width, 1, 12);
+        if (isMobile)
+        {
+            // Мобильный ресайз фиксирует отдельную мобильную ширину: обратно в «авто»
+            // она возвращается только через диалог категории.
+            var mobileWidth = Math.Clamp(width, DomainConstants.CategoryWidthMin, DomainConstants.CategoryMobileWidthMax);
+            if (category.MobileWidth == mobileWidth)
+            {
+                return;
+            }
+
+            await _reorderLock.WaitAsync();
+            try
+            {
+                category.MobileWidth = mobileWidth;
+
+                Logger.LogDebug("Изменена мобильная ширина категории {CategoryId} на {Width}.", category.Id, mobileWidth);
+                await PersistCategoryChangesAsync([category]);
+            }
+            finally
+            {
+                _reorderLock.Release();
+            }
+
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        var clampedWidth = Math.Clamp(width, DomainConstants.CategoryWidthMin, DomainConstants.CategoryWidthMax);
         if (category.Width == clampedWidth)
         {
             return;
@@ -523,9 +552,9 @@
         Logger.LogInformation("Изменения карточек dashboard сохранены. Карточек: {Count}.", cards.Count);
     }
 
-    // Ключ включает ширину: после ресайза категория перерисовывается и получает корректные
+    // Ключ включает обе ширины: после ресайза категория перерисовывается и получает корректные
     // значения span для всех брейкпоинтов, а не только для текущего.
-    private static string CategoryKey(DashboardCategory category) => $"{category.Id}:{category.Width}";
+    private static string CategoryKey(DashboardCategory category) => $"{category.Id}:{category.Width}:{category.MobileWidth}";
 
     public async ValueTask DisposeAsync()
     {
