@@ -120,6 +120,32 @@ html[data-theme="light"] .dashboard-page-icon {
     }
 }
 
+/* Мобильная ширина: вся шапка прилипает к верху экрана, чтобы заголовок страницы,
+   её иконка и кнопки управления оставались видимыми при прокрутке. На десктопе
+   шапка — обычный блок в потоке и уходит со скроллом, как и раньше. */
+@media (max-width: 900px) {
+    .dashboard-header {
+        position: sticky;
+        top: 0;
+        /* Выше карточек и категорий (z-index 1–3), но ниже подложки (1200) и drawer
+           бокового меню (1300), диалогов (1500) и полосы ошибок Blazor (1000). */
+        z-index: 40;
+        padding: 0.6rem 1.2rem;
+        /* Отрицательные боковые отступы растягивают подложку до краёв экранной полосы:
+           .content даёт те же 1.2rem, а padding возвращает содержимое на прежнее место. */
+        margin-inline: -1.2rem;
+        /* «Стеклянная» подложка, как у бокового меню и палитры цвета: содержимое под
+           прилипшей шапкой размывается, а не просвечивает сквозь неё. */
+        background: var(--surface);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid var(--surface-border);
+        box-shadow: 0 6px 18px rgba(46, 30, 64, 0.14);
+        /* Вертикальный отступ шапки и её padding вместе держат прежнее расстояние
+           до содержимого страницы. */
+        margin-bottom: 0.9rem;
+    }
+}
+
 /* Кнопка открытия меню нужна только на мобильной ширине: на десктопе её скрываем. */
 @media (min-width: 901px) {
     .side-menu-toggle {
@@ -127,19 +153,53 @@ html[data-theme="light"] .dashboard-page-icon {
     }
 }
 
-/* Лёгкий стиль кнопки меню: без рамки, «стеклянной» подложки и тени, по умолчанию
-   спокойный приглушённый цвет, а при наведении — только лёгкая подсветка.
-   Перекрывает базовые стили .btn из app.css (scoped-селектор сильнее). */
-.side-menu-toggle {
-    border-color: transparent;
-    background: transparent;
-    box-shadow: none;
-    color: var(--text-muted);
+/* Кнопка меню — заметный «чип»: подложка читается на любом фоне страницы (в том числе
+   под прилипающей шапкой), а область нажатия ≈44px, чтобы не промахиваться пальцем.
+   Квалификатор button поднимает специфичность выше .btn-icon.btn-sm из app.css —
+   иначе их фиксированный размер 1.9rem не перебить селектором равной силы. */
+button.side-menu-toggle {
+    flex-shrink: 0;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 12px;
+    border-color: color-mix(in srgb, var(--text-main) 16%, var(--surface-border));
+    background: var(--surface-strong);
+    box-shadow: 0 4px 14px rgba(46, 30, 64, 0.1);
+    color: var(--text-main);
+    font-size: 1.05rem;
 }
 
 .side-menu-toggle:hover {
-    background: color-mix(in srgb, var(--text-main) 8%, transparent);
+    background: color-mix(in srgb, var(--text-main) 12%, var(--surface-strong));
+    border-color: color-mix(in srgb, var(--text-main) 26%, var(--surface-border));
     color: var(--text-main);
+}
+
+/* Меню открыто: кнопка подсвечивается акцентом, как активный пункт меню, а бургер
+   становится крестиком. Состояние ведёт aria-expanded — отдельный класс и JS не нужны. */
+.side-menu-toggle[aria-expanded="true"] {
+    background: var(--accent-soft);
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--surface-border));
+    color: var(--accent);
+}
+
+.side-menu-toggle[aria-expanded="true"]:hover {
+    background: color-mix(in srgb, var(--accent) 26%, var(--surface-strong));
+    border-color: color-mix(in srgb, var(--accent) 70%, var(--surface-border));
+    color: var(--accent);
+}
+
+.side-menu-toggle[aria-expanded="true"] i::before {
+    content: "\f00d";
+}
+
+/* Кольцо фокуса пишем здесь: базовый стиль кнопки сам задаёт box-shadow,
+   поэтому библиотечный .btn:focus-visible его не перебивает. */
+.side-menu-toggle:focus-visible {
+    outline: none;
+    box-shadow:
+        inset 0 0 0 2px color-mix(in srgb, var(--text-main) 75%, transparent),
+        0 8px 22px rgba(0, 0, 0, 0.2);
 }
 
 /* Кнопки редактирования и настроек в шапке видны только при скрытом боковом меню:
