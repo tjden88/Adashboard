@@ -372,9 +372,9 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
-/AGENTS.md
-/opencode.json
-/.opencode
+# Файлы правил и конфигурации ИИ-агентов (AGENTS.md, opencode.json, .opencode/) в репозитории:
+# это часть проекта, их нужно видеть в diff. Вложенный .opencode/.gitignore по-прежнему скрывает
+# node_modules и сгенерированные package-файлы.
 /Adashboard.Server/appdata
 /tasks/Задачи Adashboard/.obsidian
 
