@@ -12,13 +12,13 @@ COPY Adashboard.Server/Adashboard.Server.csproj Adashboard.Server/
 RUN dotnet restore Adashboard.slnx
 
 # Каталог данных в образ не копируем (см. .dockerignore): в контейнере он — volume.
-# openapi/ нужен для сборки: Refitter читает openapi/Adashboard.Server.json и генерирует
-# клиентский интерфейс IDashboardApi, поэтому он не исключён из контекста.
+# Adashboard.Client/Generated не исключён из контекста: это сгенерированные Refit-клиенты, и без них
+# клиент не собирается (перед сборкой образа их перегоняют generate-clients.bat, если API менялся).
 COPY . .
 
-# Цель PublishOpenApiDocument при публикации запускает приложение, и AssetsInitializer проверяет
-# каталог ассетов относительно content root. На Linux имена регистрозависимы, поэтому на время
-# публикации каталог Adashboard.Server/Assets переименовываем в строчное «assets».
+# Каталог ассетов в репозитории — «Assets», а DashboardPaths.AssetsPath и AssetsInitializer ищут каталог
+# «assets» (строчными). На Linux имена регистрозависимы, поэтому на время публикации каталог
+# Adashboard.Server/Assets переименовываем в строчное «assets».
 RUN mv Adashboard.Server/Assets Adashboard.Server/assets
 RUN dotnet publish Adashboard.Server/Adashboard.Server.csproj -c Release -o /src/publish
 

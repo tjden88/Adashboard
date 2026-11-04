@@ -20,7 +20,7 @@ description: Use at the start of any task to locate code cheaply — search the 
 
 ## Что индекс не показывает
 
-- Сигнатуры Refit-методов клиента — смотреть `openapi/Adashboard.Server.json` по `operationId`.
+- Сигнатуры Refit-методов клиента — смотреть `Adashboard.Client/Generated/` (файл на контроллер).
 - Строки разметки Razor и CSS — индекс содержит только код-символы.
 - Файлы разметки агентов (`AGENTS.md`, `.opencode/skills/**`) — в репозитории и доступны поиску.
 

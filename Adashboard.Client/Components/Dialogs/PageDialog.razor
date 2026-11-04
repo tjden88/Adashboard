@@ -1,5 +1,5 @@
 @using Adashboard.Client.Helpers
-@inject IDashboardApi DashboardApi
+@inject IPageClient PagesApi
 @inject ILogger<PageDialog> Logger
 
 @*
@@ -254,7 +254,7 @@
             {
                 Logger.LogDebug("Создание страницы dashboard {Title}.", page.Title);
 
-                var response = await DashboardApi.CreatePageAsync(page);
+                var response = await PagesApi.CreatePage(page);
                 if (!response.IsSuccessStatusCode || response.Content is null)
                 {
                     Logger.LogWarning("Создание страницы завершилось ошибкой API. Код: {StatusCode}.", (int?)response.StatusCode);
@@ -269,7 +269,7 @@
             {
                 Logger.LogDebug("Изменение страницы dashboard {PageId}.", page.Id);
 
-                var response = await DashboardApi.SavePageInfoAsync(page);
+                var response = await PagesApi.SavePageInfo(page);
                 if (!response.IsSuccessStatusCode)
                 {
                     Logger.LogWarning("Изменение страницы завершилось ошибкой API. Код: {StatusCode}.", (int?)response.StatusCode);

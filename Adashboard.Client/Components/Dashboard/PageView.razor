@@ -1,5 +1,7 @@
 @implements IAsyncDisposable
-@inject IDashboardApi DashboardApi
+@inject ICardsClient CardsApi
+@inject ICategoriesClient CategoriesApi
+@inject IPageClient PagesApi
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject ILogger<PageView> Logger
@@ -324,7 +326,7 @@
 
         try
         {
-            var response = await DashboardApi.DeletePageAsync(Model.Page.Id);
+            var response = await PagesApi.DeletePage(Model.Page.Id);
             if (!response.IsSuccessStatusCode)
             {
                 Logger.LogWarning("Удаление страницы {PageId} завершилось ошибкой API. Код: {StatusCode}.", Model.Page.Id, (int?)response.StatusCode);
@@ -488,7 +490,7 @@
         {
             try
             {
-                var response = await DashboardApi.UpdateCategoryAsync(category);
+                var response = await CategoriesApi.UpdateCategory(category);
                 if (!response.IsSuccessStatusCode)
                 {
                     Logger.LogWarning("Не удалось сохранить категорию {CategoryId}. Код: {StatusCode}.", category.Id, (int?)response.StatusCode);
@@ -583,7 +585,7 @@
         {
             try
             {
-                var response = await DashboardApi.UpdateCardAsync(new SaveCardRequest { Card = card });
+                var response = await CardsApi.UpdateCard(new SaveCardRequest { Card = card });
                 if (!response.IsSuccessStatusCode)
                 {
                     Logger.LogWarning("Не удалось сохранить карточку {CardId}. Код: {StatusCode}.", card.Id, (int?)response.StatusCode);

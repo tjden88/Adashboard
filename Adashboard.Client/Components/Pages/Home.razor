@@ -4,7 +4,7 @@
 @using Adashboard.Client.Helpers
 @implements IDisposable
 
-@inject IDashboardApi DashboardApi
+@inject IPageClient PagesApi
 @inject NavigationManager Navigation
 @inject ILogger<Home> Logger
 
@@ -154,7 +154,7 @@
             Logger.LogDebug("Загрузка страницы по пути {Path}.", normalized);
 
             // Список страниц нужен, чтобы по адресу найти нужную, а затем загрузить её содержимое.
-            var pagesResponse = await DashboardApi.GetPagesAsync(cancellationToken);
+            var pagesResponse = await PagesApi.GetPages(cancellationToken);
             if (version != _loadVersion)
             {
                 return;
@@ -185,7 +185,7 @@
                 return;
             }
 
-            var pageResponse = await DashboardApi.GetPageAsync(page.Id, cancellationToken);
+            var pageResponse = await PagesApi.GetPage(page.Id, cancellationToken);
             if (version != _loadVersion)
             {
                 return;

@@ -1,5 +1,5 @@
 @using Adashboard.Client.Helpers
-@inject IDashboardApi DashboardApi
+@inject ICategoriesClient CategoriesApi
 @inject ILogger<CategoryDialog> Logger
 
 @*
@@ -205,7 +205,7 @@
             {
                 Logger.LogDebug("Создание категории dashboard {Title}.", category.Title);
 
-                var response = await DashboardApi.CreateCategoryAsync(category);
+                var response = await CategoriesApi.CreateCategory(category);
                 if (!response.IsSuccessStatusCode || response.Content is null)
                 {
                     Logger.LogWarning("Создание категории завершилось ошибкой API. Код: {StatusCode}.", (int?)response.StatusCode);
@@ -220,7 +220,7 @@
             {
                 Logger.LogDebug("Изменение категории dashboard {CategoryId}.", category.Id);
 
-                var response = await DashboardApi.UpdateCategoryAsync(category);
+                var response = await CategoriesApi.UpdateCategory(category);
                 if (!response.IsSuccessStatusCode)
                 {
                     Logger.LogWarning("Изменение категории завершилось ошибкой API. Код: {StatusCode}.", (int?)response.StatusCode);

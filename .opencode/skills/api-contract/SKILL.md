@@ -7,16 +7,24 @@ description: Use when changing controllers, endpoints, the Refit client, OpenAPI
 
 ## Клиент не пишется руками
 
-`IDashboardApi` генерируется на сборке по `openapi/Adashboard.Server.json` (файл в репозитории).
-Конфиг: `Adashboard.Client/dashboard-api.refitter` (`generateContracts: false`, `returnIApiResponse: true`,
-`useCancellationTokens: true`, `operationNameTemplate: "{operationName}Async"`). Выход —
-`Adashboard.Client/Generated/IDashboardApi.g.cs` (gitignore, руками не правится).
+Клиентские интерфейсы генерирует локальный dotnet-tool `GenerateAspNetCoreClient.Refit` (манифест
+`dotnet-tools.json`): он собирает и поднимает `Adashboard.Server`, читает метаданные эндпоинтов (ApiExplorer)
+и пишет по одному интерфейсу на контроллер — `Adashboard.Client/Generated/I<controller>Client.cs`
+(namespace `Adashboard.Client.Services`, файлы в git, руками не правятся).
 
-- Имя метода клиента = `operationId`, который берётся из `Name = "..."` в атрибуте HTTP-метода контроллера.
-  Добавляя эндпоинт, задавай `Name`, а не правишь клиент.
+- Запуск после изменения API: `generate-clients.bat` (он же `scripts/generate-api-clients.ps1`), затем сборка решения.
+- OpenAPI-файл в репозитории не нужен: `/openapi/v1.json` сервер отдаёт только в среде разработки для Scalar.
+- Имя метода клиента = имя **действия контроллера**, суффикса `Async` нет: `CardsController.CreateCard` →
+  `ICardsClient.CreateCard`. Поэтому действия называют говоряще (`GetPages`, `SaveSettings`), а `Name` в
+  HTTP-атрибутах не задаём — маршрут задаётся только атрибутом (`[HttpGet("title")]`).
 - Тип ответа в контроллере обязан быть указан через `[ProducesResponseType<T>]`, иначе в клиент попадёт
-  метод без результата.
-- После изменения API — две сборки: первая обновляет спецификацию, вторая пересобирает клиент.
+  метод без результата. Генератор при этом печатает «Cannot find return type» — для действий без тела ответа
+  (`IActionResult`) это ожидаемое сообщение, клиент получает `Task<IApiResponse>`.
+- Новый контроллер: перегенерировать клиентов и добавить интерфейс в `ApiClientRegistration.AddDashboardApiClients`
+  (там используется `AddRefitGeneratedClient`: обычный `AddRefitClient` требует reflection-построитель запросов,
+  которого в WASM-клиенте нет).
+- Генератор исполняет `Program.cs` сервера, поэтому скрипт ставит `Adashboard:SkipStartupInitialization=true`:
+  миграции и стартовое наполнение при генерации не выполняются.
 
 ## Контракт ошибок
 
@@ -29,5 +37,5 @@ description: Use when changing controllers, endpoints, the Refit client, OpenAPI
 
 ## Проверка
 
-Имена методов и коды ответов смотреть выборкой из `openapi/Adashboard.Server.json` по `operationId`,
-а не чтением файла целиком (40 КБ).
+Имена методов клиента и коды ответов смотреть в `Adashboard.Client/Generated/*.cs` (по одному файлу на
+контроллер) или в атрибутах контроллера — не читать весь `Adashboard.Client/Generated` каталог целиком.

@@ -8,9 +8,6 @@
 # Генерируемые данные приложения: в контейнере каталог данных — volume.
 Adashboard.Server/appdata
 
-# Клиентский интерфейс генерирует Refitter на сборке из openapi/Adashboard.Server.json.
-Adashboard.Client/Generated
-
 # Служебные папки репозитория и тестовые базы данных.
 tasks
 _reference
@@ -19,5 +16,5 @@ _reference
 *.db-wal
 *.user
 
-# Не исключаем: openapi/, Adashboard.Client/dashboard-api.refitter, Adashboard.Server/Assets
-# нужны для сборки клиента и наполнения статики стандартными файлами.
+# Не исключаем: Adashboard.Client/Generated — сгенерированные Refit-клиенты, без них клиент не собирается;
+# Adashboard.Server/Assets — нужен для наполнения статики стандартными файлами.

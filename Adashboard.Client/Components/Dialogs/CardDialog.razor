@@ -1,6 +1,8 @@
 @using Adashboard.Client.Helpers
 @implements IAsyncDisposable
-@inject IDashboardApi DashboardApi
+@inject ICardsClient CardsApi
+@inject ICategoriesClient CategoriesApi
+@inject IProbeClient ProbeApi
 @inject DashboardApiOptions ApiOptions
 @inject IJSRuntime JS
 @inject ILogger<CardDialog> Logger
@@ -384,7 +386,7 @@
 
         try
         {
-            var response = await DashboardApi.GetCategoriesAsync(_categoriesCts.Token);
+            var response = await CategoriesApi.GetCategories(_categoriesCts.Token);
             if (!response.IsSuccessStatusCode || response.Content is null)
             {
                 Logger.LogWarning("Список категорий для диалога карточки не загружен. Код: {StatusCode}.", (int?)response.StatusCode);
@@ -489,7 +491,7 @@
         {
             Logger.LogDebug("Запрошено получение заголовка страницы по ссылке карточки.");
 
-            var response = await DashboardApi.GetTitleAsync(UrlSchemePrefix(scheme) + url, _titleLookupCts.Token);
+            var response = await ProbeApi.GetTitle(UrlSchemePrefix(scheme) + url, _titleLookupCts.Token);
             if (!response.IsSuccessStatusCode)
             {
                 Logger.LogWarning("Получение заголовка завершилось ошибкой API. Код: {StatusCode}.", (int?)response.StatusCode);
@@ -552,7 +554,7 @@
         {
             Logger.LogDebug("Запрошено получение иконки по ссылке карточки.");
 
-            var response = await DashboardApi.GetIconAsync(UrlSchemePrefix(scheme) + url, _iconLookupCts.Token);
+            var response = await ProbeApi.GetIcon(UrlSchemePrefix(scheme) + url, _iconLookupCts.Token);
             if (!response.IsSuccessStatusCode)
             {
                 Logger.LogWarning("Получение иконки завершилось ошибкой API. Код: {StatusCode}.", (int?)response.StatusCode);
@@ -768,7 +770,7 @@
             {
                 Logger.LogDebug("Создание карточки dashboard {Title} в категории {CategoryId}.", card.Title, card.DashboardCategoryId);
 
-                var response = await DashboardApi.CreateCardAsync(request);
+                var response = await CardsApi.CreateCard(request);
                 if (!response.IsSuccessStatusCode || response.Content is null)
                 {
                     Logger.LogWarning("Создание карточки завершилось ошибкой API. Код: {StatusCode}.", (int?)response.StatusCode);
@@ -783,7 +785,7 @@
             {
                 Logger.LogDebug("Изменение карточки dashboard {CardId}.", card.Id);
 
-                var response = await DashboardApi.UpdateCardAsync(request);
+                var response = await CardsApi.UpdateCard(request);
                 if (!response.IsSuccessStatusCode || response.Content is null)
                 {
                     Logger.LogWarning("Изменение карточки {CardId} завершилось ошибкой API. Код: {StatusCode}.", card.Id, (int?)response.StatusCode);

@@ -14,10 +14,10 @@ public class CardsController(PageService pageService, ILogger<CardsController> l
     /// <summary>
     /// Создаёт новую карточку в указанной категории, при необходимости с изображением-иконкой.
     /// </summary>
-    [HttpPost(Name = "CreateCard")]
+    [HttpPost]
     [ProducesResponseType<DashboardCard>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<DashboardCard>> Create([FromBody] SaveCardRequest? request, CancellationToken cancellationToken)
+    public async Task<ActionResult<DashboardCard>> CreateCard([FromBody] SaveCardRequest? request, CancellationToken cancellationToken)
     {
         if (request?.Card is null)
         {
@@ -44,10 +44,10 @@ public class CardsController(PageService pageService, ILogger<CardsController> l
     /// <summary>
     /// Изменяет существующую карточку, при необходимости заменяя или удаляя изображение-иконку.
     /// </summary>
-    [HttpPut(Name = "UpdateCard")]
+    [HttpPut]
     [ProducesResponseType<DashboardCard>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<DashboardCard>> Update([FromBody] SaveCardRequest? request, CancellationToken cancellationToken)
+    public async Task<ActionResult<DashboardCard>> UpdateCard([FromBody] SaveCardRequest? request, CancellationToken cancellationToken)
     {
         if (request?.Card is null)
         {
@@ -67,10 +67,10 @@ public class CardsController(PageService pageService, ILogger<CardsController> l
     /// <summary>
     /// Создаёт копию карточки в той же категории сразу после исходной.
     /// </summary>
-    [HttpPost("{id:int}/duplicate", Name = "DuplicateCard")]
+    [HttpPost("{id:int}/duplicate")]
     [ProducesResponseType<DashboardCard>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<DashboardCard>> Duplicate(int id, CancellationToken cancellationToken)
+    public async Task<ActionResult<DashboardCard>> DuplicateCard(int id, CancellationToken cancellationToken)
     {
         var result = await pageService.DuplicateCardAsync(id, cancellationToken);
         if (!result.IsSuccess)
@@ -86,10 +86,10 @@ public class CardsController(PageService pageService, ILogger<CardsController> l
     /// <summary>
     /// Удаляет карточку.
     /// </summary>
-    [HttpDelete("{id:int}", Name = "DeleteCard")]
+    [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    public async Task<IActionResult> DeleteCard(int id, CancellationToken cancellationToken)
     {
         var result = await pageService.DeleteCardAsync(id, cancellationToken);
         return result.IsSuccess ? NoContent() : BadRequest(result.Error);

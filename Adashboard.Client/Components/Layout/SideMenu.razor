@@ -1,6 +1,6 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
-@inject IDashboardApi DashboardApi
+@inject IPageClient PagesApi
 @inject ILogger<SideMenu> Logger
 @implements IAsyncDisposable
 
@@ -276,7 +276,7 @@
 
         try
         {
-            var response = await DashboardApi.ReorderPagesAsync(orderedPageIds);
+            var response = await PagesApi.ReorderPages(orderedPageIds);
             if (!response.IsSuccessStatusCode)
             {
                 Logger.LogWarning("Не удалось сохранить порядок страниц меню. Код: {StatusCode}.", (int?)response.StatusCode);

@@ -274,8 +274,8 @@ ServiceFabricBackup/
 # Генерируемые данные API (SQLite и копии стандартных загрузок) — не хранятся в репозитории
 Adashboard.Server/appdata/
 
-# Клиентский интерфейс IDashboardApi, сгенерированный Refitter: пересоздаётся на каждой сборке.
-Adashboard.Client/Generated/
+# Клиентские Refit-интерфейсы Adashboard.Client/Generated хранятся в репозитории: их перегенерирует
+# generate-clients.bat после изменения API (см. скилл api-contract).
 
 # Business Intelligence projects
 *.rdl.data

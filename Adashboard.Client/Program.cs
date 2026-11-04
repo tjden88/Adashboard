@@ -43,9 +43,6 @@ builder.Services.AddCascadingValue(sp => sp.GetRequiredService<AppStateService>(
 builder.Services.AddScoped<HealthCheckService>();
 
 builder.Services
-    .AddRefitGeneratedClient<IDashboardApi>(refitSettings)
-    .ConfigureHttpClient(client => client.BaseAddress = new Uri(apiOptions.BaseAddress))
-    .AddHttpMessageHandler<NetworkErrorHandler>()
-    .AddHttpMessageHandler<ApiKeyHandler>();
+    .AddDashboardApiClients(refitSettings, apiOptions.BaseAddress);
 
 await builder.Build().RunAsync();

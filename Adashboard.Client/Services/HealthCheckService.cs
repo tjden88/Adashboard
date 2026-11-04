@@ -8,7 +8,7 @@ namespace Adashboard.Client.Services;
 /// <summary>
 /// Сервис проверки доступности сервисов, на которые ведут карточки dashboard.
 /// </summary>
-public sealed class HealthCheckService(IDashboardApi dashboardApi, ILogger<HealthCheckService> logger)
+public sealed class HealthCheckService(IProbeClient probeClient, ILogger<HealthCheckService> logger)
 {
     /// <summary>
     /// Максимальное число одновременных проверок доступности.
@@ -32,7 +32,7 @@ public sealed class HealthCheckService(IDashboardApi dashboardApi, ILogger<Healt
         await _concurrencyLimiter.WaitAsync(cancellationToken);
         try
         {
-            var response = await dashboardApi.CheckHealthAsync(cardId, cancellationToken);
+            var response = await probeClient.CheckHealth(cardId, cancellationToken);
 
             // Карточки на сервере больше нет (её удалили, например, в другой вкладке): проверять нечего.
             if (response.StatusCode == HttpStatusCode.NotFound)

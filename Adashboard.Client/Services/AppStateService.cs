@@ -9,16 +9,16 @@ namespace Adashboard.Client.Services;
 /// </summary>
 public sealed class AppStateService
 {
-    private readonly IDashboardApi _dashboardApi;
+    private readonly ISettingsClient _settingsClient;
     private readonly ILogger<AppStateService> _logger;
     private readonly CascadingValueSource<AppStateService> _source;
 
     /// <summary>
     /// Создаёт состояние приложения и источник каскадного значения для него.
     /// </summary>
-    public AppStateService(IDashboardApi dashboardApi, ILogger<AppStateService> logger)
+    public AppStateService(ISettingsClient settingsClient, ILogger<AppStateService> logger)
     {
-        _dashboardApi = dashboardApi;
+        _settingsClient = settingsClient;
         _logger = logger;
         _source = new CascadingValueSource<AppStateService>(this, isFixed: false);
     }
@@ -52,7 +52,7 @@ public sealed class AppStateService
 
         try
         {
-            var response = await _dashboardApi.GetSettingsAsync(cancellationToken);
+            var response = await _settingsClient.GetSettings(cancellationToken);
             if (!response.IsSuccessStatusCode || response.Content is null)
             {
                 _logger.LogWarning("Настройки приложения не загружены. Код ответа: {StatusCode}.", (int?)response.StatusCode);
@@ -84,7 +84,7 @@ public sealed class AppStateService
 
         try
         {
-            var response = await _dashboardApi.SaveSettingsAsync(settings, cancellationToken);
+            var response = await _settingsClient.SaveSettings(settings, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("Сохранение настроек приложения завершилось ошибкой API. Код: {StatusCode}.", (int?)response.StatusCode);

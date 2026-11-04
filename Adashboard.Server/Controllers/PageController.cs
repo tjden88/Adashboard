@@ -18,7 +18,7 @@ public class PageController(
     /// <summary>
     /// Возвращает список всех страниц dashboard.
     /// </summary>
-    [HttpGet(Name = "GetPages")]
+    [HttpGet]
     [ProducesResponseType<IReadOnlyList<DashboardPage>>(StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<DashboardPage>>> GetPages(CancellationToken cancellationToken)
     {
@@ -29,7 +29,7 @@ public class PageController(
     /// <summary>
     /// Возвращает страницу dashboard вместе с категориями и карточками.
     /// </summary>
-    [HttpGet("{id:int}", Name = "GetPage")]
+    [HttpGet("{id:int}")]
     [ProducesResponseType<DashboardPageReadModel>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<DashboardPageReadModel>> GetPage(int id, CancellationToken cancellationToken)
@@ -46,10 +46,10 @@ public class PageController(
     /// <summary>
     /// Создаёт новую страницу dashboard.
     /// </summary>
-    [HttpPost(Name = "CreatePage")]
+    [HttpPost]
     [ProducesResponseType<DashboardPage>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<DashboardPage>> Create([FromBody] DashboardPage? page, CancellationToken cancellationToken)
+    public async Task<ActionResult<DashboardPage>> CreatePage([FromBody] DashboardPage? page, CancellationToken cancellationToken)
     {
         if (page is null || string.IsNullOrWhiteSpace(page.Title))
         {
@@ -76,10 +76,10 @@ public class PageController(
     /// <summary>
     /// Изменяет заголовок, описание и путь страницы dashboard.
     /// </summary>
-    [HttpPut("info", Name = "SavePageInfo")]
+    [HttpPut("info")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> PutInfo([FromBody] DashboardPage? info, CancellationToken cancellationToken)
+    public async Task<IActionResult> SavePageInfo([FromBody] DashboardPage? info, CancellationToken cancellationToken)
     {
         if (info is null || string.IsNullOrWhiteSpace(info.Title))
         {
@@ -100,10 +100,10 @@ public class PageController(
     /// <summary>
     /// Применяет новый порядок страниц в боковом меню.
     /// </summary>
-    [HttpPut("reorder", Name = "ReorderPages")]
+    [HttpPut("reorder")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Reorder([FromBody] IReadOnlyList<int>? pageIds, CancellationToken cancellationToken)
+    public async Task<IActionResult> ReorderPages([FromBody] IReadOnlyList<int>? pageIds, CancellationToken cancellationToken)
     {
         if (pageIds is null || pageIds.Count == 0)
         {
@@ -119,10 +119,10 @@ public class PageController(
     /// Удаляет страницу dashboard вместе с её категориями и карточками.
     /// Основную страницу удалить нельзя.
     /// </summary>
-    [HttpDelete("{id:int}", Name = "DeletePage")]
+    [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    public async Task<IActionResult> DeletePage(int id, CancellationToken cancellationToken)
     {
         var result = await pageService.DeletePageAsync(id, cancellationToken);
         return result.IsSuccess ? NoContent() : BadRequest(result.Error);

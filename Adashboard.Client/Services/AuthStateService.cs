@@ -8,7 +8,7 @@ namespace Adashboard.Client.Services;
 /// </summary>
 public sealed class AuthStateService : IDisposable
 {
-    private readonly IDashboardApi _dashboardApi;
+    private readonly IHealthClient _healthClient;
     private readonly ApiKeyStore _store;
     private readonly ILogger<AuthStateService> _logger;
     private readonly CascadingValueSource<AuthStateService> _source;
@@ -16,9 +16,9 @@ public sealed class AuthStateService : IDisposable
     /// <summary>
     /// Создаёт состояние доступа и источник каскадного значения для него.
     /// </summary>
-    public AuthStateService(IDashboardApi dashboardApi, ApiKeyStore store, ILogger<AuthStateService> logger)
+    public AuthStateService(IHealthClient healthClient, ApiKeyStore store, ILogger<AuthStateService> logger)
     {
-        _dashboardApi = dashboardApi;
+        _healthClient = healthClient;
         _store = store;
         _logger = logger;
         _source = new CascadingValueSource<AuthStateService>(this, isFixed: false);
@@ -127,7 +127,7 @@ public sealed class AuthStateService : IDisposable
     {
         try
         {
-            var response = await _dashboardApi.CheckAccessAsync(cancellationToken);
+            var response = await _healthClient.CheckAccess(cancellationToken);
             if (response.IsSuccessStatusCode)
             {
                 return ApiAccess.Granted;

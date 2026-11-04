@@ -17,10 +17,6 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.13" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
-    <PackageReference Include="Microsoft.Extensions.ApiDescription.Server" Version="10.0.13">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
 
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13">
       <PrivateAssets>all</PrivateAssets>
@@ -31,27 +27,6 @@
     <PackageReference Include="Scalar.AspNetCore" Version="2.18.0" />
     <PackageReference Include="WPR.Operations" Version="1.1.0" />
   </ItemGroup>
-  <PropertyGroup>
-
-    <OpenApiPublishedDirectory>$(MSBuildProjectDirectory)\..\openapi</OpenApiPublishedDirectory>
-  </PropertyGroup>
-  <Target Name="PublishOpenApiDocument" AfterTargets="GenerateOpenApiDocuments" Condition="Exists('$(_OpenApiDocumentsCache)')">
-    <ReadLinesFromFile File="$(_OpenApiDocumentsCache)">
-      <Output TaskParameter="Lines" ItemName="_OpenApiGeneratedDocuments" />
-    </ReadLinesFromFile>
-
-    <PropertyGroup>
-      <_OpenApiGeneratedFile>@(_OpenApiGeneratedDocuments)</_OpenApiGeneratedFile>
-      <_OpenApiPublishedFile>$(OpenApiPublishedDirectory)\$([System.IO.Path]::GetFileName('$(_OpenApiGeneratedFile)'))</_OpenApiPublishedFile>
-      <_OpenApiGeneratedText Condition="Exists('$(_OpenApiGeneratedFile)')">$([System.IO.File]::ReadAllText('$(_OpenApiGeneratedFile)'))</_OpenApiGeneratedText>
-      <_OpenApiPublishedText Condition="Exists('$(_OpenApiPublishedFile)')">$([System.IO.File]::ReadAllText('$(_OpenApiPublishedFile)'))</_OpenApiPublishedText>
-      <_OpenApiChanged Condition="'$(_OpenApiGeneratedText)' != '$(_OpenApiPublishedText)'">true</_OpenApiChanged>
-    </PropertyGroup>
-
-    <Copy Condition="'$(_OpenApiChanged)' == 'true'" SourceFiles="@(_OpenApiGeneratedDocuments)" DestinationFolder="$(OpenApiPublishedDirectory)" />
-
-    <Warning Condition="'$(_OpenApiChanged)' == 'true'" Text="Описание API изменилось — пересоберите решение, чтобы Refitter обновил клиентский интерфейс IDashboardApi." />
-  </Target>
 
   <ItemGroup>
     <ProjectReference Include="..\Adashboard.Client\Adashboard.Client.csproj" />

@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "isRoot": true,
+  "tools": {
+    "generateaspnetcoreclient.refit": {
+      "version": "4.0.0",
+      "commands": [
+        "dotnet-generate-client"
+      ],
+      "rollForward": false
+    }
+  }
+}

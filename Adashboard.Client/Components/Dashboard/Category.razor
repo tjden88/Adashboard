@@ -1,4 +1,5 @@
-@inject IDashboardApi DashboardApi
+@inject ICardsClient CardsApi
+@inject ICategoriesClient CategoriesApi
 @inject ILogger<Category> Logger
 
 @*
@@ -239,7 +240,7 @@
 
         try
         {
-            var response = await DashboardApi.DuplicateCardAsync(card.Id);
+            var response = await CardsApi.DuplicateCard(card.Id);
             if (!response.IsSuccessStatusCode || response.Content is null)
             {
                 Logger.LogWarning("Дублирование карточки {CardId} завершилось ошибкой API. Код: {StatusCode}.", card.Id, (int?)response.StatusCode);
@@ -277,7 +278,7 @@
 
         try
         {
-            var response = await DashboardApi.DeleteCardAsync(card.Id);
+            var response = await CardsApi.DeleteCard(card.Id);
             if (!response.IsSuccessStatusCode)
             {
                 Logger.LogWarning("Удаление карточки {CardId} завершилось ошибкой API. Код: {StatusCode}.", card.Id, (int?)response.StatusCode);
@@ -316,7 +317,7 @@
 
         try
         {
-            var response = await DashboardApi.DuplicateCategoryAsync(Model.Id);
+            var response = await CategoriesApi.DuplicateCategory(Model.Id);
             if (!response.IsSuccessStatusCode || response.Content is null)
             {
                 Logger.LogWarning("Дублирование категории {CategoryId} завершилось ошибкой API. Код: {StatusCode}.", Model.Id, (int?)response.StatusCode);
@@ -351,7 +352,7 @@
 
         try
         {
-            var response = await DashboardApi.DeleteCategoryAsync(Model.Id);
+            var response = await CategoriesApi.DeleteCategory(Model.Id);
             if (!response.IsSuccessStatusCode)
             {
                 Logger.LogWarning("Удаление категории {CategoryId} завершилось ошибкой API. Код: {StatusCode}.", Model.Id, (int?)response.StatusCode);

@@ -17,7 +17,7 @@ public class CategoriesController(
     /// <summary>
     /// Возвращает все категории dashboard: клиент показывает их с группировкой по страницам.
     /// </summary>
-    [HttpGet(Name = "GetCategories")]
+    [HttpGet]
     [ProducesResponseType<IReadOnlyList<DashboardCategory>>(StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<DashboardCategory>>> GetCategories(CancellationToken cancellationToken)
     {
@@ -28,10 +28,10 @@ public class CategoriesController(
     /// <summary>
     /// Создаёт новую категорию на указанной странице.
     /// </summary>
-    [HttpPost(Name = "CreateCategory")]
+    [HttpPost]
     [ProducesResponseType<DashboardCategory>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<DashboardCategory>> Create([FromBody] DashboardCategory? category, CancellationToken cancellationToken)
+    public async Task<ActionResult<DashboardCategory>> CreateCategory([FromBody] DashboardCategory? category, CancellationToken cancellationToken)
     {
         if (category is null || string.IsNullOrWhiteSpace(category.Title))
         {
@@ -52,10 +52,10 @@ public class CategoriesController(
     /// <summary>
     /// Изменяет существующую категорию.
     /// </summary>
-    [HttpPut(Name = "UpdateCategory")]
+    [HttpPut]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Update([FromBody] DashboardCategory? category, CancellationToken cancellationToken)
+    public async Task<IActionResult> UpdateCategory([FromBody] DashboardCategory? category, CancellationToken cancellationToken)
     {
         if (category is null || string.IsNullOrWhiteSpace(category.Title))
         {
@@ -70,10 +70,10 @@ public class CategoriesController(
     /// <summary>
     /// Создаёт копию категории со всеми карточками сразу после исходной.
     /// </summary>
-    [HttpPost("{id:int}/duplicate", Name = "DuplicateCategory")]
+    [HttpPost("{id:int}/duplicate")]
     [ProducesResponseType<DashboardCategoryReadModel>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<DashboardCategoryReadModel>> Duplicate(int id, CancellationToken cancellationToken)
+    public async Task<ActionResult<DashboardCategoryReadModel>> DuplicateCategory(int id, CancellationToken cancellationToken)
     {
         var result = await pageService.DuplicateCategoryAsync(id, cancellationToken);
         if (!result.IsSuccess)
@@ -89,12 +89,10 @@ public class CategoriesController(
     /// <summary>
     /// Удаляет категорию вместе с её карточками.
     /// </summary>
-    /// <param name="id">Идентификатор категории.</param>
-    /// <param name="cancellationToken">Токен отмены операции.</param>
-    [HttpDelete("{id:int}", Name = "DeleteCategory")]
+    [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    public async Task<IActionResult> DeleteCategory(int id, CancellationToken cancellationToken)
     {
         var result = await pageService.DeleteCategoryAsync(id, cancellationToken);
         return result.IsSuccess ? NoContent() : BadRequest(result.Error);

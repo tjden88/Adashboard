@@ -181,9 +181,15 @@ else
 app.MapFallbackToFile("index.html");
 
 // Применяем миграции и стартовое наполнение при запуске.
-await using var scope = app.Services.CreateAsyncScope();
-var sp = scope.ServiceProvider;
-await sp.GetRequiredService<DbInitializer>().InitializeAsync();
-sp.GetRequiredService<AssetsInitializer>().Initialize();
+// Генерация клиентского API-кода (scripts/generate-api-clients.ps1) поднимает это приложение,
+// чтобы прочесть метаданные эндпоинтов: побочные эффекты старта — создание базы и наполнение
+// каталога статики — ей не нужны, поэтому выключаются флагом Adashboard:SkipStartupInitialization.
+if (!builder.Configuration.GetValue<bool>("Adashboard:SkipStartupInitialization"))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var sp = scope.ServiceProvider;
+    await sp.GetRequiredService<DbInitializer>().InitializeAsync();
+    sp.GetRequiredService<AssetsInitializer>().Initialize();
+}
 
 app.Run();

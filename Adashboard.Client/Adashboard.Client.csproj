@@ -26,11 +26,6 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.13" PrivateAssets="all" />
     <PackageReference Include="Refit" Version="16.3.0" />
     <PackageReference Include="Refit.HttpClientFactory" Version="16.3.0" />
-    <PackageReference Include="Refitter.MSBuild" Version="2.3.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Remove="Generated\**" />
   </ItemGroup>
 
   <ItemGroup>

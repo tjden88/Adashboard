@@ -14,10 +14,10 @@ public class ProbeController(ProbeService probeService, ILogger<ProbeController>
     /// <summary>
     /// Проверяет доступность сервиса карточки по её идентификатору.
     /// </summary>
-    [HttpGet("health/{cardId:int}", Name = "CheckHealth")]
+    [HttpGet("health/{cardId:int}")]
     [ProducesResponseType<HealthCheckResult>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<HealthCheckResult>> GetHealth(int cardId, CancellationToken cancellationToken)
+    public async Task<ActionResult<HealthCheckResult>> CheckHealth(int cardId, CancellationToken cancellationToken)
     {
         if (cardId <= 0)
         {
@@ -38,7 +38,7 @@ public class ProbeController(ProbeService probeService, ILogger<ProbeController>
     /// <summary>
     /// Пытается получить заголовок страницы по указанному адресу.
     /// </summary>
-    [HttpGet("title", Name = "GetTitle")]
+    [HttpGet("title")]
     [ProducesResponseType<string>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> GetTitle([FromQuery] string? url, CancellationToken cancellationToken)
@@ -58,7 +58,7 @@ public class ProbeController(ProbeService probeService, ILogger<ProbeController>
     /// <summary>
     /// Пытается получить иконку сервиса по указанному адресу: изображение со страницы или favicon.
     /// </summary>
-    [HttpGet("icon", Name = "GetIcon")]
+    [HttpGet("icon")]
     [ProducesResponseType<string>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> GetIcon([FromQuery] string? url, CancellationToken cancellationToken)

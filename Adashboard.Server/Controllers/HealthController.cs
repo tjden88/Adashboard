@@ -14,8 +14,8 @@ public class HealthController : ControllerBase
     /// Возвращает статус работоспособности API без проверки ключа доступа.
     /// </summary>
     [AllowAnonymous]
-    [HttpGet(Name = "GetHealth")]
-    public IActionResult Get()
+    [HttpGet]
+    public IActionResult GetHealth()
     {
         return Ok(new { status = "ok" });
     }
@@ -25,7 +25,7 @@ public class HealthController : ControllerBase
     /// <summary>
     /// Подтверждает действующий ключ доступа: клиент использует метод для проверки входа.
     /// </summary>
-    [HttpGet("access", Name = "CheckAccess")]
+    [HttpGet("access")]
     public IActionResult CheckAccess()
     {
         return Ok();
