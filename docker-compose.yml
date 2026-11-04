@@ -14,6 +14,9 @@ services:
       # полный доступ к API. Сам по себе защиту не включает: работает только когда задан ApiKey.
       ExtensionApiKey: ""
       LogLevel: Information
+      # Часовой пояс контейнера: таймстампы логов печатаются в локальном времени процесса,
+      # без TZ это UTC. Значение — IANA-имя зоны (например, Europe/Berlin или Asia/Almaty).
+      TZ: Asia/Yekaterinburg
     volumes:
       # Каталог данных: data.db и uploads. Данные переживают пересоздание контейнера.
       - adashboard-data:/app/appdata
