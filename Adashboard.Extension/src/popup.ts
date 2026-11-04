@@ -94,7 +94,8 @@ const ui = {
 let retryAction: (() => Promise<void>) | null = null;
 
 /** Обработчики навешиваются один раз, чтобы повтор начального шага не добавлял вторые обработчики. */
-let eventsWired = false;
+let commonEventsWired = false;
+let formEventsWired = false;
 
 /**
  * Точка входа попапа: настройки, активная вкладка, страницы и категория, иконка, цвет фона
@@ -103,6 +104,10 @@ let eventsWired = false;
 async function start(): Promise<void> {
     // Ошибка предыдущей попытки неактуальна, когда шаг повторяют.
     hideError();
+
+    // Кнопки нужны и без состояния: настроек может не быть, а начальный шаг может отказать,
+    // и тогда выход из start() происходит до формы.
+    wireCommonEvents();
 
     try {
         const settings = await readSettings();
@@ -135,7 +140,7 @@ async function start(): Promise<void> {
         };
 
         fillFromTab(cardUrl, tab?.title);
-        wireEvents(state);
+        wireFormEvents(state);
         ui.form.hidden = false;
 
         // Иконка и цвет необязательны: отказ молча означает значение по умолчанию, поэтому их читаем
@@ -385,14 +390,33 @@ function renderOptions(select: HTMLSelectElement, options: SelectOption[], selec
     select.value = String(selected);
 }
 
-/** Обработчики элементов попапа: они работают только когда форма видима. */
-function wireEvents(state: PopupState): void {
-    // Повтор начального шага не должен добавлять вторые обработчики.
-    if (eventsWired) return;
-    eventsWired = true;
+/** Общие кнопки попапа: они нужны и когда состояния нет, поэтому навешиваются до проверки настроек. */
+function wireCommonEvents(): void {
+    if (commonEventsWired) return;
+    commonEventsWired = true;
 
-    ui.settingsButton.addEventListener("click", () => void browserApi.runtime.openOptionsPage());
+    ui.settingsButton.addEventListener("click", () => void openOptionsPage());
     ui.retryButton.addEventListener("click", () => void retryAction?.());
+}
+
+/**
+ * Открывает страницу настроек: отказ возможен, например в Firefox, поэтому его показываем в попапе,
+ * а не оставляем незамеченным. Попап закрываем, иначе он висит за новой вкладкой.
+ */
+async function openOptionsPage(): Promise<void> {
+    try {
+        await browserApi.runtime.openOptionsPage();
+        window.close();
+    } catch (error) {
+        showError(errorText(error));
+    }
+}
+
+/** Обработчики элементов формы: они работают только когда форма видима. */
+function wireFormEvents(state: PopupState): void {
+    // Повтор начального шага не должен добавлять вторые обработчики.
+    if (formEventsWired) return;
+    formEventsWired = true;
 
     ui.pageSelect.addEventListener("change", () => void runStep(() => selectPage(state, Number(ui.pageSelect.value))));
     ui.categorySelect.addEventListener("change", () => void runStep(() => rememberCategory(state, Number(ui.categorySelect.value))));

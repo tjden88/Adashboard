@@ -18,6 +18,17 @@ npm run build
 - Chrome и Edge: `chrome://extensions` → «Режим разработчика» → «Load unpacked» → выбрать `dist`.
 - Firefox: `about:debugging#/runtime/this-firefox` → «Load Temporary Add-on» → выбрать `dist/manifest.json`.
 
+## Постоянная установка
+
+`dist/` — готовое расширение: `manifest.json` в корне, страницы, ассеты и иконки. Для установочного файла его упаковывают в архив без подпапок:
+
+```powershell
+Compress-Archive -Path dist/* -DestinationPath adashboard-extension.zip -Force
+```
+
+- Chrome и Edge: «Load unpacked» остаётся подключённым между перезапусками, если режим разработчика не выключать (с Chrome 134 при выключенном режиме unpacked-расширения отключаются) и путь к `dist` не менять. Такие сборки не обновляются сами и после обновления браузера могут быть отключены, поэтому для постоянного использования надёжнее публикация в магазине: Chrome Web Store (регистрация разработчика платная, видимость может быть unlisted) или Edge Add-ons. Установить `.crx` вручную на Windows нельзя — внешние установки вне магазина блокируются, обход возможен только через корпоративные политики на управляемом устройстве.
+- Firefox: постоянно устанавливается только подписанная сборка. `xpinstall.signatures.required` отключается только в Developer Edition и Nightly, и отключённым должен оставаться. Практичный путь — архив с `manifest.json` в корне, подача на AMO как unlisted (подпись бесплатная) и установка скачанного `.xpi` через «Install Add-on from File». Для подписи нужен `browser_specific_settings.gecko.id` — текущее значение placeholder, его заменяют на свой адрес; `strict_min_version` задан как `129.0` из-за `AbortSignal.any`.
+
 ## Настройка
 
 1. Открыть страницу настроек расширения (кнопка «Настройки» в попапе) и указать адрес сервера, например `http://localhost:8080` — только `http` или `https`, без завершающего `/`.
