@@ -382,3 +382,8 @@ FodyWeavers.xsd
 # Не собирается и не версионируется: актуальная реализация лежит в Adashboard.Client.
 /_reference/
 /tasks
+
+# Расширение браузера: npm-зависимости и собранный пакет не хранятся в репозитории.
+# package-lock.json остаётся в репозитории, чтобы сборка была воспроизводимой.
+/Adashboard.Extension/node_modules/
+/Adashboard.Extension/dist/
