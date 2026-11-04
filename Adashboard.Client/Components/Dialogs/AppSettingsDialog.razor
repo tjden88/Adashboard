@@ -1,9 +1,9 @@
 @inject AppStateService AppStateService
 
 @*
-    Диалог общих настроек приложения: тема оформления, иконка страницы в шапке и интервал проверки
-    статуса карточек. Нулевой интервал отключает проверки статуса для всех карточек
-    (правило — в HealthCheckRules).
+    Диалог общих настроек приложения: тема оформления, иконка страницы в шапке, выравнивание
+    заголовка страницы и интервал проверки статуса карточек. Нулевой интервал отключает проверки
+    статуса для всех карточек (правило — в HealthCheckRules).
 
     Настройки сохраняет сам диалог: их владелец — AppStateService, поэтому после успешного
     сохранения тема и иконка страницы применяются сразу, без перезагрузки страницы. При отказе
@@ -43,6 +43,20 @@
             <InputCheckbox id="settingsShowPageIcon" @bind-Value="_model.ShowPageIcon" />
             <span>Показывать иконку страницы в шапке</span>
         </label>
+    </div>
+
+    <div class="settings-dialog__field">
+        <span class="settings-dialog__label">Выравнивание заголовка страницы</span>
+        <InputRadioGroup @bind-Value="_model.HeaderAlignment" Name="settingsHeaderAlignment" aria-label="Выравнивание заголовка страницы">
+            @foreach (var option in _HeaderAlignmentOptions)
+            {
+                <label class="settings-dialog__option">
+                    <InputRadio Value="option.Mode" />
+                    <span>@option.Title</span>
+                </label>
+            }
+        </InputRadioGroup>
+        <p class="settings-dialog__hint">Касается заголовка и описания в шапке. На мобильной ширине заголовок всегда выровнен по левому краю.</p>
     </div>
 
     <div class="settings-dialog__field">
@@ -90,6 +104,13 @@
         (SideMenuMode.Collapsed, "Свёрнуто", "Узкая полоса с иконками, которая никогда не раскрывается"),
         (SideMenuMode.AutoCollapse, "Автосворачивание", "Узкая полоса с иконками, которая раскрывается по наведению курсора."),
         (SideMenuMode.Expanded, "Всегда развёрнуто", "Меню и названия страниц видны постоянно.")
+    ];
+
+    // Порядок вариантов совпадает с числовыми значениями enum (Left = 0, Center = 1).
+    private static readonly (PageHeaderAlignment Mode, string Title)[] _HeaderAlignmentOptions =
+    [
+        (PageHeaderAlignment.Left, "По левому краю"),
+        (PageHeaderAlignment.Center, "По центру")
     ];
 
     // Подсказка показывает описание только выбранного режима, а не все режимы сразу.
@@ -141,6 +162,8 @@
 
         public bool ShowPageIcon { get; set; } = true;
 
+        public PageHeaderAlignment HeaderAlignment { get; set; } = PageHeaderAlignment.Left;
+
         // Ноль отключает проверки статуса для всех карточек (см. HealthCheckRules).
         [Range(0, DomainConstants.HealthCheckIntervalMaxSeconds, ErrorMessage = "Допустимый интервал проверки: от 0 до 3600 секунд.")]
         public int HealthCheckIntervalSeconds { get; set; } = DomainConstants.DefaultHealthCheckIntervalSeconds;
@@ -150,6 +173,7 @@
             ThemeMode = settings.ThemeMode,
             SideMenuMode = settings.SideMenuMode,
             ShowPageIcon = settings.ShowPageIcon,
+            HeaderAlignment = settings.HeaderAlignment,
             HealthCheckIntervalSeconds = settings.HealthCheckIntervalSeconds
         };
 
@@ -158,6 +182,7 @@
             ThemeMode = ThemeMode,
             SideMenuMode = SideMenuMode,
             ShowPageIcon = ShowPageIcon,
+            HeaderAlignment = HeaderAlignment,
             HealthCheckIntervalSeconds = HealthCheckIntervalSeconds
         };
     }

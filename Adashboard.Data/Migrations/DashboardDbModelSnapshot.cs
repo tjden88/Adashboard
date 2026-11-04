@@ -22,6 +22,9 @@ namespace Adashboard.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("HeaderAlignment")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("HealthCheckIntervalSeconds")
                         .HasColumnType("INTEGER");
 
@@ -42,6 +45,7 @@ namespace Adashboard.Data.Migrations
                         new
                         {
                             Id = 1,
+                            HeaderAlignment = 0,
                             HealthCheckIntervalSeconds = 30,
                             ShowPageIcon = true,
                             SideMenuMode = 1,

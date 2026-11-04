@@ -1319,6 +1319,9 @@
           "showPageIcon": {
             "type": "boolean"
           },
+          "headerAlignment": {
+            "$ref": "#/components/schemas/PageHeaderAlignment"
+          },
           "healthCheckIntervalSeconds": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
@@ -1537,6 +1540,9 @@
         }
       },
       "HealthStatus": {
+        "type": "integer"
+      },
+      "PageHeaderAlignment": {
         "type": "integer"
       },
       "ProblemDetails": {

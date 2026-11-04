@@ -20,6 +20,9 @@ public sealed class AppSettings
     /// <summary>Признак отображения иконки в шапке: иконка страницы или, если у страницы своей иконки нет, иконка приложения.</summary>
     public bool ShowPageIcon { get; set; } = true;
 
+    /// <summary>Выравнивание заголовка и описания страницы в шапке: по левому краю или по центру. На мобильной вёрстке всегда действует выравнивание по левому краю.</summary>
+    public PageHeaderAlignment HeaderAlignment { get; set; } = PageHeaderAlignment.Left;
+
     /// <summary>Интервал проверки статуса карточек в секундах: ноль отключает проверки.</summary>
     public int HealthCheckIntervalSeconds { get; set; } = DomainConstants.DefaultHealthCheckIntervalSeconds;
 }

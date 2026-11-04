@@ -1,14 +1,14 @@
 ﻿<!--
 Символьный индекс проекта. Сгенерирован scripts/project-map.ps1 — вручную не редактируется.
 Как использовать: ищи здесь имя символа, открывай только файл из строки, читай его по месту, а не целиком.
-Дата генерации: 2026-11-04 13:28
+Дата генерации: 2026-11-04 14:37
 -->
 
 ## Adashboard.Client
 Adashboard.Client/Components/Dashboard/Card.razor: @inject HealthCheckService HealthCheckService | @inject DashboardApiOptions ApiOptions | Task OnClickAsync() => IsEditMode ? EditRequested.InvokeAsync(Model) : | Task OnDuplicateClickAsync() => DuplicateRequested.InvokeAsync(Model); | void OnImageError() => _imageFailed = true; | async Task RunHealthLoopAsync(CancellationToken cancellationToken)
 Adashboard.Client/Components/Dashboard/Category.razor: @inject IDashboardApi DashboardApi | void OpenAddCardDialog() | void OpenCardDialog(DashboardCard card) | Task OnCardSavedAsync(DashboardCard card) => CardSaved.InvokeAsync(car | async Task DuplicateCardAsync(DashboardCard card) | void RequestCardDelete(DashboardCard card)
 Adashboard.Client/Components/Dashboard/PageView.razor: @inject IDashboardApi DashboardApi | @inject NavigationManager Navigation | @inject IJSRuntime JS | Task OnCategoryCreatedAsync(DashboardCategory category) | Task OnCategorySavedAsync(DashboardCategory category) | Task OnCategoryDeletedAsync(DashboardCategory category)
-Adashboard.Client/Components/Dialogs/AppSettingsDialog.razor: @inject AppStateService AppStateService | static readonly (ThemeMode Mode, string Title)[] _ThemeOptions = | static readonly (SideMenuMode Mode, string Title, string Hint)[] _Side | async Task SaveAsync() | AppSettings ToSettings() => new()
+Adashboard.Client/Components/Dialogs/AppSettingsDialog.razor: @inject AppStateService AppStateService | static readonly (ThemeMode Mode, string Title)[] _ThemeOptions = | static readonly (SideMenuMode Mode, string Title, string Hint)[] _Side | static readonly (PageHeaderAlignment Mode, string Title)[] _HeaderAlig | async Task SaveAsync() | AppSettings ToSettings() => new()
 Adashboard.Client/Components/Dialogs/CardDialog.razor: @inject IDashboardApi DashboardApi | @inject DashboardApiOptions ApiOptions | @inject IJSRuntime JS | static readonly (CardStatusMode Mode, string Title, string Hint)[] Sta | async Task LoadCategoriesAsync() | void ToggleLinkTarget() =>
 Adashboard.Client/Components/Dialogs/CategoryDialog.razor: @inject IDashboardApi DashboardApi | void OnWidthInput(ChangeEventArgs args) | void OnMobileWidthInput(ChangeEventArgs args) | void OnMobileAutoChanged(ChangeEventArgs args) | async Task SaveAsync()
 Adashboard.Client/Components/Dialogs/ConfirmDialog.razor: Task CancelAsync() => Dialog.CloseAsync(); | async Task ConfirmAsync()
@@ -60,6 +60,7 @@ Adashboard.Domain/Contracts/SaveCardRequest.cs: sealed class SaveCardRequest
 Adashboard.Domain/Enums/CardLinkTarget.cs: enum CardLinkTarget
 Adashboard.Domain/Enums/CardStatusMode.cs: enum CardStatusMode
 Adashboard.Domain/Enums/HealthStatus.cs: enum HealthStatus
+Adashboard.Domain/Enums/PageHeaderAlignment.cs: enum PageHeaderAlignment
 Adashboard.Domain/Enums/SideMenuMode.cs: enum SideMenuMode
 Adashboard.Domain/Enums/ThemeMode.cs: enum ThemeMode
 Adashboard.Domain/Enums/UrlScheme.cs: enum UrlScheme
@@ -81,6 +82,7 @@ Adashboard.Data/Entities/DashboardCategoryEntity.cs: sealed class DashboardCateg
 Adashboard.Data/Entities/DashboardPageEntity.cs: sealed class DashboardPageEntity
 Adashboard.Data/Migrations/20261101174632_Initial.cs: partial class Initial : Migration
 Adashboard.Data/Migrations/20261103171634_PageOrderAndMobileCategory.cs: partial class PageOrderAndMobileCategory : Migration
+Adashboard.Data/Migrations/20261104093434_AddPageHeaderAlignment.cs: partial class AddPageHeaderAlignment : Migration
 
 ## Adashboard.Extension
 Adashboard.Extension/src/api.ts: export const REQUEST_TIMEOUT_MS = 10_000; | export class ApiError extends Error { | export function errorText(error: unknown): string { | export class ApiClient {

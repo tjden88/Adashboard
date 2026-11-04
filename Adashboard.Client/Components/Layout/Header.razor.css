@@ -7,6 +7,9 @@
     padding: 0;
     /* Отступ от шапки до содержимого страницы: шапка и PageView — соседние блоки. */
     margin-bottom: 1.25rem;
+    /* Размер иконки страницы один и тот же в трёх местах: у самой иконки, у её image-варианта
+       и у симметричного запаса в шапке с центрированным заголовком (см. ниже). */
+    --page-header-icon-size: clamp(1.55rem, 3.2vw, 2.3rem);
 }
 
 .dashboard-header-brand {
@@ -19,14 +22,14 @@
    у страницы без своей иконки её заменяет иконка приложения того же размера. */
 .dashboard-page-icon {
     flex-shrink: 0;
-    font-size: clamp(1.55rem, 3.2vw, 2.3rem);
+    font-size: var(--page-header-icon-size);
     line-height: 1;
     color: var(--text-muted);
 }
 
 .dashboard-page-icon--image {
-    width: clamp(1.55rem, 3.2vw, 2.3rem);
-    height: clamp(1.55rem, 3.2vw, 2.3rem);
+    width: var(--page-header-icon-size);
+    height: var(--page-header-icon-size);
     object-fit: contain;
 }
 
@@ -88,6 +91,35 @@ html[data-theme="light"] .dashboard-page-icon {
     color: #3c3d55;
 }
 
+/* Заголовок и описание по центру — настройка «Выравнивание заголовка страницы».
+   Правила только для десктопной ширины: на мобильной шапка прилипает к верху экрана,
+   там кнопки и заголовок теснятся, поэтому текст всегда остаётся по левому краю. */
+@media (min-width: 901px) {
+    /* Блок занимает всё место до кнопок: текст центрируется по шапке, а не по её левому краю. */
+    .dashboard-header--center .dashboard-header-brand {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .dashboard-header--center .dashboard-header-text {
+        flex: 1 1 auto;
+        min-width: 0;
+        text-align: center;
+    }
+
+    /* Иконка забирает место только слева от текста, поэтому справа добавляем такой же по ширине
+       запас: без него текст центрируется в области после иконки и уезжает вправо на пол-её ширины. */
+    .dashboard-header--center .dashboard-header-brand:has(.dashboard-page-icon)::after {
+        content: "";
+        flex: 0 0 var(--page-header-icon-size);
+    }
+
+    /* Скелет загрузки центрируем так же: иначе заголовок дёргается, когда страница загрузилась. */
+    .dashboard-header--center .header-skeleton {
+        margin-inline: auto;
+    }
+}
+
 .dashboard-header-actions {
     display: flex;
     flex-wrap: wrap;
@@ -110,13 +142,8 @@ html[data-theme="light"] .dashboard-page-icon {
     }
 
     /* Иконка страницы поменьше, чтобы не вытеснять заголовок. */
-    .dashboard-page-icon {
-        font-size: 1.4rem;
-    }
-
-    .dashboard-page-icon--image {
-        width: 1.4rem;
-        height: 1.4rem;
+    .dashboard-header {
+        --page-header-icon-size: 1.4rem;
     }
 }
 

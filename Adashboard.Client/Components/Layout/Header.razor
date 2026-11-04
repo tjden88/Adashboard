@@ -11,6 +11,10 @@
     страницы в диалоге. Пока страница грузится, вместо текста рисуется скелет заголовка,
     а кнопки и иконка остаются на месте.
 
+    Выравнивание заголовка и описания по центру — отдельная настройка сайта: она даёт класс
+    шапке, а CSS применяет его только на десктопной ширине (на мобильной заголовок всегда
+    по левому краю).
+
     Окна диалогов рисуются здесь же: состояние открытости ведёт шапка, содержимое передаётся
     контейнеру как RenderFragment, а закрывает окно сам диалог через каскадный контейнер.
     Настройки приложения шапка показывает только в режиме редактирования и скрытом
@@ -22,9 +26,13 @@
 
 @{
     var isEditMode = AppStateService.IsEditMode;
+
+    // Выравнивание заголовка и описания — настройка приложения. Класс ставим всегда,
+    // а на мобильной ширине его правила отключает CSS (см. Header.razor.css).
+    var centerHeaderText = AppStateService.Settings.HeaderAlignment == PageHeaderAlignment.Center;
 }
 
-<header class="dashboard-header">
+<header class="dashboard-header @(centerHeaderText ? "dashboard-header--center" : null)">
     <div class="dashboard-header-brand">
         @* Кнопка меню на мобильной ширине: стоит слева от иконки страницы. На десктопе
            CSS её скрывает (см. Header.razor.css), порядок элементов туда не влияет. *@
@@ -53,7 +61,7 @@
             }
         }
 
-        <div>
+        <div class="dashboard-header-text">
             @if (IsLoading)
             {
                 <span class="header-skeleton header-skeleton--title" aria-hidden="true"></span>
