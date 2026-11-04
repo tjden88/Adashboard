@@ -28,7 +28,7 @@
 ## Команды проверки
 
 - `dotnet build Adashboard.slnx` — сборка решения.
-- После изменения API — `generate-clients.bat` (он же `scripts/generate-api-clients.ps1`): перегенерирует
+- После изменения API — `powershell -NoProfile -File scripts/generate-api-clients.ps1`: перегенерирует
   Refit-клиентов из эндпоинтов сервера локальным dotnet-tool из `dotnet-tools.json`, затем обычная сборка.
 - `npm run typecheck` и `npm run build` — проверки расширения (отдельный npm-проект).
 - Тестов в проекте нет; проверка — критерии приёмки задачи плюс сборка.

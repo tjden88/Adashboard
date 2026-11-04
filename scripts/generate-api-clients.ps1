@@ -4,8 +4,8 @@
 # он собирает и поднимает серверное приложение, берёт метаданные эндпоинтов (ApiExplorer) и пишет
 # по одному интерфейсу на контроллер. Открытый OpenAPI-файл в репозитории для этого не нужен.
 #
-# Запуск: .\generate-clients.bat  или  powershell -NoProfile -File scripts\generate-api-clients.ps1
-# Результат: Adashboard.Client/Generated/*.cs (каталог в .gitignore), затем — обычная сборка решения.
+# Запуск: powershell -NoProfile -File scripts\generate-api-clients.ps1
+# Результат: Adashboard.Client/Generated/*.cs (файлы хранятся в репозитории), затем — обычная сборка решения.
 #
 # Генератор собирает сервер, а сервер ссылается на клиент: значит старый содержимый Generated
 # должен оставаться рабочим до генерации. Поэтому пишем во временный каталог и только потом

@@ -275,7 +275,7 @@ ServiceFabricBackup/
 Adashboard.Server/appdata/
 
 # Клиентские Refit-интерфейсы Adashboard.Client/Generated хранятся в репозитории: их перегенерирует
-# generate-clients.bat после изменения API (см. скилл api-contract).
+# powershell -NoProfile -File scripts/generate-api-clients.ps1 после изменения API (см. скилл api-contract).
 
 # Business Intelligence projects
 *.rdl.data

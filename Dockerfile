@@ -13,7 +13,7 @@ RUN dotnet restore Adashboard.slnx
 
 # Каталог данных в образ не копируем (см. .dockerignore): в контейнере он — volume.
 # Adashboard.Client/Generated не исключён из контекста: это сгенерированные Refit-клиенты, и без них
-# клиент не собирается (перед сборкой образа их перегоняют generate-clients.bat, если API менялся).
+# клиент не собирается (перед сборкой образа их перегоняют scripts/generate-api-clients.ps1, если API менялся).
 COPY . .
 
 # Каталог ассетов в репозитории — «Assets», а DashboardPaths.AssetsPath и AssetsInitializer ищут каталог

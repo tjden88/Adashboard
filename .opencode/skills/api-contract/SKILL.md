@@ -12,7 +12,7 @@ description: Use when changing controllers, endpoints, the Refit client, OpenAPI
 и пишет по одному интерфейсу на контроллер — `Adashboard.Client/Generated/I<controller>Client.cs`
 (namespace `Adashboard.Client.Services`, файлы в git, руками не правятся).
 
-- Запуск после изменения API: `generate-clients.bat` (он же `scripts/generate-api-clients.ps1`), затем сборка решения.
+- Запуск после изменения API: `powershell -NoProfile -File scripts/generate-api-clients.ps1`, затем сборка решения.
 - OpenAPI-файл в репозитории не нужен: `/openapi/v1.json` сервер отдаёт только в среде разработки для Scalar.
 - Имя метода клиента = имя **действия контроллера**, суффикса `Async` нет: `CardsController.CreateCard` →
   `ICardsClient.CreateCard`. Поэтому действия называют говоряще (`GetPages`, `SaveSettings`), а `Name` в
