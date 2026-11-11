@@ -127,8 +127,45 @@ if (app.Environment.IsDevelopment())
 
 // Отдаём WASM-клиент: UseBlazorFrameworkFiles обслуживает _framework (blazor.webassembly.js,
 // dotnet.js и т.п.), UseStaticFiles — статику клиента из static web assets (index.html, app.css, lib...).
+// Файлы Blazor с хешем сборки в имени (dotnet.runtime.5nc8i5dl74.js, Adashboard.Client.pdy2ugpz80.wasm)
+// неизменны: при новой сборке меняется само имя, поэтому их можно кэшировать навсегда. Заголовок
+// ставим через OnStarting, потому что UseBlazorFrameworkFiles не принимает StaticFileOptions
+// и сам выставляет no-cache.
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/_framework")
+        && IsFingerprintedFrameworkFile(Path.GetFileName(context.Request.Path.Value!)))
+    {
+        context.Response.OnStarting(() =>
+        {
+            // Несуществующий файл уходит в SPA-fallback с index.html: если пометить такой
+            // ответ неизменяемым, браузер закэширует HTML под именем сборки.
+            if (context.Response.StatusCode == StatusCodes.Status200OK && context.GetEndpoint() is null)
+            {
+                context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+            }
+
+            return Task.CompletedTask;
+        });
+    }
+
+    await next();
+});
+
 app.UseBlazorFrameworkFiles();
-app.UseStaticFiles();
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    // index.html и файлы service worker не содержат хеша в имени: их нужно перепроверять,
+    // иначе браузер задержит старую версию приложения и устаревший манифест ресурсов.
+    OnPrepareResponse = context =>
+    {
+        if (ShouldRevalidateAppShell(context.File.Name))
+        {
+            context.Context.Response.Headers.CacheControl = "no-cache";
+        }
+    }
+});
 
 // Раздаём каталог пользовательских загрузок. Провайдер наведён только на uploads,
 // поэтому файл БД из каталога данных наружу не отдаётся. Каталог создаём заранее:
@@ -178,7 +215,10 @@ else
 }
 
 // Клиент — SPA: неизвестные пути отдаём как index.html, чтобы работал клиентский роутинг.
-app.MapFallbackToFile("index.html");
+app.MapFallbackToFile("index.html", new StaticFileOptions
+{
+    OnPrepareResponse = context => context.Context.Response.Headers.CacheControl = "no-cache"
+});
 
 // Применяем миграции и стартовое наполнение при запуске.
 // Генерация клиентского API-кода (scripts/generate-api-clients.ps1) поднимает это приложение,
@@ -193,3 +233,33 @@ if (!builder.Configuration.GetValue<bool>("Adashboard:SkipStartupInitialization"
 }
 
 app.Run();
+
+// Имя файла Blazor с хешем сборки, например dotnet.runtime.5nc8i5dl74.js: такой файл неизменен.
+static bool IsFingerprintedFrameworkFile(string fileName)
+{
+    var extension = Path.GetExtension(fileName);
+    if (!string.Equals(extension, ".wasm", StringComparison.OrdinalIgnoreCase)
+        && !string.Equals(extension, ".js", StringComparison.OrdinalIgnoreCase)
+        && !string.Equals(extension, ".dat", StringComparison.OrdinalIgnoreCase)
+        && !string.Equals(extension, ".blat", StringComparison.OrdinalIgnoreCase))
+    {
+        return false;
+    }
+
+    var name = Path.GetFileNameWithoutExtension(fileName);
+    var hashStart = name.LastIndexOf('.') + 1;
+    if (hashStart <= 0)
+    {
+        return false;
+    }
+
+    var hash = name[hashStart..];
+    return hash.Length == 10 && hash.All(char.IsAsciiLetterOrDigit);
+}
+
+// Оболочка приложения и манифест service worker меняются при каждой публикации.
+static bool ShouldRevalidateAppShell(string fileName)
+{
+    return string.Equals(fileName, "index.html", StringComparison.OrdinalIgnoreCase)
+        || fileName.StartsWith("service-worker", StringComparison.OrdinalIgnoreCase);
+}

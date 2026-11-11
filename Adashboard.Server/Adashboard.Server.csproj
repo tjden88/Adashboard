@@ -34,4 +34,22 @@
     <ProjectReference Include="..\Adashboard.Data\Adashboard.Data.csproj" />
   </ItemGroup>
 
+  <!--
+    Публикация service worker. Новый Static Web Assets SDK кладёт опубликованную версию
+    (service-worker.published.js) только в манифест эндпоинтов, а сервер раздаёт статику
+    через UseStaticFiles из wwwroot: без этого шага в образ попадает dev-версия, которая
+    ничего не кэширует. Явно подменяем файл после публикации и убираем исходники SW
+    и их устаревшие сжатые варианты из выходного каталога.
+  -->
+  <Target Name="PublishPublishedServiceWorker" AfterTargets="Publish">
+    <PropertyGroup>
+      <_ServiceWorkerPublishedPath>$(MSBuildProjectDirectory)/../Adashboard.Client/wwwroot/service-worker.published.js</_ServiceWorkerPublishedPath>
+      <_ServiceWorkerPublishDir>$(PublishDir)wwwroot/</_ServiceWorkerPublishDir>
+    </PropertyGroup>
+
+    <Copy SourceFiles="$(_ServiceWorkerPublishedPath)" DestinationFiles="$(_ServiceWorkerPublishDir)service-worker.js" />
+
+    <Delete Files="$(_ServiceWorkerPublishDir)service-worker.js.br;$(_ServiceWorkerPublishDir)service-worker.js.gz;$(_ServiceWorkerPublishDir)service-worker.published.js;$(_ServiceWorkerPublishDir)service-worker.published.js.br;$(_ServiceWorkerPublishDir)service-worker.published.js.gz" />
+  </Target>
+
 </Project>

@@ -107,6 +107,26 @@
     <script src="_framework/blazor.webassembly.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
+            // Кэш приложения занимает около 11 МБ. Просим браузер не вытеснять его
+            // под давлением квоты: иначе после очистки кэш придётся набирать заново.
+            if (navigator.storage && navigator.storage.persist) {
+                navigator.storage.persist().catch(function () { });
+            }
+
+            var hadController = !!navigator.serviceWorker.controller;
+            var reloading = false;
+
+            // Новая версия service worker заняла страницу — перезагружаем её один раз,
+            // чтобы приложение перешло на свежие файлы, а не осталось на старых.
+            navigator.serviceWorker.addEventListener('controllerchange', function () {
+                if (!hadController || reloading) {
+                    return;
+                }
+
+                reloading = true;
+                location.reload();
+            });
+
             navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' });
         }
     </script>

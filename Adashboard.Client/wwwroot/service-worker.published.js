@@ -39,26 +39,18 @@ const offlineAssetsInclude = [
     /\.blat$/,
 ];
 
-// Сам манифест ресурсов кэшировать не нужно — он нужен только при установке.
-const offlineAssetsExclude = [/^service-worker(-assets)?\.js$/];
+// Сам манифест ресурсов кэшировать не нужно — он нужен только при установке. Версия для
+// публикации (service-worker.published.js) в образ не попадает, её тоже пропускаем.
+const offlineAssetsExclude = [/^service-worker.*\.js$/];
 
 async function onInstall(event) {
     console.info('Service worker: установка');
 
-    const cache = await caches.open(cacheName);
-    const assets = self.assetsManifest.assets
-        .filter((asset) => offlineAssetsInclude.some((pattern) => pattern.test(asset.url)))
-        .filter((asset) => !offlineAssetsExclude.some((pattern) => pattern.test(asset.url)));
+    // Новая версия включается сразу, не дожидаясь закрытия всех вкладок приложения:
+    // иначе обновление висело бы в ожидании, пока пользователь закроет dashboard.
+    self.skipWaiting();
 
-    // Кэшируем каждый файл отдельно и не валим установку из-за одного проблемного
-    // ресурса: такой файл просто будет догружен из сети при первом обращении.
-    await Promise.all(assets.map(async (asset) => {
-        try {
-            await cache.add(new Request(asset.url, { integrity: asset.hash, cache: 'no-cache' }));
-        } catch (error) {
-            console.warn('Service worker: не удалось закэшировать', asset.url, error);
-        }
-    }));
+    await cacheAssets();
 }
 
 async function onActivate(event) {
@@ -69,20 +61,78 @@ async function onActivate(event) {
     await Promise.all(cacheKeys
         .filter((key) => key.startsWith(cacheNamePrefix) && key !== cacheName)
         .map((key) => caches.delete(key)));
+
+    // Забираем управление уже открытыми вкладками: при skipWaiting новая версия
+    // должна обслуживать их сразу, не дожидаясь следующей навигации.
+    await self.clients.claim();
+
+    // Дозаполняем недостающие файлы: браузер мог вытеснить кэш под давлением квоты,
+    // и без этого шага приложение осталось бы без кэша до следующей публикации.
+    await cacheAssets();
+}
+
+async function cacheAssets() {
+    const cache = await caches.open(cacheName);
+    const assets = self.assetsManifest.assets
+        .filter((asset) => offlineAssetsInclude.some((pattern) => pattern.test(asset.url)))
+        .filter((asset) => !offlineAssetsExclude.some((pattern) => pattern.test(asset.url)));
+
+    // Кэшируем каждый файл отдельно и не валим установку из-за одного проблемного
+    // ресурса: такой файл просто будет догружен из сети при первом обращении.
+    await Promise.all(assets.map(async (asset) => {
+        try {
+            if (await cache.match(asset.url)) {
+                return;
+            }
+
+            await cache.add(new Request(asset.url, { integrity: asset.hash, cache: 'no-cache' }));
+        } catch (error) {
+            console.warn('Service worker: не удалось закэшировать', asset.url, error);
+        }
+    }));
+}
+
+// Можно ли класть ответ в офлайн-кэш. API отдаёт данные, а не статику, поэтому его
+// не кэшируем; скрипт и манифест service worker браузер хранит отдельно.
+function isCacheable(request, response) {
+    if (!response.ok || response.type !== 'basic' || request.cache === 'no-store') {
+        return false;
+    }
+
+    const path = new URL(request.url).pathname;
+    if (path.startsWith('/api/')) {
+        return false;
+    }
+
+    return !/\/service-worker.*\.js$/.test(path);
 }
 
 async function onFetch(event) {
-    let cachedResponse = null;
-
-    if (event.request.method === 'GET') {
-        // Навигационные запросы (открытие и обновление страницы) отдаём сохранённым
-        // index.html, поэтому приложение стартует при любом маршруте.
-        const shouldServeIndexHtml = event.request.mode === 'navigate';
-        const request = shouldServeIndexHtml ? 'index.html' : event.request;
-        const cache = await caches.open(cacheName);
-        cachedResponse = await cache.match(request);
+    if (event.request.method !== 'GET') {
+        return fetch(event.request);
     }
 
-    // Приоритет у кэша; если файла там нет — обращаемся к сети (например, к API).
-    return cachedResponse || fetch(event.request);
+    // Навигационные запросы (открытие и обновление страницы) отдаём сохранённым
+    // index.html, поэтому приложение стартует при любом маршруте.
+    const isNavigation = event.request.mode === 'navigate';
+    const cacheKey = isNavigation ? 'index.html' : event.request;
+    const cache = await caches.open(cacheName);
+    const cachedResponse = await cache.match(cacheKey);
+    if (cachedResponse) {
+        return cachedResponse;
+    }
+
+    const response = await fetch(event.request);
+
+    // Промах кэша дозаписываем сразу: если браузер вытеснил данные или установка
+    // что-то пропустила, кэш восстановится сам, без ожидания следующей публикации.
+    if (isCacheable(event.request, response)) {
+        try {
+            await cache.put(cacheKey, response.clone());
+        } catch (error) {
+            console.warn('Service worker: не удалось обновить кэш', event.request.url, error);
+        }
+    }
+
+    return response;
 }
