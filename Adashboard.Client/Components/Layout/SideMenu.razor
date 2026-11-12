@@ -1,6 +1,5 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
-@inject IPageClient PagesApi
 @inject ILogger<SideMenu> Logger
 @implements IAsyncDisposable
 
@@ -17,8 +16,8 @@
 
     В режиме редактирования страницы меню можно переставлять перетаскиванием за хваталку:
     механику ведёт модуль js/dashboard.js (перетаскивание страниц меню), итоговый порядок
-    приходит в OnPagesReordered и сохраняется через API. Основная страница всегда первая
-    и хваталки не имеет.
+    приходит в OnPagesReordered и сохраняется через DashboardDataService — он же владелец
+    списка страниц. Основная страница всегда первая и хваталки не имеет.
 *@
 
 @if (AppStateService.Settings.SideMenuMode is not SideMenuMode.Hidden)
@@ -30,8 +29,9 @@
 
     <nav class="@NavClass" aria-label="Страницы dashboard" @onkeydown="OnNavKeyDown">
         <ul class="side-menu-list">
-            @foreach (var page in Model.Pages)
+            @foreach (var item in Data.Pages)
             {
+                var page = item.Page;
                 var isMain = string.IsNullOrEmpty(page.Path);
                 var isActive = IsPageActive(page.Path);
                 var label = string.IsNullOrWhiteSpace(page.Title) ? DomainConstants.AppTitle : page.Title;
@@ -108,8 +108,11 @@
     // Ссылка на компонент для обратного вызова о перестановке страниц из модуля.
     private DotNetObjectReference<SideMenu>? _dotNetRef;
 
+    /// <summary>
+    /// Единственный владелец dashboard-данных: список страниц меню берётся из него.
+    /// </summary>
     [CascadingParameter]
-    private DashboardPageModel Model { get; set; } = null!;
+    private DashboardDataService Data { get; set; } = null!;
 
     [CascadingParameter]
     private AppStateService AppStateService { get; set; } = null!;
@@ -202,9 +205,6 @@
     /// <summary>Клик по пункту меню закрывает мобильный drawer (навигация продолжает работу).</summary>
     private void OnPageLinkClick() => AppStateService.CloseMobileMenu();
 
-    /// <summary>Перерисовка при изменении списка страниц (создание, удаление, смена текущей).</summary>
-    private void OnPageInfoChanged() => StateHasChanged();
-
     // ---------------------------------------------------------------
     // Перетаскивание страниц меню (модуль js/dashboard.js).
     // ---------------------------------------------------------------
@@ -231,7 +231,8 @@
     }
 
     /// <summary>
-    /// Применяет новый порядок страниц, полученный от перетаскивания в меню, и сохраняет его через API.
+    /// Применяет новый порядок страниц, полученный от перетаскивания в меню: порядок сохраняет
+    /// сервис, а меню перерисовывается уведомлением каскадного значения.
     /// </summary>
     [JSInvokable]
     public async Task OnPagesReordered(int[] orderedPageIds)
@@ -241,65 +242,13 @@
 
         Logger.LogDebug("Меню получило новый порядок страниц. Идентификаторов: {Count}.", orderedPageIds.Length);
 
-        var reordered = new List<DashboardPage>(Model.Pages.Count);
-
-        foreach (var id in orderedPageIds)
-        {
-            var page = Model.Pages.FirstOrDefault(x => x.Id == id);
-            if (page is not null && !reordered.Contains(page))
-                reordered.Add(page);
-        }
-
-        // Страниц вне присланного списка в меню быть не должно, но если они есть —
-        // сохраняем их относительный порядок в конце списка.
-        foreach (var page in Model.Pages)
-        {
-            if (!reordered.Contains(page))
-                reordered.Add(page);
-        }
-
-        var mainIndex = reordered.FindIndex(x => string.IsNullOrEmpty(x.Path));
-        if (mainIndex > 0)
-        {
-            var mainPage = reordered[mainIndex];
-            reordered.RemoveAt(mainIndex);
-            reordered.Insert(0, mainPage);
-        }
-
-        // Значения Order зеркалят серверные: основная страница — 0, остальные — позиция в списке.
-        var order = 0;
-        foreach (var page in reordered)
-            page.Order = string.IsNullOrEmpty(page.Path) ? 0 : ++order;
-
-        Model.Pages = reordered;
-        Model.NotifyPageChanged();
-
-        try
-        {
-            var response = await PagesApi.ReorderPages(orderedPageIds);
-            if (!response.IsSuccessStatusCode)
-            {
-                Logger.LogWarning("Не удалось сохранить порядок страниц меню. Код: {StatusCode}.", (int?)response.StatusCode);
-                return;
-            }
-
-            Logger.LogInformation("Порядок страниц dashboard изменён. Страниц в порядке: {Count}.", orderedPageIds.Length);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogWarning(ex, "Не удалось сохранить порядок страниц меню.");
-        }
-    }
-
-    protected override void OnInitialized()
-    {
-        Model.PageInfoChanged += OnPageInfoChanged;
+        var error = await Data.ReorderPagesAsync(orderedPageIds);
+        if (error is not null)
+            Logger.LogWarning("Не удалось сохранить порядок страниц меню: {Error}", error);
     }
 
     public async ValueTask DisposeAsync()
     {
-        Model.PageInfoChanged -= OnPageInfoChanged;
-
         if (_module is not null)
         {
             try

@@ -1,36 +1,32 @@
+@using Adashboard.Client.Helpers
 @implements IAsyncDisposable
-@inject ICardsClient CardsApi
-@inject ICategoriesClient CategoriesApi
-@inject IPageClient PagesApi
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject ILogger<PageView> Logger
-
 @*
     Содержимое открытой страницы dashboard: панель действий, сетка категорий и пустое состояние.
 
-    Данные приходят каскадной моделью DashboardPageModel из Home: Home — владелец модели и
-    состояний маршрута (загрузка, ошибки, 404), а этот компонент меняет общие списки категорий
-    и карточек прямо в модели и перерисовывает себя.
+    Данные приходят из DashboardDataService (каскадное значение): он единственный владелец списков
+    страниц, категорий и карточек, поэтому после сохранений список обновляет сам сервис, а компонент
+    перерисовывается уведомлением каскадного значения.
 
     Категории укладывает по колонкам модуль js/dashboard.js: он позиционирует их абсолютно,
     поэтому сетке задаётся высота. Там же живёт перетаскивание категорий и карточек, а также
     изменение ширины категории: результаты приходят обратно в OnCategoriesReordered,
-    OnCategoryResized и OnCardsReordered.
+    OnCategoryResized и OnCardsReordered, и порядок или ширину применяет сервис — только после
+    успешного ответа API.
 
     Окна диалогов рисуются здесь же: открытость ведёт этот компонент, содержимое передаётся
-    контейнеру, а закрывает окно сам диалог через каскадный DialogContainer.
+    контейнеру, а закрывает окно сам диалог через каскадный DialogContainer. Справочники страниц
+    и категорий диалоги берут из того же сервиса.
 *@
 
 @{
     var isEditMode = AppStateService.IsEditMode;
 
-    // Сортировку категорий и группировку карточек делаем один раз на рендер: иначе фильтрация
-    // карточек повторялась бы для каждой категории.
-    var categories = Model.Categories.OrderBy(x => x.Order).ToList();
-    var cardsByCategory = Model.Cards
-        .GroupBy(x => x.DashboardCategoryId)
-        .ToDictionary(group => group.Key, group => (IReadOnlyList<DashboardCard>)group.OrderBy(x => x.Position).ToList());
+    // Сортировку категорий делаем один раз на рендер: карточки каждой категории сервис
+    // отдаёт уже отсортированными по положению.
+    var categories = Data.GetCategories();
 }
 
 <section class="dashboard-shell">
@@ -47,7 +43,7 @@
                 <button type="button" class="btn" @onclick="() => _isPageSettingsOpen = true">
                     <i class="fa-solid fa-gear" aria-hidden="true"></i> Настройки страницы
                 </button>
-                @if (!Model.IsMainPage)
+                @if (!SelectedPage.IsMainPage())
                 {
                     <button type="button" class="btn btn-danger" @onclick="RequestOrDeletePage">
                         <i class="fa-solid fa-trash" aria-hidden="true"></i> Удалить страницу
@@ -78,24 +74,17 @@
         {
             <Category @key="CategoryKey(category)"
                       Model="category"
-                      Pages="Model.Pages"
-                      Cards="CardsFor(cardsByCategory, category.Id)"
-                      Saved="OnCategorySavedAsync"
-                      Deleted="OnCategoryDeletedAsync"
-                      CardSaved="OnCardSavedAsync"
-                      CardDeleted="OnCardDeletedAsync"
-                      CardDuplicated="OnCardDuplicatedAsync"
-                      CategoryDuplicated="@(copy => OnCategoryDuplicatedAsync(category, copy))" />
+                      Cards="Data.GetCards(category.Id)" />
         }
     </div>
 </section>
 
 <DialogContainer @bind-Open="_isAddCategoryOpen" Title="Создать категорию">
-    <CategoryDialog DashboardPageId="Model.Page.Id" Order="NextCategoryOrder" Pages="Model.Pages" Saved="OnCategoryCreatedAsync" />
+    <CategoryDialog DashboardPageId="SelectedPage.Id" />
 </DialogContainer>
 
 <DialogContainer @bind-Open="_isPageSettingsOpen" Title="Настройки страницы">
-    <PageDialog Page="Model.Page" Saved="OnPageSavedAsync" />
+    <PageDialog Page="SelectedPage" Saved="OnPageSavedAsync" />
 </DialogContainer>
 
 <DialogContainer @bind-Open="_isDeletePageOpen" Title="Удаление страницы" Size="DialogContainer.DialogSize.ConfirmDialog">
@@ -111,30 +100,38 @@
     private IJSObjectReference? _module;
 
     // Ссылка на компонент для обратных вызовов из модуля (перетаскивание, изменение ширины).
-    private DotNetObjectReference<PageView>? _dotNetRef;
+    private DotNetObjectReference<PageView>? _dotnetRef;
 
     // Последний переданный в модуль режим редактирования: JS дёргаем только при изменении.
     private bool? _appliedEditMode;
 
-    // Изменения порядка и ширины уходят в API по одному: одновременно больше одной записи не бывает.
-    // Тот же замок сериализует перестановки категорий и переносы карточек.
-    private readonly SemaphoreSlim _reorderLock = new(1, 1);
-
     [CascadingParameter]
     private AppStateService AppStateService { get; set; } = null!;
 
+    /// <summary>
+    /// Единственный владелец dashboard-данных: категории, карточки и выбранная страница.
+    /// </summary>
     [CascadingParameter]
-    private DashboardPageModel Model { get; set; } = null!;
+    private DashboardDataService Data { get; set; } = null!;
 
+    // Открытая страница. Отдельное имя: в разметке «@page» Razor разбирает как директиву,
+    // а не как обращение к странице.
+    private DashboardPage SelectedPage => Data.SelectedPage.Page;
 
-    // Порядковый номер новой категории: она добавляется в конец списка.
-    private int NextCategoryOrder => Model.Categories.Count > 0 ? Model.Categories.Max(x => x.Order) + 1 : 0;
+    // Диалог страницы: данные обновляет сервис, а при изменении пути переходим на новый адрес
+    // (Home выберет страницу из локальных данных).
+    private async Task OnPageSavedAsync(DashboardPage page)
+    {
+        var pathChanged = !string.Equals(page.Path, SelectedPage.Path, StringComparison.Ordinal);
 
+        if (pathChanged)
+        {
+            Navigation.NavigateTo(page.Path.Length == 0 ? "/" : "/" + page.Path);
+            return;
+        }
 
-    // Карточки указанной категории из подготовленной на рендер карты: read-модель отдаёт карточки
-    // плоским списком, поэтому категория получает свои карточки уже сгруппированными.
-    private static IReadOnlyList<DashboardCard> CardsFor(IReadOnlyDictionary<int, IReadOnlyList<DashboardCard>> lookup, int categoryId)
-        => lookup.TryGetValue(categoryId, out var cards) ? cards : [];
+        await InvokeAsync(StateHasChanged);
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -145,8 +142,8 @@
                 _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/dashboard.js");
                 await _module.InvokeVoidAsync("initializeLayout");
 
-                _dotNetRef = DotNetObjectReference.Create(this);
-                await _module.InvokeVoidAsync("initializeDragAndDrop", _dotNetRef);
+                _dotnetRef = DotNetObjectReference.Create(this);
+                await _module.InvokeVoidAsync("initializeDragAndDrop", _dotnetRef);
             }
             catch (JSException ex)
             {
@@ -173,148 +170,10 @@
         }
     }
 
-    // Новая категория создана диалогом: кладём её в общий список, перерисовываем сетку.
-    // Окно закрывает сам диалог через каскадный DialogContainer.
-    private Task OnCategoryCreatedAsync(DashboardCategory category)
-    {
-        Model.Categories.Add(category);
-        return InvokeAsync(StateHasChanged);
-    }
-
-    // ---------------------------------------------------------------
-    // Уведомления от категорий.
-    // Изменение, дублирование и удаление категории, создание, сохранение, дублирование и удаление
-    // карточек выполняют сами категории со своими диалогами: здесь мы лишь поддерживаем общие
-    // списки в актуальном состоянии — их владелец модель страницы.
-    // ---------------------------------------------------------------
-
-    // Категория изменена в своём компоненте: заменяем её в списке. Категорию могли перенести
-    // на другую страницу — тогда убираем её из текущей вместе с её карточками.
-    private Task OnCategorySavedAsync(DashboardCategory category)
-    {
-        if (category.DashboardPageId != Model.Page.Id)
-        {
-            Model.Cards.RemoveAll(x => x.DashboardCategoryId == category.Id);
-            Model.Categories.RemoveAll(x => x.Id == category.Id);
-            return InvokeAsync(StateHasChanged);
-        }
-
-        var index = Model.Categories.FindIndex(x => x.Id == category.Id);
-        if (index >= 0)
-        {
-            Model.Categories[index] = category;
-        }
-        else
-        {
-            Model.Categories.Add(category);
-        }
-
-        return InvokeAsync(StateHasChanged);
-    }
-
-    private Task OnCategoryDeletedAsync(DashboardCategory category)
-    {
-        Model.Cards.RemoveAll(x => x.DashboardCategoryId == category.Id);
-        Model.Categories.RemoveAll(x => x.Id == category.Id);
-
-        return InvokeAsync(StateHasChanged);
-    }
-
-    // Категория продублирована: копия встаёт сразу после исходной, поэтому порядок последующих
-    // категорий страницы сдвигается на одну — без этого список разошёлся бы с порядком, который
-    // применил сервер. Карточки копии приходят вместе с категорией: сервер сохраняет их положение,
-    // поэтому их достаточно добавить в общий список.
-    private Task OnCategoryDuplicatedAsync(DashboardCategory source, DashboardCategoryReadModel copy)
-    {
-        foreach (var category in Model.Categories.Where(x => x.Id != copy.Category.Id && x.Order >= copy.Category.Order))
-        {
-            category.Order++;
-        }
-
-        var sourceIndex = Model.Categories.FindIndex(x => x.Id == source.Id);
-        Model.Categories.Insert(sourceIndex >= 0 ? sourceIndex + 1 : Model.Categories.Count, copy.Category);
-
-        Model.Cards.AddRange(copy.Cards);
-
-        return InvokeAsync(StateHasChanged);
-    }
-
-    // Карточка создана или изменена: заменяем её по идентификатору, новую добавляем в конец списка.
-    // Карточку могли перенести в категорию другой страницы — тогда она перестаёт относиться
-    // к текущей, поэтому убираем её из модели: её покажет та страница.
-    // Положение перенесённой карточки в конце категории считает сервер, поэтому оно приходит
-    // в ответе API и не требует пересчёта здесь.
-    private Task OnCardSavedAsync(DashboardCard card)
-    {
-        if (!Model.Categories.Any(x => x.Id == card.DashboardCategoryId))
-        {
-            Model.Cards.RemoveAll(x => x.Id == card.Id);
-            return InvokeAsync(StateHasChanged);
-        }
-
-        var index = Model.Cards.FindIndex(x => x.Id == card.Id);
-        if (index >= 0)
-        {
-            Model.Cards[index] = card;
-        }
-        else
-        {
-            Model.Cards.Add(card);
-        }
-
-        return InvokeAsync(StateHasChanged);
-    }
-
-    // Карточка продублирована: копия встаёт сразу после исходной, поэтому положение
-    // последующих карточек той же категории сдвигается на одну — без этого список разошёлся бы
-    // с порядком, который применил сервер, и копия показалась бы в конце категории.
-    private Task OnCardDuplicatedAsync(DashboardCard copy)
-    {
-        foreach (var card in Model.Cards.Where(x => x.DashboardCategoryId == copy.DashboardCategoryId && x.Id != copy.Id && x.Position >= copy.Position))
-        {
-            card.Position++;
-        }
-
-        Model.Cards.Add(copy);
-
-        return InvokeAsync(StateHasChanged);
-    }
-
-    private Task OnCardDeletedAsync(DashboardCard card)
-    {
-        Model.Cards.RemoveAll(x => x.Id == card.Id);
-
-        return InvokeAsync(StateHasChanged);
-    }
-
-    // Страница изменена диалогом: обновляем её в модели и, если путь изменился, переходим на новый
-    // адрес (Home загрузит страницу заново по нему).
-    private async Task OnPageSavedAsync(DashboardPage page)
-    {
-        var pathChanged = !string.Equals(page.Path, Model.Page.Path, StringComparison.Ordinal);
-        Model.Page = page;
-
-        var index = Model.Pages.FindIndex(x => x.Id == page.Id);
-        if (index >= 0)
-        {
-            Model.Pages[index] = page;
-        }
-
-        Model.NotifyPageChanged();
-
-        if (pathChanged)
-        {
-            Navigation.NavigateTo(page.Path.Length == 0 ? "/" : "/" + page.Path);
-            return;
-        }
-
-        await InvokeAsync(StateHasChanged);
-    }
-
     // Если категорий нет - не запрашивать подтверждение
     private async Task RequestOrDeletePage()
     {
-        if (Model.Categories.Any())
+        if (Data.GetCategories().Count > 0)
             _isDeletePageOpen = true;
         else
             await DeletePageAsync();
@@ -322,22 +181,16 @@
 
     private async Task DeletePageAsync()
     {
-        Logger.LogDebug("Удаление страницы dashboard {PageId}.", Model.Page.Id);
-
-        try
+        var page = SelectedPage;
+        if (page.Id == 0)
         {
-            var response = await PagesApi.DeletePage(Model.Page.Id);
-            if (!response.IsSuccessStatusCode)
-            {
-                Logger.LogWarning("Удаление страницы {PageId} завершилось ошибкой API. Код: {StatusCode}.", Model.Page.Id, (int?)response.StatusCode);
-                return;
-            }
-
-            Logger.LogInformation("Страница dashboard удалена. Идентификатор: {PageId}.", Model.Page.Id);
+            return;
         }
-        catch (Exception ex)
+
+        var error = await Data.DeletePageAsync(page.Id);
+        if (error is not null)
         {
-            Logger.LogError(ex, "Не удалось удалить страницу dashboard {PageId}.", Model.Page.Id);
+            Logger.LogWarning(error);
             return;
         }
 
@@ -347,8 +200,8 @@
 
     // ---------------------------------------------------------------
     // Перетаскивание категорий и изменение их ширины (из модуля js/dashboard.js).
-    // Изменения сразу уходят в API по одному элементу: серверного батча нет.
-    // Сохраняем только то, что действительно изменилось.
+    // Порядок и ширину применяет сервис: значения становятся видимыми только после
+    // успешного ответа API, поэтому при отказе интерфейс остаётся с прежними значениями.
     // ---------------------------------------------------------------
 
     /// <summary>
@@ -358,158 +211,23 @@
     public async Task OnCategoriesReordered(int[] orderedCategoryIds)
     {
         if (orderedCategoryIds.Length == 0)
-        {
             return;
-        }
 
-        await _reorderLock.WaitAsync();
-        try
-        {
-            // Сначала считаем желаемый порядок, не трогая модель: иначе не отличить реальное
-            // изменение от перетаскивания на прежнее место (такой drop уже отсекает модуль,
-            // но проверка защищает и от совпадающего итогового порядка).
-            var target = new List<(DashboardCategory Category, int Order)>();
-            var order = 0;
-
-            foreach (var id in orderedCategoryIds)
-            {
-                var category = Model.Categories.FirstOrDefault(x => x.Id == id);
-                if (category is not null)
-                {
-                    target.Add((category, order));
-                    order++;
-                }
-            }
-
-            // Категории, которых нет в присланном списке, уходят в конец, сохраняя относительный порядок.
-            foreach (var category in Model.Categories.OrderBy(x => x.Order).ToList())
-            {
-                if (Array.IndexOf(orderedCategoryIds, category.Id) < 0)
-                {
-                    target.Add((category, order));
-                    order++;
-                }
-            }
-
-            var changed = target.Where(x => x.Category.Order != x.Order).ToList();
-            if (changed.Count == 0)
-            {
-                Logger.LogDebug("Порядок категорий не изменился: сохранение не требуется.");
-                return;
-            }
-
-            foreach (var (category, newOrder) in target)
-            {
-                category.Order = newOrder;
-            }
-
-            Logger.LogDebug("Применён новый порядок категорий. Изменено категорий: {Count}.", changed.Count);
-            await PersistCategoryChangesAsync(changed.Select(x => x.Category).ToList());
-        }
-        finally
-        {
-            _reorderLock.Release();
-        }
-
-        await InvokeAsync(StateHasChanged);
+        var error = await Data.ReorderCategoriesAsync(orderedCategoryIds);
+        if (error is not null)
+            Logger.LogWarning(error);
     }
 
     /// <summary>
-    /// Применяет новую ширину категории, полученную от маркера изменения ширины:
-    /// на мобильном брейкпоинте сохраняется отдельная мобильная ширина категории,
-    /// на остальных — обычная ширина сетки.
+    /// Применяет новую ширину категории, полученную от маркера изменения ширины.
     /// </summary>
     [JSInvokable]
     public async Task OnCategoryResized(int categoryId, int width, bool isMobile)
     {
-        var category = Model.Categories.FirstOrDefault(x => x.Id == categoryId);
-        if (category is null)
-        {
-            return;
-        }
-
-        if (isMobile)
-        {
-            // Мобильный ресайз фиксирует отдельную мобильную ширину: обратно в «авто»
-            // она возвращается только через диалог категории.
-            var mobileWidth = Math.Clamp(width, DomainConstants.CategoryWidthMin, DomainConstants.CategoryMobileWidthMax);
-            if (category.MobileWidth == mobileWidth)
-            {
-                return;
-            }
-
-            await _reorderLock.WaitAsync();
-            try
-            {
-                category.MobileWidth = mobileWidth;
-
-                Logger.LogDebug("Изменена мобильная ширина категории {CategoryId} на {Width}.", category.Id, mobileWidth);
-                await PersistCategoryChangesAsync([category]);
-            }
-            finally
-            {
-                _reorderLock.Release();
-            }
-
-            await InvokeAsync(StateHasChanged);
-            return;
-        }
-
-        var clampedWidth = Math.Clamp(width, DomainConstants.CategoryWidthMin, DomainConstants.CategoryWidthMax);
-        if (category.Width == clampedWidth)
-        {
-            return;
-        }
-
-        await _reorderLock.WaitAsync();
-        try
-        {
-            category.Width = clampedWidth;
-
-            Logger.LogDebug("Изменена ширина категории {CategoryId} на {Width}.", category.Id, clampedWidth);
-            await PersistCategoryChangesAsync([category]);
-        }
-        finally
-        {
-            _reorderLock.Release();
-        }
-
-        await InvokeAsync(StateHasChanged);
+        var error = await Data.SetCategoryWidthAsync(categoryId, width, isMobile);
+        if (error is not null)
+            Logger.LogWarning(error);
     }
-
-    // Сохраняет изменённые категории по одной: ошибку отдельной записи только логируем,
-    // чтобы состояние интерфейса совпадало с показанным пользователю.
-    private async Task PersistCategoryChangesAsync(IReadOnlyCollection<DashboardCategory> categories)
-    {
-        if (categories.Count == 0)
-        {
-            return;
-        }
-
-        foreach (var category in categories)
-        {
-            try
-            {
-                var response = await CategoriesApi.UpdateCategory(category);
-                if (!response.IsSuccessStatusCode)
-                {
-                    Logger.LogWarning("Не удалось сохранить категорию {CategoryId}. Код: {StatusCode}.", category.Id, (int?)response.StatusCode);
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.LogWarning(ex, "Не удалось сохранить категорию {CategoryId}.", category.Id);
-            }
-        }
-
-        Logger.LogInformation("Изменения категорий dashboard сохранены. Категорий: {Count}.", categories.Count);
-    }
-
-    // ---------------------------------------------------------------
-    // Перетаскивание карточек внутри категории и между категориями (из модуля js/dashboard.js).
-    // Итоговый состав и порядок задают списки из DOM: карточку могли перенести в другую категорию,
-    // поэтому обновляем и её положение, и саму категорию. Сохраняем только то, что изменилось.
-    // ---------------------------------------------------------------
 
     /// <summary>
     /// Применяет новый порядок карточек, полученный от перетаскивания, в том числе с переносом в другую категорию.
@@ -517,87 +235,9 @@
     [JSInvokable]
     public async Task OnCardsReordered(int sourceCategoryId, int targetCategoryId, int[] sourceCardIds, int[] targetCardIds)
     {
-        await _reorderLock.WaitAsync();
-        try
-        {
-            // Сначала считаем итоговое положение, не трогая модель: так видно, что реально изменилось,
-            // и перенос на прежнее место не приводит к сохранению.
-            var target = new List<(DashboardCard Card, int CategoryId, int Position)>();
-            CollectCards(target, sourceCategoryId, sourceCardIds);
-
-            if (sourceCategoryId != targetCategoryId)
-            {
-                CollectCards(target, targetCategoryId, targetCardIds);
-            }
-
-            var changed = target
-                .Where(x => x.Card.DashboardCategoryId != x.CategoryId || x.Card.Position != x.Position)
-                .Select(x => x.Card)
-                .ToList();
-
-            if (changed.Count == 0)
-            {
-                Logger.LogDebug("Положение карточек не изменилось: сохранение не требуется.");
-                return;
-            }
-
-            foreach (var (card, categoryId, position) in target)
-            {
-                card.DashboardCategoryId = categoryId;
-                card.Position = position;
-            }
-
-            Logger.LogDebug("Применён новый порядок карточек. Изменено карточек: {Count}.", changed.Count);
-            await PersistCardChangesAsync(changed);
-        }
-        finally
-        {
-            _reorderLock.Release();
-        }
-
-        await InvokeAsync(StateHasChanged);
-    }
-
-    // Раскладывает идентификаторы контейнера по позициям: список из DOM полностью задаёт
-    // и состав, и порядок карточек категории.
-    private void CollectCards(List<(DashboardCard Card, int CategoryId, int Position)> target, int categoryId, int[] orderedCardIds)
-    {
-        for (var position = 0; position < orderedCardIds.Length; position++)
-        {
-            var card = Model.Cards.FirstOrDefault(x => x.Id == orderedCardIds[position]);
-            if (card is not null)
-            {
-                target.Add((card, categoryId, position));
-            }
-        }
-    }
-
-    // Сохраняет изменённые карточки по одной: ошибку отдельной записи только логируем,
-    // чтобы состояние интерфейса совпадало с показанным пользователю (как у категорий).
-    private async Task PersistCardChangesAsync(IReadOnlyCollection<DashboardCard> cards)
-    {
-        if (cards.Count == 0)
-        {
-            return;
-        }
-
-        foreach (var card in cards)
-        {
-            try
-            {
-                var response = await CardsApi.UpdateCard(new SaveCardRequest { Card = card });
-                if (!response.IsSuccessStatusCode)
-                {
-                    Logger.LogWarning("Не удалось сохранить карточку {CardId}. Код: {StatusCode}.", card.Id, (int?)response.StatusCode);
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.LogWarning(ex, "Не удалось сохранить карточку {CardId}.", card.Id);
-            }
-        }
-
-        Logger.LogInformation("Изменения карточек dashboard сохранены. Карточек: {Count}.", cards.Count);
+        var error = await Data.ReorderCardsAsync(sourceCategoryId, targetCategoryId, sourceCardIds, targetCardIds);
+        if (error is not null)
+            Logger.LogWarning(error);
     }
 
     // Ключ включает обе ширины: после ресайза категория перерисовывается и получает корректные
@@ -620,7 +260,6 @@
             }
         }
 
-        _dotNetRef?.Dispose();
-        _reorderLock.Dispose();
+        _dotnetRef?.Dispose();
     }
 }

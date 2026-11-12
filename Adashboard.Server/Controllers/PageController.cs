@@ -7,7 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace Adashboard.Server.Controllers;
 
 /// <summary>
-/// Эндпоинты страниц dashboard: список, чтение, создание, изменение и удаление.
+/// Эндпоинты страниц dashboard: список, полный снапшот с категориями и карточками, чтение,
+/// создание, изменение и удаление.
 /// </summary>
 [ApiController]
 [Route("api/pages")]
@@ -23,6 +24,17 @@ public class PageController(
     public async Task<ActionResult<IReadOnlyList<DashboardPage>>> GetPages(CancellationToken cancellationToken)
     {
         var pages = await pageService.GetPagesAsync(cancellationToken);
+        return Ok(pages);
+    }
+
+    /// <summary>
+    /// Возвращает все страницы dashboard в порядке меню вместе с их категориями и карточками.
+    /// </summary>
+    [HttpGet("full")]
+    [ProducesResponseType<IReadOnlyList<DashboardPageReadModel>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<DashboardPageReadModel>>> GetFullPages(CancellationToken cancellationToken)
+    {
+        var pages = await pageService.GetFullPagesAsync(cancellationToken);
         return Ok(pages);
     }
 

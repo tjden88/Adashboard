@@ -14,6 +14,9 @@ namespace Adashboard.Client.Services
         [Get("/api/pages")]
         Task<IApiResponse<IReadOnlyList<DashboardPage>>> GetPages(CancellationToken cancellationToken = default);
 
+        [Get("/api/pages/full")]
+        Task<IApiResponse<IReadOnlyList<DashboardPageReadModel>>> GetFullPages(CancellationToken cancellationToken = default);
+
         [Get("/api/pages/{id}")]
         Task<IApiResponse<DashboardPageReadModel>> GetPage(int id, CancellationToken cancellationToken = default);
 

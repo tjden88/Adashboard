@@ -1,14 +1,14 @@
+@using Adashboard.Client.Helpers
 @inject NavigationManager Navigation
 @inject DashboardApiOptions ApiOptions
-@implements IDisposable
 
 @*
     Шапка dashboard. Живёт внутри Home.razor (а не в layout): её содержимое относится
     к конкретной странице dashboard.
 
     Режим редактирования и настройки сайта приходят из AppState (каскадное значение), данные
-    страницы — параметром Page от Home: заголовок и описание обновляются сразу после правки
-    страницы в диалоге. Пока страница грузится, вместо текста рисуется скелет заголовка,
+    страницы — из DashboardDataService: заголовок и описание обновляются сразу после правки
+    страницы в диалоге. Пока снапшот грузится, вместо текста рисуется скелет заголовка,
     а кнопки и иконка остаются на месте.
 
     Выравнивание заголовка и описания по центру — отдельная настройка сайта: она даёт класс
@@ -51,9 +51,9 @@
 
         @if (AppStateService.Settings.ShowPageIcon)
         {
-            @if (!string.IsNullOrWhiteSpace(Model.Page.Icon))
+            @if (!string.IsNullOrWhiteSpace(SelectedPage.Icon))
             {
-                <i class="dashboard-page-icon @Model.Page.Icon" style="@PageIconColor" aria-hidden="true"></i>
+                <i class="dashboard-page-icon @SelectedPage.Icon" style="@PageIconColor" aria-hidden="true"></i>
             }
             else
             {
@@ -62,17 +62,17 @@
         }
 
         <div class="dashboard-header-text">
-            @if (IsLoading)
+            @if (Data.IsLoading)
             {
                 <span class="header-skeleton header-skeleton--title" aria-hidden="true"></span>
                 <span class="header-skeleton header-skeleton--subtitle" aria-hidden="true"></span>
             }
             else
             {
-                <h1>@Model.DisplayTitle</h1>
-                @if (!string.IsNullOrWhiteSpace(Model.Page.Description))
+                <h1>@SelectedPage.DisplayTitle()</h1>
+                @if (!string.IsNullOrWhiteSpace(SelectedPage.Description))
                 {
-                    <p>@Model.Page.Description</p>
+                    <p>@SelectedPage.Description</p>
                 }
             }
         </div>
@@ -124,19 +124,17 @@
     private bool _isSettingsOpen;
 
     /// <summary>
-    /// Идёт загрузка страницы: вместо заголовка и описания рисуется скелет.
-    /// </summary>
-    [Parameter]
-    public bool IsLoading { get; set; }
-
-    /// <summary>
-    /// Информационная часть открытой страницы: заголовок и описание в шапке.
+    /// Единственный владелец dashboard-данных: страница для шапки берётся из него.
     /// </summary>
     [CascadingParameter]
-    public DashboardPageModel Model { get; set; } = new();
+    private DashboardDataService Data { get; set; } = null!;
 
     [CascadingParameter]
     private AppStateService AppStateService { get; set; } = null!;
+
+    // Открытая страница. Отдельное имя: в разметке «@page» Razor разбирает как директиву,
+    // а не как обращение к странице.
+    private DashboardPage SelectedPage => Data.SelectedPage.Page;
 
     /// <summary>Иконка приложения для страницы без своей иконки: абсолютный путь к статике API,
     /// иначе при раздельном запуске клиента и сервера изображение запрашивалось бы у клиента.</summary>
@@ -145,12 +143,12 @@
     /// <summary>
     /// Инлайновый стиль иконки: заданный на странице цвет, а при пустом значении цвет темы.
     /// </summary>
-    private string? PageIconColor => string.IsNullOrWhiteSpace(Model.Page.IconColor)
+    private string? PageIconColor => string.IsNullOrWhiteSpace(SelectedPage.IconColor)
         ? null
-        : $"color:{Model.Page.IconColor}";
+        : $"color:{SelectedPage.IconColor}";
 
-    // Созданную страницу открываем: Home загрузит её по новому адресу, а окно закроет сам диалог.
-    private void OnPageCreated(DashboardPage page) => Navigation.NavigateTo("/" + page.Path);
+    // Созданную страницу открываем: Home выберет её из данных сервиса, а окно закроет сам диалог.
+    private void OnPageCreated(DashboardPage page) => Navigation.NavigateTo(page.Path.Length == 0 ? "/" : "/" + page.Path);
 
     // Настройки сайта сохраняет сам диалог: владелец настроек — AppStateService,
     // а шапка только открывает окно.
@@ -160,17 +158,4 @@
 
     /// <summary>Переключает открытость мобильного бокового меню.</summary>
     private void ToggleMobileMenu() => AppStateService.ToggleMobileMenu();
-
-    protected override void OnInitialized()
-    {
-        Model.PageInfoChanged += ModelOnPageInfoChanged;
-    }
-
-    private void ModelOnPageInfoChanged() => StateHasChanged();
-
-    public void Dispose()
-    {
-        Model.PageInfoChanged -= ModelOnPageInfoChanged;
-    }
-
 }

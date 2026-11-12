@@ -1,15 +1,15 @@
 @using Adashboard.Client.Helpers
-@inject ICategoriesClient CategoriesApi
 @inject ILogger<CategoryDialog> Logger
 
 @*
     Диалог категории: создание (Category не задана) и изменение (Category передана).
     Открытость окна ведёт вызывающий: PageView — для создания, Category — для изменения.
 
-    Запрос к API (POST или PUT) выполняет сам диалог: при отказе окно остаётся открытым и
-    показывает понятный текст ошибки. Итоговую категорию отдаём параметром Saved, а окно
-    закрываем сами. Перенос категории на другую страницу — это тоже изменение, поэтому
-    страницу выбирают здесь же.
+    Запросы к API выполняет DashboardDataService: при отказе окно остаётся открытым и
+    показывает понятный текст ошибки. Списки после успеха обновляет сервис, поэтому окно
+    закрываем сами и отдельное уведомление вызывающему не нужно. Перенос категории на другую
+    страницу — это тоже изменение, поэтому страницу выбирают здесь же, а справочник страниц
+    берём из сервиса.
 *@
 
 <EditForm Model="_model" OnValidSubmit="SaveAsync" class="category-dialog">
@@ -27,14 +27,14 @@
         <ValidationMessage For="() => _model.Title" />
     </div>
 
-    @if (Pages.Count > 0)
+    @if (Data.Pages.Count > 0)
     {
         <div class="category-dialog__field">
             <label for="categoryDialogPage" class="category-dialog__label">Страница</label>
             <InputSelect id="categoryDialogPage" class="form-select" @bind-Value="_model.PageId">
-                @foreach (var item in Pages)
+                @foreach (var item in Data.Pages)
                 {
-                    <option value="@item.Id">@item.DisplayLabel()</option>
+                    <option value="@item.Page.Id">@item.Page.DisplayLabel()</option>
                 }
             </InputSelect>
             <p class="category-dialog__hint">Категорию можно оставить на текущей странице или перенести на другую.</p>
@@ -102,6 +102,12 @@
     private DialogContainer Dialog { get; set; } = null!;
 
     /// <summary>
+    /// Единственный владелец dashboard-данных: справочник страниц и сохранение категории.
+    /// </summary>
+    [CascadingParameter]
+    private DashboardDataService Data { get; set; } = null!;
+
+    /// <summary>
     /// Категория для изменения или <c>null</c> при создании.
     /// </summary>
     [Parameter]
@@ -112,24 +118,6 @@
     /// </summary>
     [Parameter]
     public int DashboardPageId { get; set; }
-
-    /// <summary>
-    /// Порядковый номер новой категории среди остальных.
-    /// </summary>
-    [Parameter]
-    public int Order { get; set; }
-
-    /// <summary>
-    /// Список всех страниц: категорию можно отнести к любой из них.
-    /// </summary>
-    [Parameter]
-    public IReadOnlyList<DashboardPage> Pages { get; set; } = [];
-
-    /// <summary>
-    /// Уведомление о созданной или изменённой категории: вызывающий обновляет списки.
-    /// </summary>
-    [Parameter, EditorRequired]
-    public EventCallback<DashboardCategory> Saved { get; set; }
 
     protected override void OnInitialized()
     {
@@ -189,49 +177,29 @@
         {
             var isNew = Category is null;
 
-            // При изменении сохраняем идентификатор и порядок, при создании порядок берём из параметров.
+            // При изменении сохраняем идентификатор и порядок, при создании порядок считает сервис.
             // Страницу берём из селектора, а если списка страниц нет — остаёмся на текущей.
             var category = new DashboardCategory
             {
                 Id = Category?.Id ?? 0,
-                DashboardPageId = Pages.Count > 0 ? _model.PageId : DashboardPageId,
-                Order = Category?.Order ?? Order,
+                DashboardPageId = Data.Pages.Count > 0 ? _model.PageId : DashboardPageId,
+                Order = Category?.Order ?? Data.NextCategoryOrder(DashboardPageId),
                 Title = _model.Title.Trim(),
                 Width = _model.Width,
                 MobileWidth = _mobileAuto ? null : _model.MobileWidth ?? DefaultMobileWidth
             };
 
-            if (isNew)
+            // Запросы выполняет сервис: он же обновляет списки, поэтому отдельное уведомление не нужно.
+            var error = isNew
+                ? await Data.CreateCategoryAsync(category)
+                : await Data.SaveCategoryAsync(category);
+
+            if (error is not null)
             {
-                Logger.LogDebug("Создание категории dashboard {Title}.", category.Title);
-
-                var response = await CategoriesApi.CreateCategory(category);
-                if (!response.IsSuccessStatusCode || response.Content is null)
-                {
-                    Logger.LogWarning("Создание категории завершилось ошибкой API. Код: {StatusCode}.", (int?)response.StatusCode);
-                    _error = response.ErrorText();
-                    return;
-                }
-
-                category = response.Content;
-                Logger.LogInformation("Категория dashboard создана. Идентификатор: {CategoryId}.", category.Id);
-            }
-            else
-            {
-                Logger.LogDebug("Изменение категории dashboard {CategoryId}.", category.Id);
-
-                var response = await CategoriesApi.UpdateCategory(category);
-                if (!response.IsSuccessStatusCode)
-                {
-                    Logger.LogWarning("Изменение категории завершилось ошибкой API. Код: {StatusCode}.", (int?)response.StatusCode);
-                    _error = response.ErrorText();
-                    return;
-                }
-
-                Logger.LogInformation("Категория dashboard изменена. Идентификатор: {CategoryId}.", category.Id);
+                _error = error;
+                return;
             }
 
-            await Saved.InvokeAsync(category);
             await Dialog.CloseAsync();
         }
         catch (Exception ex)

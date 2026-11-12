@@ -1,24 +1,24 @@
 ﻿<!--
 Символьный индекс проекта. Сгенерирован scripts/project-map.ps1 — вручную не редактируется.
 Как использовать: ищи здесь имя символа, открывай только файл из строки, читай его по месту, а не целиком.
-Дата генерации: 2026-11-12 03:41
+Дата генерации: 2026-11-12 06:08
 -->
 
 ## Adashboard.Client
 Adashboard.Client/Components/Dashboard/Card.razor: @inject HealthCheckService HealthCheckService | @inject DashboardApiOptions ApiOptions | Task OnClickAsync() => IsEditMode ? EditRequested.InvokeAsync(Model) : | Task OnDuplicateClickAsync() => DuplicateRequested.InvokeAsync(Model); | void OnImageError() => _imageFailed = true; | async Task RunHealthLoopAsync(CancellationToken cancellationToken)
-Adashboard.Client/Components/Dashboard/Category.razor: @inject ICardsClient CardsApi | @inject ICategoriesClient CategoriesApi | void OpenAddCardDialog() | void OpenCardDialog(DashboardCard card) | Task OnCardSavedAsync(DashboardCard card) => CardSaved.InvokeAsync(car | async Task DuplicateCardAsync(DashboardCard card)
-Adashboard.Client/Components/Dashboard/PageView.razor: @inject ICardsClient CardsApi | @inject ICategoriesClient CategoriesApi | @inject IPageClient PagesApi | @inject NavigationManager Navigation | @inject IJSRuntime JS | Task OnCategoryCreatedAsync(DashboardCategory category)
+Adashboard.Client/Components/Dashboard/Category.razor: void OpenAddCardDialog() | void OpenCardDialog(DashboardCard card) | async Task DuplicateCardAsync(DashboardCard card) | void RequestCardDelete(DashboardCard card) | async Task DeleteCardAsync() | async Task DuplicateCategoryAsync()
+Adashboard.Client/Components/Dashboard/PageView.razor: @inject NavigationManager Navigation | @inject IJSRuntime JS | async Task OnPageSavedAsync(DashboardPage page) | async Task RequestOrDeletePage() | async Task DeletePageAsync() | async Task OnCategoriesReordered(int[] orderedCategoryIds)
 Adashboard.Client/Components/Dialogs/AppSettingsDialog.razor: @inject AppStateService AppStateService | static readonly (ThemeMode Mode, string Title)[] _ThemeOptions = | static readonly (SideMenuMode Mode, string Title, string Hint)[] _Side | static readonly (PageHeaderAlignment Mode, string Title)[] _HeaderAlig | async Task SaveAsync() | AppSettings ToSettings() => new()
-Adashboard.Client/Components/Dialogs/CardDialog.razor: @inject ICardsClient CardsApi | @inject ICategoriesClient CategoriesApi | @inject IProbeClient ProbeApi | @inject DashboardApiOptions ApiOptions | @inject IJSRuntime JS | static readonly (CardStatusMode Mode, string Title, string Hint)[] Sta
-Adashboard.Client/Components/Dialogs/CategoryDialog.razor: @inject ICategoriesClient CategoriesApi | void OnWidthInput(ChangeEventArgs args) | void OnMobileWidthInput(ChangeEventArgs args) | void OnMobileAutoChanged(ChangeEventArgs args) | async Task SaveAsync()
+Adashboard.Client/Components/Dialogs/CardDialog.razor: @inject IProbeClient ProbeApi | @inject DashboardApiOptions ApiOptions | @inject IJSRuntime JS | static readonly (CardStatusMode Mode, string Title, string Hint)[] Sta | void ToggleLinkTarget() => | void CycleScheme()
+Adashboard.Client/Components/Dialogs/CategoryDialog.razor: void OnWidthInput(ChangeEventArgs args) | void OnMobileWidthInput(ChangeEventArgs args) | void OnMobileAutoChanged(ChangeEventArgs args) | async Task SaveAsync()
 Adashboard.Client/Components/Dialogs/ConfirmDialog.razor: Task CancelAsync() => Dialog.CloseAsync(); | async Task ConfirmAsync()
 Adashboard.Client/Components/Dialogs/DialogContainer.razor: @inject IJSRuntime JS | Task CloseAsync() => OpenChanged.InvokeAsync(false); | void SetBusy(bool isBusy) | Task RequestCloseAsync() => _isBusy ? Task.CompletedTask : CloseAsync( | Task HandleOverlayClickAsync() => CloseOnOverlayClick ? RequestCloseAs | Task HandleKeyDownAsync(KeyboardEventArgs args) => args.Key == "Escape
-Adashboard.Client/Components/Dialogs/PageDialog.razor: @inject IPageClient PagesApi | void OnTitleInput(ChangeEventArgs args) | void OnPathInput(ChangeEventArgs args) | void ClearIcon() => _model.Icon = string.Empty; | async Task SaveAsync() | bool IsPathTaken(string path)
+Adashboard.Client/Components/Dialogs/PageDialog.razor: void OnTitleInput(ChangeEventArgs args) | void OnPathInput(ChangeEventArgs args) | void ClearIcon() => _model.Icon = string.Empty; | async Task SaveAsync() | bool IsPathTaken(string path)
 Adashboard.Client/Components/Layout/ApiKeyLogin.razor: @inject AuthStateService AuthState | async Task SubmitAsync()
-Adashboard.Client/Components/Layout/Header.razor: @inject NavigationManager Navigation | @inject DashboardApiOptions ApiOptions | void OnPageCreated(DashboardPage page) => Navigation.NavigateTo("/" + | void OpenSiteSettings() => _isSettingsOpen = true; | void ToggleEditMode() => AppStateService.ToggleEditMode(); | void ToggleMobileMenu() => AppStateService.ToggleMobileMenu();
+Adashboard.Client/Components/Layout/Header.razor: @inject NavigationManager Navigation | @inject DashboardApiOptions ApiOptions | void OnPageCreated(DashboardPage page) => Navigation.NavigateTo(page.P | void OpenSiteSettings() => _isSettingsOpen = true; | void ToggleEditMode() => AppStateService.ToggleEditMode(); | void ToggleMobileMenu() => AppStateService.ToggleMobileMenu();
 Adashboard.Client/Components/Layout/MainLayout.razor: @inject IJSRuntime JS | @inject DashboardApiOptions ApiOptions | async Task InitializeThemeAsync() | async Task ApplyThemeAsync() | async ValueTask DisposeAsync()
-Adashboard.Client/Components/Layout/SideMenu.razor: @inject NavigationManager Navigation | @inject IJSRuntime JS | @inject IPageClient PagesApi | bool IsPageActive(string? pagePath) | string GetCurrentPath() | async Task OnNavKeyDown(KeyboardEventArgs e)
-Adashboard.Client/Components/Pages/Home.razor: @page "/" | @page "/{**PagePath}" | @inject IPageClient PagesApi | @inject NavigationManager Navigation | void Dispose() | Task RetryAsync() => LoadAsync(_loadedPath);
+Adashboard.Client/Components/Layout/SideMenu.razor: @inject NavigationManager Navigation | @inject IJSRuntime JS | bool IsPageActive(string? pagePath) | string GetCurrentPath() | async Task OnNavKeyDown(KeyboardEventArgs e) | void ToggleEditMode() => AppStateService.ToggleEditMode();
+Adashboard.Client/Components/Pages/Home.razor: @page "/" | @page "/{**PagePath}" | @inject NavigationManager Navigation | async Task RetryAsync() | async Task ApplyRouteAsync(string normalized) | void ApplyNotFound(string path)
 Adashboard.Client/Components/Routes.razor: @inject AppStateService AppStateService | Task OnAuthenticatedAsync() => AppStateService.LoadSettingsAsync();
 Adashboard.Client/Components/Shared/ColorPicker.razor: @inject IJSRuntime JS | async Task OnInputAsync(ChangeEventArgs args) | async Task OnColorPicked(string color) | async ValueTask DisposeAsync()
 Adashboard.Client/Components/Shared/IconPicker.razor: string OptionId(int index) => $"{_listId}-{index}"; | void OnSearchInput(ChangeEventArgs args) | async Task OnKeyDownAsync(KeyboardEventArgs args) | async Task SelectIconAsync(string icon)
@@ -26,12 +26,12 @@ Adashboard.Client/Helpers/ApiKeyHandler.cs: sealed class ApiKeyHandler(ApiKeySto
 Adashboard.Client/Helpers/ApiResponseExtensions.cs: static class ApiResponseExtensions
 Adashboard.Client/Helpers/NetworkErrorHandler.cs: sealed class NetworkErrorHandler : DelegatingHandler
 Adashboard.Client/Helpers/PageDisplayExtensions.cs: static class PageDisplayExtensions
-Adashboard.Client/Models/DashboardPageModel.cs: sealed class DashboardPageModel | void NotifyPageChanged() => PageInfoChanged?.Invoke();
 Adashboard.Client/Services/ApiClientRegistration.cs: static class ApiClientRegistration
 Adashboard.Client/Services/ApiKeyStore.cs: sealed class ApiKeyStore(IJSRuntime js, ILogger<ApiKeyStore> logger) : | Task NotifyUnauthorizedAsync() => Unauthorized?.Invoke() ?? Task.Compl
 Adashboard.Client/Services/AppStateService.cs: sealed class AppStateService | void ToggleEditMode() | void OpenMobileMenu() | void CloseMobileMenu() | void ToggleMobileMenu() | void SetSettings(AppSettings settings)
 Adashboard.Client/Services/AuthStateService.cs: sealed class AuthStateService : IDisposable | void Dispose() => _store.Unauthorized -= OnUnauthorizedAsync;
 Adashboard.Client/Services/DashboardApiOptions.cs: sealed class DashboardApiOptions | string? ResolveUploadPath(string? path)
+Adashboard.Client/Services/DashboardDataService.cs: sealed class DashboardDataService : IDisposable | DashboardPageReadModel? GetPageByPath(string path) | DashboardPageReadModel? GetPageById(int id) => _pages.FirstOrDefault(x | void SelectPage(DashboardPageReadModel? page) | IReadOnlyList<DashboardCategory> GetCategories() => SelectedPage.Categ | IReadOnlyList<DashboardCard> GetCards() => SelectedPage.Cards.OrderBy(
 Adashboard.Client/Services/HealthCheckService.cs: sealed class HealthCheckService(IProbeClient probeClient, ILogger<Heal
 
 ## Adashboard.Server

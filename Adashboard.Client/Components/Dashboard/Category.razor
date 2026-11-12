@@ -1,5 +1,3 @@
-@inject ICardsClient CardsApi
-@inject ICategoriesClient CategoriesApi
 @inject ILogger<Category> Logger
 
 @*
@@ -10,12 +8,13 @@
     совпадает с её шириной, поэтому карточки получаются одного размера во всех категориях
     (см. Category.razor.css).
 
-    Карточки приходят параметром: read-модель API отдаёт их плоским списком, а не внутри категории.
+    Карточки приходят параметром: их подбирает сервис по идентификатору категории.
 
-    Запросы к API выполняют диалоги (создание, изменение карточки и категории), дублирование
-    карточки и категории и само удаление; об изменениях категория сообщает родителю событиями
-    Saved/Deleted/CardSaved/CardDeleted/CardDuplicated/CategoryDuplicated: списки категорий и
-    карточек ведёт модель страницы, поэтому обновляет их родитель.
+    Данные категории и карточек изменяет только DashboardDataService: создание, изменение,
+    дублирование и удаление категории, создание, изменение, дублирование и удаление карточки
+    идут через него, а списки после успеха обновляет сервис и категория перерисовывается
+    уведомлением каскадного значения. Справочники страниц и категорий диалоги берут из того же
+    сервиса.
 
     Перетаскивание за маркер и изменение ширины берёт на себя модуль js/dashboard.js;
     сами ручки и кнопки действий видны только в режиме редактирования.
@@ -94,18 +93,11 @@
 <DialogContainer @bind-Open="_isCardFormOpen" Title="@CardFormTitle" Size="DialogContainer.DialogSize.Large">
     <CardDialog Card="_editingCard"
                 Category="Model"
-                Pages="Pages"
-                Position="@NextCardPosition"
-                Saved="OnCardSavedAsync"
                 DeleteRequested="RequestCardDelete" />
 </DialogContainer>
 
 <DialogContainer @bind-Open="_isCategoryFormOpen" Title="Настройки категории">
-    <CategoryDialog Category="Model"
-                    Pages="Pages"
-                    DashboardPageId="Model.DashboardPageId"
-                    Order="Model.Order"
-                    Saved="OnCategorySavedAsync" />
+    <CategoryDialog Category="Model" />
 </DialogContainer>
 
 <DialogContainer @bind-Open="_isDeleteCardOpen" Title="Удаление ссылки" Size="DialogContainer.DialogSize.ConfirmDialog">
@@ -129,59 +121,22 @@
     private AppStateService AppStateService { get; set; } = null!;
 
     /// <summary>
+    /// Единственный владелец dashboard-данных: изменения категории и карточек выполняются через него.
+    /// </summary>
+    [CascadingParameter]
+    private DashboardDataService Data { get; set; } = null!;
+
+    /// <summary>
     /// Отображаемая категория.
     /// </summary>
     [Parameter, EditorRequired]
     public DashboardCategory Model { get; set; } = null!;
 
     /// <summary>
-    /// Список всех страниц: нужен селектору страницы в диалоге категории.
-    /// </summary>
-    [Parameter]
-    public IReadOnlyList<DashboardPage> Pages { get; set; } = [];
-
-    /// <summary>
     /// Карточки категории, упорядоченные по положению.
     /// </summary>
     [Parameter, EditorRequired]
     public IReadOnlyList<DashboardCard> Cards { get; set; } = [];
-
-    /// <summary>
-    /// Уведомление о созданной или изменённой категории.
-    /// </summary>
-    [Parameter, EditorRequired]
-    public EventCallback<DashboardCategory> Saved { get; set; }
-
-    /// <summary>
-    /// Уведомление об удалённой категории.
-    /// </summary>
-    [Parameter, EditorRequired]
-    public EventCallback<DashboardCategory> Deleted { get; set; }
-
-    /// <summary>
-    /// Уведомление о созданной или изменённой карточке.
-    /// </summary>
-    [Parameter, EditorRequired]
-    public EventCallback<DashboardCard> CardSaved { get; set; }
-
-    /// <summary>
-    /// Уведомление об удалённой карточке.
-    /// </summary>
-    [Parameter, EditorRequired]
-    public EventCallback<DashboardCard> CardDeleted { get; set; }
-
-    /// <summary>
-    /// Уведомление о продублированной карточке: копию создаёт категория, порядок списка обновляет родитель.
-    /// </summary>
-    [Parameter, EditorRequired]
-    public EventCallback<DashboardCard> CardDuplicated { get; set; }
-
-    /// <summary>
-    /// Уведомление о продублированной категории: вместе с копией категории родителю передаём её
-    /// карточки, потому что списки модели страницы ведает родитель.
-    /// </summary>
-    [Parameter, EditorRequired]
-    public EventCallback<DashboardCategoryReadModel> CategoryDuplicated { get; set; }
 
     // В режиме редактирования переход по ссылке отключается: карточка не должна уводить
     // со страницы, пока с ней работают.
@@ -208,13 +163,10 @@
 
     private string CategoryDeleteMessage => $"Удалить категорию «{Model.Title}» вместе со всеми ссылками?";
 
-    // Порядковый номер новой карточки: она добавляется в конец категории.
-    private int NextCardPosition => Cards.Count > 0 ? Cards.Max(x => x.Position) + 1 : 0;
-
     // ---------------------------------------------------------------
     // Карточки: открытие диалога, дублирование и удаление.
-    // Создание и изменение выполняет сам диалог карточки, здесь мы только открываем его
-    // и сообщаем родителю результат; дублирование и удаление делает категория.
+    // Создание и изменение выполняет сам диалог карточки, здесь мы только открываем его;
+    // дублирование и удаление делает категория через сервис.
     // ---------------------------------------------------------------
 
     private void OpenAddCardDialog()
@@ -229,32 +181,12 @@
         _isCardFormOpen = true;
     }
 
-    // Карточка сохранена диалогом: передаём её родителю, а окно закрывает сам диалог.
-    private Task OnCardSavedAsync(DashboardCard card) => CardSaved.InvokeAsync(card);
-
-    // Копию создаёт сама категория одним быстрым действием: здесь нет окна подтверждения,
-    // поэтому сразу сообщаем родителю результат — положение карточек пересчитывает его список.
+    // Копию создаёт сама категория одним быстрым действием: здесь нет окна подтверждения.
     private async Task DuplicateCardAsync(DashboardCard card)
     {
-        Logger.LogDebug("Дублирование карточки dashboard {CardId}.", card.Id);
-
-        try
-        {
-            var response = await CardsApi.DuplicateCard(card.Id);
-            if (!response.IsSuccessStatusCode || response.Content is null)
-            {
-                Logger.LogWarning("Дублирование карточки {CardId} завершилось ошибкой API. Код: {StatusCode}.", card.Id, (int?)response.StatusCode);
-                return;
-            }
-
-            Logger.LogInformation("Карточка dashboard продублирована. Идентификатор копии: {CopyCardId}.", response.Content.Id);
-
-            await CardDuplicated.InvokeAsync(response.Content);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Не удалось продублировать карточку dashboard {CardId}.", card.Id);
-        }
+        var error = await Data.DuplicateCardAsync(card.Id);
+        if (error is not null)
+            Logger.LogWarning(error);
     }
 
     // Из диалога карточки запрошено удаление: закрываем его и спрашиваем подтверждение.
@@ -273,65 +205,25 @@
             return;
         }
 
-        var card = _cardPendingDelete;
-        Logger.LogDebug("Удаление карточки dashboard {CardId}.", card.Id);
+        var error = await Data.DeleteCardAsync(_cardPendingDelete.Id);
+        _cardPendingDelete = null;
 
-        try
-        {
-            var response = await CardsApi.DeleteCard(card.Id);
-            if (!response.IsSuccessStatusCode)
-            {
-                Logger.LogWarning("Удаление карточки {CardId} завершилось ошибкой API. Код: {StatusCode}.", card.Id, (int?)response.StatusCode);
-                return;
-            }
-
-            Logger.LogInformation("Карточка dashboard удалена. Идентификатор: {CardId}.", card.Id);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Не удалось удалить карточку dashboard {CardId}.", card.Id);
-            return;
-        }
-        finally
-        {
-            _cardPendingDelete = null;
-        }
-
-        await CardDeleted.InvokeAsync(card);
+        if (error is not null)
+            Logger.LogWarning(error);
     }
 
     // ---------------------------------------------------------------
     // Категория: изменение, дублирование и удаление.
-    // Изменение выполняет сам диалог категории, здесь мы открываем его и сообщаем родителю
-    // результат; дублирование и удаление делает категория.
+    // Изменение выполняет сам диалог категории, здесь мы открываем его; дублирование и
+    // удаление делает категория через сервис.
     // ---------------------------------------------------------------
 
-    private Task OnCategorySavedAsync(DashboardCategory category) => Saved.InvokeAsync(category);
-
-    // Копию создаёт сама категория одним быстрым действием: окна подтверждения нет, поэтому
-    // сразу сообщаем родителю результат — списки модели страницы обновляет он, и только он
-    // знает, где в списке лежит исходная категория.
+    // Копию создаёт сама категория одним быстрым действием: окна подтверждения нет.
     private async Task DuplicateCategoryAsync()
     {
-        Logger.LogDebug("Дублирование категории dashboard {CategoryId}.", Model.Id);
-
-        try
-        {
-            var response = await CategoriesApi.DuplicateCategory(Model.Id);
-            if (!response.IsSuccessStatusCode || response.Content is null)
-            {
-                Logger.LogWarning("Дублирование категории {CategoryId} завершилось ошибкой API. Код: {StatusCode}.", Model.Id, (int?)response.StatusCode);
-                return;
-            }
-
-            Logger.LogInformation("Категория dashboard продублирована. Идентификатор копии: {CopyCategoryId}.", response.Content.Category.Id);
-
-            await CategoryDuplicated.InvokeAsync(response.Content);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Не удалось продублировать категорию dashboard {CategoryId}.", Model.Id);
-        }
+        var error = await Data.DuplicateCategoryAsync(Model.Id);
+        if (error is not null)
+            Logger.LogWarning(error);
     }
 
     private async Task RequestDeleteCategory()
@@ -348,26 +240,10 @@
 
     private async Task DeleteCategoryAsync()
     {
-        Logger.LogDebug("Удаление категории dashboard {CategoryId}.", Model.Id);
+        var error = await Data.DeleteCategoryAsync(Model.Id);
 
-        try
-        {
-            var response = await CategoriesApi.DeleteCategory(Model.Id);
-            if (!response.IsSuccessStatusCode)
-            {
-                Logger.LogWarning("Удаление категории {CategoryId} завершилось ошибкой API. Код: {StatusCode}.", Model.Id, (int?)response.StatusCode);
-                return;
-            }
-
-            Logger.LogInformation("Категория dashboard удалена. Идентификатор: {CategoryId}.", Model.Id);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Не удалось удалить категорию dashboard {CategoryId}.", Model.Id);
-            return;
-        }
-
-        await Deleted.InvokeAsync(Model);
+        if (error is not null)
+            Logger.LogWarning(error);
     }
 
     // Если название не задано, для сообщений подставляем адрес ссылки.

@@ -1,14 +1,13 @@
 @using Adashboard.Client.Helpers
-@inject IPageClient PagesApi
 @inject ILogger<PageDialog> Logger
 
 @*
     Диалог страницы dashboard: создание (Page не задана) и изменение (Page передана).
     Открытость окна ведёт вызывающий (Header или PageView).
 
-    Запрос к API (POST или PUT) выполняет сам диалог: при отказе окно остаётся открытым и
-    показывает понятный текст ошибки. Итоговую страницу отдаём параметром Saved, а окно
-    закрываем сами.
+    Запросы к API выполняет DashboardDataService: при отказе окно остаётся открытым и
+    показывает понятный текст ошибки. Состояние страницы после сохранения обновляет сервис,
+    а вызывающий по параметру Saved переходит на страницу (это нужно только для перехода).
 
     При создании путь генерируется из названия, пока его не ввели вручную. У основной страницы
     путь пустой и не меняется.
@@ -112,8 +111,11 @@
     [CascadingParameter]
     private DialogContainer Dialog { get; set; } = null!;
 
+    /// <summary>
+    /// Единственный владелец dashboard-данных: справочник страниц и сохранение страницы.
+    /// </summary>
     [CascadingParameter]
-    private DashboardPageModel PageModel { get; set; } = null!;
+    private DashboardDataService Data { get; set; } = null!;
 
     /// <summary>
     /// Страница для изменения или <c>null</c> при создании.
@@ -122,7 +124,8 @@
     public DashboardPage? Page { get; set; }
 
     /// <summary>
-    /// Уведомление о созданной или изменённой странице: вызывающий обновляет списки и переходит на неё.
+    /// Уведомление о созданной или изменённой странице: вызывающий переходит на неё.
+    /// Данные обновляет сервис, поэтому уведомление нужно только для перехода.
     /// </summary>
     [Parameter, EditorRequired]
     public EventCallback<DashboardPage> Saved { get; set; }
@@ -133,7 +136,7 @@
     private bool IsMainPage => Page is { Id: 1 };
 
     // Пути всех существующих страниц нужны диалогу для проверки уникальности пути.
-    private IEnumerable<string> ExistingPaths => PageModel.Pages.Select(x => x.Path);
+    private IEnumerable<string> ExistingPaths => Data.Pages.Select(x => x.Page.Path);
 
     protected override void OnInitialized()
     {
@@ -250,36 +253,20 @@
                 IconColor = iconColor
             };
 
-            if (IsCreate)
+            // Запросы выполняет сервис: он же обновляет данные, поэтому отдельное уведомление не нужно.
+            var error = IsCreate
+                ? await Data.CreatePageAsync(page)
+                : await Data.SavePageInfoAsync(page);
+
+            if (error is not null)
             {
-                Logger.LogDebug("Создание страницы dashboard {Title}.", page.Title);
-
-                var response = await PagesApi.CreatePage(page);
-                if (!response.IsSuccessStatusCode || response.Content is null)
-                {
-                    Logger.LogWarning("Создание страницы завершилось ошибкой API. Код: {StatusCode}.", (int?)response.StatusCode);
-                    _error = response.ErrorText();
-                    return;
-                }
-
-                Logger.LogInformation("Страница dashboard создана. Идентификатор: {PageId}.", response.Content.Id);
-                await Saved.InvokeAsync(response.Content);
+                _error = error;
+                return;
             }
-            else
-            {
-                Logger.LogDebug("Изменение страницы dashboard {PageId}.", page.Id);
 
-                var response = await PagesApi.SavePageInfo(page);
-                if (!response.IsSuccessStatusCode)
-                {
-                    Logger.LogWarning("Изменение страницы завершилось ошибкой API. Код: {StatusCode}.", (int?)response.StatusCode);
-                    _error = response.ErrorText();
-                    return;
-                }
-
-                Logger.LogInformation("Страница dashboard изменена. Идентификатор: {PageId}.", page.Id);
-                await Saved.InvokeAsync(page);
-            }
+            // Итоговую страницу берём из сервиса: при создании идентификатор знает только он.
+            var saved = IsCreate ? Data.GetPageByPath(path)?.Page : Data.GetPageById(page.Id)?.Page;
+            await Saved.InvokeAsync(saved ?? page);
 
             await Dialog.CloseAsync();
         }

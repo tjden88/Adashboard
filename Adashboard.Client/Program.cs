@@ -40,6 +40,13 @@ builder.Services.AddCascadingValue(sp => sp.GetRequiredService<AuthStateService>
 // через [CascadingParameter], а об изменениях подписчиков уведомляет источник каскада.
 builder.Services.AddScoped<AppStateService>();
 builder.Services.AddCascadingValue(sp => sp.GetRequiredService<AppStateService>().Source);
+
+// Данные dashboard — единственный владелец на клиенте: снапшот страниц с категориями и карточками,
+// загружаемый один раз при старте вкладки. Отдаём сервис как корневое каскадное значение:
+// компоненты получают его через [CascadingParameter], а об изменениях подписчиков уведомляет источник каскада.
+builder.Services.AddScoped<DashboardDataService>();
+builder.Services.AddCascadingValue(sp => sp.GetRequiredService<DashboardDataService>().Source);
+
 builder.Services.AddScoped<HealthCheckService>();
 
 builder.Services

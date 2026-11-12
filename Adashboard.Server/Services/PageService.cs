@@ -37,6 +37,36 @@ public sealed class PageService(DashboardDb db, ILogger<PageService> logger, Ima
     }
 
     /// <summary>
+    /// Загружает все страницы dashboard с категориями и карточками в порядке меню.
+    /// </summary>
+    public async Task<List<DashboardPageReadModel>> GetFullPagesAsync(CancellationToken cancellationToken = default)
+    {
+        logger.LogDebug("Начата загрузка всех страниц dashboard с категориями и карточками.");
+
+        // Один запрос вместо N+1: связанная загрузка со split query отдаёт страницы,
+        // их категории и карточки сразу. Порядок задаёт меню, внутри страницы — порядок
+        // категории и положение карточки.
+        var entities = await db.Pages
+            .AsNoTracking()
+            .AsSplitQuery()
+            .Include(x => x.Categories)
+            .ThenInclude(x => x.Cards)
+            .OrderBy(x => x.Order)
+            .ThenBy(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+        var pages = entities.Select(x => new DashboardPageReadModel
+        {
+            Page = x.Adapt<DashboardPage>(),
+            Categories = x.Categories.OrderBy(c => c.Order).Adapt<List<DashboardCategory>>(),
+            Cards = x.Categories.SelectMany(c => c.Cards).OrderBy(c => c.Position).Adapt<List<DashboardCard>>()
+        }).ToList();
+
+        logger.LogDebug("Загружено страниц dashboard с содержимым: {Count}.", pages.Count);
+        return pages;
+    }
+
+    /// <summary>
     /// Загружает страницу dashboard вместе с категориями и карточками.
     /// </summary>
     public async Task<OperationResult<DashboardPageReadModel>> GetPageAsync(int id, CancellationToken cancellationToken = default)
